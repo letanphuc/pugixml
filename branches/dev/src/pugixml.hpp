@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// Pug Improved XML Parser - Version 0.2
+// Pug Improved XML Parser - Version 0.3
 // --------------------------------------------------------
 // Copyright (C) 2006-2007, by Arseny Kapoulkine (arseny.kapoulkine@gmail.com)
 // This work is based on the pugxml parser, which is:
@@ -14,12 +14,18 @@
 #ifndef HEADER_PUGIXML_HPP
 #define HEADER_PUGIXML_HPP
 
-// Uncomment this to disable STL
-// #define PUGIXML_NO_STL
+#include "pugiconfig.hpp"
 
 #ifndef PUGIXML_NO_STL
 #	include <string>
 #	include <istream>
+#endif
+
+// No XPath without STL
+#ifdef PUGIXML_NO_STL
+#	ifndef PUGIXML_NO_XPATH
+#		define PUGIXML_NO_XPATH
+#	endif
 #endif
 
 #include <cstddef>
@@ -32,7 +38,7 @@ namespace pugi
 	/// See 'xml_node_struct::type'
 	enum xml_node_type
 	{
-		node_null,			///< An undifferentiated entity.
+		node_null,			///< Undifferentiated entity
 		node_document,		///< A document tree's absolute root.
 		node_element,		///< E.g. '<...>'
 		node_pcdata,		///< E.g. '>...<'
@@ -54,25 +60,56 @@ namespace pugi
 	const unsigned int parse_wnorm_attribute	= 0x00000080; ///< Normalize spaces in attributes (convert space-like characters to spaces + merge adjacent spaces + trim leading/trailing spaces)
 	const unsigned int parse_wconv_attribute	= 0x00000100; ///< Convert space-like characters to spaces in attributes (only if wnorm is not set)
 	const unsigned int parse_eol				= 0x00000200; ///< Perform EOL handling
-	const unsigned int parse_check_end_tags		= 0x00000400; ///< Check start and end tag names and return error if names mismatch
-	const unsigned int parse_match_end_tags		= 0x00000800; ///< Try to find corresponding start tag for an end tag
 	///< Set all flags, except parse_ws_pcdata, parse_trim_attribute, parse_pi and parse_comments
-	const unsigned int parse_default			= parse_cdata | parse_ext_pcdata | parse_escapes | parse_wconv_attribute | parse_eol | parse_check_end_tags;
+	const unsigned int parse_default			= parse_cdata | parse_ext_pcdata | parse_escapes | parse_wconv_attribute | parse_eol;
 	const unsigned int parse_noset				= 0x80000000; ///< Parse with flags in xml_parser
 
 	const unsigned int parse_w3c				= parse_pi | parse_comments | parse_cdata |
 												parse_escapes | parse_wconv_attribute |
-												parse_check_end_tags | parse_ws_pcdata | parse_eol;
+												parse_ws_pcdata | parse_eol;
 
 	/// Forward declarations
 	struct xml_attribute_struct;
 	struct xml_node_struct;
 
+	class xml_allocator;
+
 	class xml_node_iterator;
 	class xml_attribute_iterator;
 
 	class xml_tree_walker;
+	
+	class xml_node;
 
+	#ifndef PUGIXML_NO_XPATH
+	class xpath_node;
+	class xpath_node_set;
+	class xpath_ast_node;
+	class xpath_allocator;
+	
+	class xpath_query
+	{
+	private:
+		// Noncopyable semantics
+		xpath_query(const xpath_query&);
+		xpath_query& operator=(const xpath_query&);
+
+		xpath_allocator* m_alloc;
+		xpath_ast_node* m_root;
+
+		bool compile(const char* query);
+
+	public:
+		explicit xpath_query(const char* query);
+		~xpath_query();
+		
+		bool evaluate_boolean(const xml_node& n);
+		double evaluate_number(const xml_node& n);
+		std::string evaluate_string(const xml_node& n);
+		xpath_node_set evaluate_node_set(const xml_node& n);
+	};
+	#endif
+	
 	/// Provides a light-weight wrapper for manipulating xml_attribute_struct structures.
 	///	Note: xml_attribute does not create any memory for the attribute it wraps; 
 	///	it only wraps a pointer to an existing xml_attribute_struct.
@@ -82,13 +119,13 @@ namespace pugi
 		friend class xml_node;
 
 	private:
-		const xml_attribute_struct* _attr; ///< The internal attribute pointer.
+		xml_attribute_struct* _attr; ///< The internal attribute pointer.
 	
     	/// Safe bool type
-    	typedef const xml_attribute_struct* xml_attribute::*unspecified_bool_type;
+    	typedef xml_attribute_struct* xml_attribute::*unspecified_bool_type;
 
 		/// Initializing ctor
-		explicit xml_attribute(const xml_attribute_struct* attr);
+		explicit xml_attribute(xml_attribute_struct* attr);
 
 	public:
 		/// Default ctor
@@ -128,6 +165,28 @@ namespace pugi
 		/// \return Attribute value as bool, or false.
 		bool as_bool() const;
 
+		/// Document order or 0 if not set
+		unsigned int document_order() const;
+
+	public:
+		/// Set string value
+		xml_attribute& operator=(const char* rhs);
+	
+		/// Set int value
+		xml_attribute& operator=(int rhs);
+	
+		/// Set double value
+		xml_attribute& operator=(double rhs);
+		
+		/// Set bool value
+		xml_attribute& operator=(bool rhs);
+
+		/// Set attribute name
+		bool set_name(const char* rhs);
+		
+		/// Set attribute value
+		bool set_value(const char* rhs);
+
 	public:
 		/// True if internal pointer is valid
 		bool empty() const;
@@ -147,14 +206,17 @@ namespace pugi
 		friend class xml_parser;
 
 	private:
-		const xml_node_struct* _root; ///< Pointer to node root.
+		xml_node_struct* _root; ///< Pointer to node root.
 
     	/// Safe bool type
-    	typedef const xml_node_struct* xml_node::*unspecified_bool_type;
+    	typedef xml_node_struct* xml_node::*unspecified_bool_type;
 
 	private:
 		/// Node is tree root.
 		bool type_document() const;
+
+		/// Get allocator
+		xml_allocator& get_allocator() const;
 
 	public:
 		/// Default constructor.
@@ -163,7 +225,7 @@ namespace pugi
 		xml_node();
 
 		/// Construct, wrapping the given 'xml_node_struct' pointer.
-		explicit xml_node(const xml_node_struct* p);
+		explicit xml_node(xml_node_struct* p);
 
 	public:
 		/// Base iterator type (for child nodes). Same as 'child_iterator'.
@@ -270,6 +332,9 @@ namespace pugi
 		/// Access node's parent if any, else xml_node(NULL)
 		xml_node parent() const;
 
+		/// Access root of the tree this node belongs to.
+		xml_node root() const;
+
 		/// Return PCDATA/CDATA that is child of current node. If none, return empty string.
 		const char* child_value() const;
 
@@ -279,6 +344,19 @@ namespace pugi
 		/// Return PCDATA/CDATA that is child of specified child node. If none, return empty string.
 		/// Enable wildcard matching.
 		const char* child_value_w(const char* name) const;
+
+	public:	
+		/// Set node name (for PI/element nodes)
+		bool set_name(const char* rhs);
+		
+		/// Set node value (for PI/PCDATA/CDATA/comment nodes)
+		bool set_value(const char* rhs);
+
+		/// Add attribute with specified name (for element nodes)
+		xml_attribute append_attribute(const char* name);
+
+		/// Add node with specified type (for element nodes)
+		xml_node append_child(xml_node_type type = node_element);
 
 	public:
 		/// Access node's first attribute if any, else xml_attribute()
@@ -368,6 +446,34 @@ namespace pugi
 
 		/// Recursively traverse the tree.
 		bool traverse(xml_tree_walker& walker) const;
+	
+	#ifndef PUGIXML_NO_XPATH
+		/// Select single node by query
+		/// \param query - query string
+		/// \return Matching XPath node, or xpath_node() if not found
+		xpath_node select_single_node(const char* query) const;
+
+		/// Select single node by query
+		/// \param query - compiled query
+		/// \return Matching XPath node, or xpath_node() if not found
+		xpath_node select_single_node(xpath_query& query) const;
+
+		/// Select nodes by query
+		/// \param query - query string
+		/// \return Matching XPath nodes, or empty set if not found
+		xpath_node_set select_nodes(const char* query) const;
+
+		/// Select nodes by query
+		/// \param query - compiled query
+		/// \return Matching XPath nodes, or empty set if not found
+		xpath_node_set select_nodes(xpath_query& query) const;
+	#endif
+		
+		/// Document order or 0 if not set
+		unsigned int document_order() const;
+
+		/// Compute document order for the whole tree (valid only for node_document)
+		void precompute_document_order();
 	};
 
 	/// Child node iterator.
@@ -383,7 +489,7 @@ namespace pugi
 		xml_node _wrap;
 
 		/// Initializing ctor
-		explicit xml_node_iterator(const xml_node_struct* ref);
+		explicit xml_node_iterator(xml_node_struct* ref);
 	public:
 		/// Default ctor
 		xml_node_iterator();
@@ -392,7 +498,7 @@ namespace pugi
 		xml_node_iterator(const xml_node& node);
 
 		/// Initializing ctor (for past-the-end)
-		xml_node_iterator(const xml_node_struct* ref, const xml_node_struct* prev);
+		xml_node_iterator(xml_node_struct* ref, xml_node_struct* prev);
 
 		bool operator==(const xml_node_iterator& rhs) const;
 		bool operator!=(const xml_node_iterator& rhs) const;
@@ -420,7 +526,7 @@ namespace pugi
 		xml_attribute _wrap;
 
 		/// Initializing ctor
-		explicit xml_attribute_iterator(const xml_attribute_struct* ref);
+		explicit xml_attribute_iterator(xml_attribute_struct* ref);
 	public:
 		/// Default ctor
 		xml_attribute_iterator();
@@ -429,7 +535,7 @@ namespace pugi
 		xml_attribute_iterator(const xml_attribute& attr);
 
 		/// Initializing ctor (for past-the-end)
-		xml_attribute_iterator(const xml_attribute_struct* ref, const xml_attribute_struct* prev);
+		xml_attribute_iterator(xml_attribute_struct* ref, xml_attribute_struct* prev);
 
 		bool operator==(const xml_attribute_iterator& rhs) const;
 		bool operator!=(const xml_attribute_iterator& rhs) const;
@@ -555,6 +661,13 @@ namespace pugi
 		void parse(std::istream& stream, unsigned int optmsk = parse_noset);
 #endif
 
+		/// Parse the file
+		/// \param name - file name
+		/// \param optmsk - Options mask.
+		/// \return last position or NULL
+		/// \rem input string is zero-segmented
+		char* load(const char* name, unsigned int optmsk = parse_noset);
+
 		/// Parse the given XML string in-situ.
 		/// \param xmlstr - readwrite string with xml data
 		/// \param optmsk - Options mask.
@@ -570,6 +683,101 @@ namespace pugi
 		char* parse(const transfer_ownership_tag&, char* xmlstr, unsigned int optmsk = parse_noset);
 	};
 
+	/// XPath
+#ifndef PUGIXML_NO_XPATH
+	class xpath_exception: public std::exception
+	{
+	private:
+		const char* m_message;
+
+	public:
+		xpath_exception(const char* message);
+
+		virtual const char* what() const throw();
+	};
+	
+	class xpath_node
+	{
+	private:
+		xml_node m_node;
+		xml_attribute m_attribute;
+	
+    	/// Safe bool type
+    	typedef xml_node xpath_node::*unspecified_bool_type;
+
+	public:
+		xpath_node();
+		xpath_node(const xml_node& node);
+		xpath_node(const xml_attribute& attribute, const xml_node& parent);
+
+		xml_node node() const;
+		xml_attribute attribute() const;
+		xml_node parent() const;
+
+		operator unspecified_bool_type() const;
+		
+		bool operator==(const xpath_node& n) const;
+		bool operator!=(const xpath_node& n) const;
+	};
+
+	class xpath_node_set
+	{
+		friend class xpath_ast_node;
+		
+	public:
+		enum type_t
+		{
+			type_unsorted,
+			type_sorted,
+			type_sorted_reverse
+		};
+		
+		typedef xpath_node* iterator;
+		typedef const xpath_node* const_iterator;
+	
+	private:
+		type_t m_type;
+		
+		xpath_node m_storage;
+		
+		xpath_node* m_begin;
+		xpath_node* m_end;
+		xpath_node* m_eos;
+		
+		bool m_using_storage;
+		
+	public:
+		xpath_node_set();
+		~xpath_node_set();
+		
+		xpath_node_set(const xpath_node_set& ns);
+		xpath_node_set& operator=(const xpath_node_set& ns);
+		
+		type_t type() const;
+		
+		size_t size() const;
+		
+		iterator begin();
+		const_iterator begin() const;
+		
+		iterator end();
+		const_iterator end() const;
+		
+		void sort(bool reverse = false);
+		void remove_duplicates();
+		
+		xpath_node first() const;
+		
+		bool empty() const;
+		
+		void push_back(const xpath_node& n);
+		
+		template <typename Iterator> void append(Iterator begin, Iterator end);
+		
+		void truncate(iterator it);
+	};
+#endif
+
 	/// Utility functions for xml
 	
 #ifndef PUGIXML_NO_STL
@@ -579,6 +787,8 @@ namespace pugi
 	/// Convert utf8 to utf16
 	std::wstring utf16(const char* str);
 #endif
+	
+	size_t utf8_length(const char* s);
 }
 
 /// Inline implementation

@@ -56,14 +56,15 @@ times, <i>Xerces-DOM</i> - ~17.6 times <a href="#annot-1"><sup>1</sup></a></li>
 <li>more or less standard-conformant (it will parse any standard-compliant file correctly in w3c-compliance
 mode, with the exception of DTD related issues and XML namespaces)</li>
 <li>pretty much error-ignorant (it will not choke on something like &lt;text&gt;You &amp; Me&lt;/text&gt;,
-like <i>expat</i> will; it will try to recover the state even if meeting an error (like finding matching
-tags for closing ones); it will parse files with data in wrong encoding; and so on)</li>
+like <i>expat</i> will; it will try to recover the state even if meeting an error; it will parse files
+with data in wrong encoding; and so on)</li>
 <li>clean interface (a heavily refactored pugxml's one)</li>
 <li>more or less Unicode-aware (actually, it assumes UTF-8 encoding of the input data, though
 it will readily work with ANSI - no UTF-16 for now (see <a href="#Future_work">Future work</a>), with
 helper conversion functions (UTF-8 <-> UTF-16/32 (whatever is the default for std::wstring & wchar_t))</li>
-<li>fully standard compliant code (approved by <a href="http://www.comeaucomputing.com/tryitout/">Comeau</a>
-strict mode), multiplatform (tested on win32 only ^_^)</li>
+<li>fully standard compliant C++ code (approved by <a href="http://www.comeaucomputing.com/tryitout/">Comeau</a>
+strict mode); the library is multiplatform (see <a href="#Doc_Introduction">documentation introduction</a> for platforms
+list)</li>
 <li>high flexibility. You can control many aspects of file parsing and DOM tree building via parsing
 options.
 </ul>
@@ -156,8 +157,14 @@ pugi::xml_node</b>) and use plain names. All classes have the <b>xml_</b> prefix
 
 <p>By default it's supposed that you compile the source file with your project (add it into your
 project, or add relevant entry in your Makefile, or do whatever you need to do with your compilation
-environment). The library is written in standard-conformant C++ and was tested on win32 platform
-(MSVC 7.1 (2003), MSVC 8.0 (2005)).</p>
+environment). The library is written in standard-conformant C++ and was tested on following platforms:</p>
+
+<p>
+<ul>
+<li>Windows (MSVC 7.1 (2003), MSVC 8.0 (2005))
+<li>Sony Playstation Portable (GCC 3.4.2)
+</ul>
+</p>
 
 <a name="Doc_Parser">
 <h3>xml_parser class</h3>
@@ -296,22 +303,7 @@ converting any standalone 0x0d to 0x0a).
 <br>In W3C mode: on</li>
 </ul>
 
-<p>Finally, there are two more flags, that indicate closing tag parsing. When <i>pugixml</i> meets a
-close tags, there are three ways:
-<ul>
-<li>check that the tag name matches the opening tag, return an error if it does not. This is a
-standard-compliant way, is controlled by <b>parse_check_end_tags</b> flag, which is on in W3C mode</li>
-<li>try to find the corresponding tag name (so that <b>&lt;foo&gt; &lt;bar&gt; &lt;/foo&gt;</b> will be parsed
-correctly). This is controlled by <b>parse_match_end_tags</b>, which is on by default</li>
-<li>just treat the tag as a closing tag for the node (so that <b>&lt;foo&gt; ... &lt;/bar&gt;</b> will
-be parsed as <b>&lt;foo&gt; ... &lt;/foo&gt;</b>). This is the fastest way, and this is what <i>pugxml</i>
-is doing, but it can corrupt your DOM tree. This way is chosen if both <b>parse_check_end_tags</b> and
-<b>parse_match_end_tags</b> are off.
-</ul>
-Note, that these 2 flags are mutually exclusive.
-</p>
-
-<p>Did I say finally? Ok, so <b>finally</b> there are some helper flags, or better groups of flags.
+<p>Finally there are some helper flags, or better groups of flags.
 These are:
 <ul>
 <li><b>parse_minimal</b> - no flag is set (this also means the fastest parsing)</li>
@@ -694,7 +686,9 @@ node), and as_bool() will again return false, so this call sequence is perfectly
 
 <p>As parsing is done in-situ, the XML data is to persist during the lifetime of <b>xml_parser</b>. If
 the parsing is called via a function of <b>xml_parser</b>, that accepts <b>char*</b>, you have to ensure
-yourself, that the string will outlive the <b>xml_parser</b> object.</p>
+yourself, that the string will outlive the <b>xml_parser</b> object; or you can start parsing in ownership
+transfer mode (see <b>xml_parser</b> documentation) - then <i>pugixml</i> will manage the lifetime of
+your data for you.</p>
 
 <p>The memory for nodes and attributes is allocated in blocks of data (the blocks form a linked list;
 the default size of the block is 32 kb, though you can change it via changing a <b>memory_block_size</b>
@@ -920,7 +914,6 @@ entity reference expansion)
 <li>It does not reject comments with -- inside
 <li>It does not reject PI with the names of 'xml' and alike; in fact, it parses prolog as a PI, which
 is not conformant
-<li>All characters from #x1 to #x20 are considered to be whitespaces
 <li>And some other things that I forgot to mention
 </ul>
 

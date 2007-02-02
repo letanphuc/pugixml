@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// Pug Improved XML Parser - Version 0.2
+// Pug Improved XML Parser - Version 0.3
 // --------------------------------------------------------
 // Copyright (C) 2006-2007, by Arseny Kapoulkine (arseny.kapoulkine@gmail.com)
 // This work is based on the pugxml parser, which is:
@@ -19,46 +19,10 @@
 
 namespace pugi
 {
-	/// A 'name=value' XML attribute structure.
-	struct xml_attribute_struct
-	{
-		/// Default ctor
-		xml_attribute_struct();
-
-		char*		name;			///< Pointer to attribute name.
-		char*		value;			///< Pointer to attribute value.
-
-		xml_attribute_struct* prev_attribute;	///< Previous attribute
-		xml_attribute_struct* next_attribute;	///< Next attribute
-	};
-
-	/// An XML document tree node.
-	struct xml_node_struct
-	{
-		/// Default ctor
-		/// \param type - node type
-		xml_node_struct(xml_node_type type = node_element);
-
-		xml_node_type			type;					///< Node type; see xml_node_type.
-		xml_node_struct*		parent;					///< Pointer to parent
-
-		char*					name;					///< Pointer to element name.
-		char*					value;					///< Pointer to any associated string data.
-
-		xml_node_struct*		first_child;			///< First child
-		xml_node_struct*		last_child;				///< Last child
-		
-		xml_node_struct*		prev_sibling;			///< Left brother
-		xml_node_struct*		next_sibling;			///< Right brother
-		
-		xml_attribute_struct*	first_attribute;		///< First attribute
-		xml_attribute_struct*	last_attribute;			///< Last attribute
-	};
-
 	class xml_allocator
 	{
 	public:
-		xml_allocator(xml_memory_block* root): _root(root), _count(0)
+		xml_allocator(xml_memory_block* root): _root(root)
 		{
 		}
 
@@ -76,7 +40,6 @@ namespace pugi
 
 	private:
 		xml_memory_block* _root;
-		unsigned int _count;
 
 		void* memalloc(size_t size)
 		{
@@ -93,23 +56,124 @@ namespace pugi
 
 				_root->size = size;
 
-				++_count;
-
 				return _root->data;
 			}
 		}
+	};
+
+	/// A 'name=value' XML attribute structure.
+	struct xml_attribute_struct
+	{
+		/// Default ctor
+		xml_attribute_struct(): name_insitu(true), value_insitu(true), document_order(0), name(0), value(0), prev_attribute(0), next_attribute(0)
+		{
+		}
+
+		void free()
+		{
+			if (!name_insitu) delete[] name;
+			if (!value_insitu) delete[] value;
+		}
+	
+		bool		name_insitu : 1;
+		bool		value_insitu : 1;
+		unsigned int document_order : 30; ///< Document order value
+
+		char*		name;			///< Pointer to attribute name.
+		char*		value;			///< Pointer to attribute value.
+
+		xml_attribute_struct* prev_attribute;	///< Previous attribute
+		xml_attribute_struct* next_attribute;	///< Next attribute
+	};
+
+	/// An XML document tree node.
+	struct xml_node_struct
+	{
+		/// Default ctor
+		/// \param type - node type
+		xml_node_struct(xml_node_type type = node_element): type(type), name_insitu(true), value_insitu(true), document_order(0), parent(0), name(0), value(0), first_child(0), last_child(0), prev_sibling(0), next_sibling(0), first_attribute(0), last_attribute(0)
+		{
+		}
+
+		void free()
+		{
+			if (!name_insitu) delete[] name;
+			if (!value_insitu) delete[] value;
+
+			for (xml_node_struct* cur = first_child; cur; cur = cur->next_sibling)
+				cur->free();
+			
+			for (xml_attribute_struct* cur = first_attribute; cur; cur = cur->next_attribute)
+				cur->free();
+		}
+
+		xml_node_struct* append_node(xml_allocator& alloc, xml_node_type type = node_element)
+		{
+			xml_node_struct* child = alloc.allocate<xml_node_struct>(type); // Allocate a new child.
+			child->parent = this; // Set it's parent pointer.
+			
+			if (last_child)
+			{
+				last_child->next_sibling = child;
+				child->prev_sibling = last_child;
+				last_child = child;
+			}
+			else first_child = last_child = child;
+			
+			return child;
+		}
+
+		xml_attribute_struct* append_attribute(xml_allocator& alloc)
+		{
+			xml_attribute_struct* a = alloc.allocate<xml_attribute_struct>();
+
+			if (last_attribute)
+			{
+				last_attribute->next_attribute = a;
+				a->prev_attribute = last_attribute;
+				last_attribute = a;
+			}
+			else first_attribute = last_attribute = a;
+			
+			return a;
+		}
+
+		xml_node_type			type : 3;				///< Node type; see xml_node_type.
+		bool					name_insitu : 1;
+		bool					value_insitu : 1;
+		unsigned int			document_order : 27;	///< Document order value
+
+		xml_node_struct*		parent;					///< Pointer to parent
+
+		char*					name;					///< Pointer to element name.
+		char*					value;					///< Pointer to any associated string data.
+
+		xml_node_struct*		first_child;			///< First child
+		xml_node_struct*		last_child;				///< Last child
+		
+		xml_node_struct*		prev_sibling;			///< Left brother
+		xml_node_struct*		next_sibling;			///< Right brother
+		
+		xml_attribute_struct*	first_attribute;		///< First attribute
+		xml_attribute_struct*	last_attribute;			///< Last attribute
+	};
+
+	struct xml_document_struct: public xml_node_struct
+	{
+		xml_document_struct(): xml_node_struct(node_document), allocator(0)
+		{
+		}
+
+		xml_allocator allocator;
 	};
 }
 
 namespace
 {	
-	namespace utf8
-	{
-		const unsigned char BYTE_MASK = 0xBF;
-		const unsigned char BYTE_MARK = 0x80;
-		const unsigned char BYTE_MASK_READ = 0x3F;
-		const unsigned char FIRST_BYTE_MARK[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
-	}
+	const unsigned char UTF8_BYTE_MASK = 0xBF;
+	const unsigned char UTF8_BYTE_MARK = 0x80;
+	const unsigned char UTF8_BYTE_MASK_READ = 0x3F;
+	const unsigned char UTF8_FIRST_BYTE_MARK[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
 
 	enum chartype
 	{
@@ -120,7 +184,6 @@ namespace
 		ct_parse_cdata = 16,	// \0, ], >, \r
 		ct_parse_comment = 32,	// \0, -, >, \r
 		ct_symbol = 64			// Any symbol > 127, a-z, A-Z, 0-9, _, :, -, .
-		
 	};
 
 	static unsigned char chartype_table[256] =
@@ -148,6 +211,40 @@ namespace
 	{
 		return !!(chartype_table[static_cast<unsigned char>(c)] & ct);
 	}
+
+	bool strcpy_insitu(char*& dest, bool& insitu, const char* source)
+	{
+		size_t source_size = strlen(source);
+
+		if (dest && strlen(dest) >= source_size)
+		{
+			strcpy(dest, source);
+			
+			return true;
+		}
+		else
+		{
+			char* buf;
+
+			try
+			{
+				buf = new char[source_size + 1];
+			}
+			catch (const std::bad_alloc&)
+			{
+				return false;
+			}
+
+			strcpy(buf, source);
+
+			if (!insitu) delete[] dest;
+			
+			dest = buf;
+			insitu = false;
+
+			return true;
+		}
+	}
 }
 
 namespace pugi
@@ -172,7 +269,7 @@ namespace pugi
 	// \param s - pointer to string
 	// \param ch - char
 	// \return position after the last char
-	// \rem yes, this is trom TinyXML. How would you write it the other way, without switch trick?..
+	// \rem yes, this is from TinyXML. How would you write it the other way, without switch trick?..
 	static char* strutf16_utf8(char* s, unsigned int ch)
 	{
 		unsigned int length;
@@ -186,19 +283,19 @@ namespace pugi
 		s += length;
 
 		// Scary scary fall throughs.
-		switch (length) 
+		switch (length)
 		{
 			case 4:
-				*--s = (char)((ch | utf8::BYTE_MARK) & utf8::BYTE_MASK); 
+				*--s = (char)((ch | UTF8_BYTE_MARK) & UTF8_BYTE_MASK); 
 				ch >>= 6;
 			case 3:
-				*--s = (char)((ch | utf8::BYTE_MARK) & utf8::BYTE_MASK); 
+				*--s = (char)((ch | UTF8_BYTE_MARK) & UTF8_BYTE_MASK); 
 				ch >>= 6;
 			case 2:
-				*--s = (char)((ch | utf8::BYTE_MARK) & utf8::BYTE_MASK); 
+				*--s = (char)((ch | UTF8_BYTE_MARK) & UTF8_BYTE_MASK); 
 				ch >>= 6;
 			case 1:
-				*--s = (char)(ch | utf8::FIRST_BYTE_MARK[length]);
+				*--s = (char)(ch | UTF8_FIRST_BYTE_MARK[length]);
 		}
 		
 		return s + length;
@@ -229,7 +326,7 @@ namespace pugi
 
 		const unsigned char* str = reinterpret_cast<const unsigned char*>(s);
 
-		if (*str < utf8::BYTE_MARK)
+		if (*str < UTF8_BYTE_MARK)
 		{
 			ch = *str;
 			return s + 1;
@@ -249,23 +346,23 @@ namespace pugi
 			return s + 1;
 		}
 
-		ch = (*str++ & ~utf8::FIRST_BYTE_MARK[length]);
+		ch = (*str++ & ~UTF8_FIRST_BYTE_MARK[length]);
 	
 		// Scary scary fall throughs.
 		switch (length) 
 		{
 			case 5:
 				ch <<= 6;
-				ch += (*str++ & utf8::BYTE_MASK_READ);
+				ch += (*str++ & UTF8_BYTE_MASK_READ);
 			case 4:
 				ch <<= 6;
-				ch += (*str++ & utf8::BYTE_MASK_READ);
+				ch += (*str++ & UTF8_BYTE_MASK_READ);
 			case 3:
 				ch <<= 6;
-				ch += (*str++ & utf8::BYTE_MASK_READ);
+				ch += (*str++ & UTF8_BYTE_MASK_READ);
 			case 2:
 				ch <<= 6;
-				ch += (*str++ & utf8::BYTE_MASK_READ);
+				ch += (*str++ & UTF8_BYTE_MASK_READ);
 		}
 		
 		return reinterpret_cast<const char*>(str);
@@ -528,7 +625,7 @@ namespace pugi
 				return opt_eol ? strconv_pcdata<false, true>(s) : strconv_pcdata<false, false>(s);
 		}
 
-		template <bool opt_escape, bool opt_wnorm, bool opt_wconv, bool opt_eol> static char* strconv_attr(char* s, char end_quote)
+		template <bool opt_escape, bool opt_wnorm, bool opt_wconv, bool opt_eol> static char* strconv_attribute(char* s, char end_quote)
 		{
 			if (!*s) return 0;
 			
@@ -606,7 +703,7 @@ namespace pugi
 			}
 		}
 	
-		static void strconv_attr_setup(char* (*&func)(char*, char), unsigned int opt_escape, unsigned int opt_wnorm, unsigned int opt_wconv, unsigned int opt_eol)
+		static void strconv_attribute_setup(char* (*&func)(char*, char), unsigned int opt_escape, unsigned int opt_wnorm, unsigned int opt_wconv, unsigned int opt_eol)
 		{
 			if (opt_eol)
 			{
@@ -614,26 +711,26 @@ namespace pugi
 				{
 					if (opt_escape)
 					{
-						if (opt_wnorm) func = &strconv_attr<true, true, true, true>;
-						else func = &strconv_attr<true, false, true, true>;
+						if (opt_wnorm) func = &strconv_attribute<true, true, true, true>;
+						else func = &strconv_attribute<true, false, true, true>;
 					}
 					else
 					{
-						if (opt_wnorm) func = &strconv_attr<false, true, true, true>;
-						else func = &strconv_attr<false, false, true, true>;
+						if (opt_wnorm) func = &strconv_attribute<false, true, true, true>;
+						else func = &strconv_attribute<false, false, true, true>;
 					}
 				}
 				else
 				{
 					if (opt_escape)
 					{
-						if (opt_wnorm) func = &strconv_attr<true, true, false, true>;
-						else func = &strconv_attr<true, false, false, true>;
+						if (opt_wnorm) func = &strconv_attribute<true, true, false, true>;
+						else func = &strconv_attribute<true, false, false, true>;
 					}
 					else
 					{
-						if (opt_wnorm) func = &strconv_attr<false, true, false, true>;
-						else func = &strconv_attr<false, false, false, true>;
+						if (opt_wnorm) func = &strconv_attribute<false, true, false, true>;
+						else func = &strconv_attribute<false, false, false, true>;
 					}
 				}
 			}
@@ -643,74 +740,35 @@ namespace pugi
 				{
 					if (opt_escape)
 					{
-						if (opt_wnorm) func = &strconv_attr<true, true, true, false>;
-						else func = &strconv_attr<true, false, true, false>;
+						if (opt_wnorm) func = &strconv_attribute<true, true, true, false>;
+						else func = &strconv_attribute<true, false, true, false>;
 					}
 					else
 					{
-						if (opt_wnorm) func = &strconv_attr<false, true, true, false>;
-						else func = &strconv_attr<false, false, true, false>;
+						if (opt_wnorm) func = &strconv_attribute<false, true, true, false>;
+						else func = &strconv_attribute<false, false, true, false>;
 					}
 				}
 				else
 				{
 					if (opt_escape)
 					{
-						if (opt_wnorm) func = &strconv_attr<true, true, false, false>;
-						else func = &strconv_attr<true, false, false, false>;
+						if (opt_wnorm) func = &strconv_attribute<true, true, false, false>;
+						else func = &strconv_attribute<true, false, false, false>;
 					}
 					else
 					{
-						if (opt_wnorm) func = &strconv_attr<false, true, false, false>;
-						else func = &strconv_attr<false, false, false, false>;
+						if (opt_wnorm) func = &strconv_attribute<false, true, false, false>;
+						else func = &strconv_attribute<false, false, false, false>;
 					}
 				}
 			}
-		}
-
-		// Allocate & append a new xml_node_struct onto the given parent.
-		// \param parent - pointer to parent node.
-		// \param type - desired node type.
-		// \return pointer to the new node
-		xml_node_struct* append_node(xml_node_struct* parent, xml_node_type type = node_element)
-		{
-			if(!parent) return 0; // Must have a parent.
-
-			xml_node_struct* child = alloc.allocate<xml_node_struct>(type); // Allocate a new child.
-			child->parent = parent; // Set it's parent pointer.
-			if (parent->last_child)
-			{
-				parent->last_child->next_sibling = child;
-				child->prev_sibling = parent->last_child;
-				parent->last_child = child;
-			}
-			else parent->first_child = parent->last_child = child;
-			return child;
-		}
-
-		// Allocate & append a new attribute to the given xml_node_struct.
-		// \param node - pointer to parent node.
-		// \return pointer to appended xml_attribute_struct.
-		xml_attribute_struct* append_attribute(xml_node_struct* node)
-		{
-			if(!node) return 0;
-			xml_attribute_struct* a = alloc.allocate<xml_attribute_struct>();
-
-			if (node->last_attribute)
-			{
-				node->last_attribute->next_attribute = a;
-				a->prev_attribute = node->last_attribute;
-				node->last_attribute = a;
-			}
-			else node->first_attribute = node->last_attribute = a;
-			
-			return a;
 		}
 		
 		// Parser utilities.
 		#define SKIPWS()			{ while(is_chartype(*s, ct_space)) ++s; if(*s==0) return s; }
 		#define OPTSET(OPT)			( optmsk & OPT )
-		#define PUSHNODE(TYPE)		{ cursor = append_node(cursor,TYPE); }
+		#define PUSHNODE(TYPE)		{ cursor = cursor->append_node(alloc,TYPE); }
 		#define POPNODE()			{ cursor = cursor->parent; }
 		#define SCANFOR(X)			{ while(*s!=0 && !(X)) ++s; if(*s==0) return s; }
 		#define SCANWHILE(X)		{ while((X)) ++s; if(*s==0) return s; }
@@ -728,63 +786,71 @@ namespace pugi
 		// \param xmldoc - pointer to root.
 		// \param optmsk - parse options mask.
 		// \return last string position or NULL.
-		char* parse(register char* s,xml_node_struct* xmldoc,unsigned int optmsk = parse_default)
+		char* parse(char* s, xml_node_struct* xmldoc, unsigned int optmsk = parse_default)
 		{
-			if(!s || !xmldoc) return s;
+			if (!s || !xmldoc) return s;
 
 			char* (*strconv_attribute)(char*, char);
 
-			strconv_attr_setup(strconv_attribute, OPTSET(parse_escapes), OPTSET(parse_wnorm_attribute), OPTSET(parse_wconv_attribute), OPTSET(parse_eol));
+			strconv_attribute_setup(strconv_attribute, OPTSET(parse_escapes), OPTSET(parse_wnorm_attribute), OPTSET(parse_wconv_attribute), OPTSET(parse_eol));
 
 			char ch = 0; // Current char, in cases where we must null-terminate before we test.
 			xml_node_struct* cursor = xmldoc; // Tree node cursor.
 			char* mark = s; // Marked string position for temporary look-ahead.
-			while(*s!=0)
+			while (*s!=0)
 			{
-			LOC_SEARCH: // Obliviously search for next element.
-				SCANFOR(*s == '<'); // Find the next '<'.
-				if(*s == '<')
+				if (*s == '<')
 				{
 					++s;
-				LOC_CLASSIFY: // What kind of element?
-					if(*s == '?') // '<?...'
+
+				LOC_TAG:
+					if (*s == '?') // '<?...'
 					{
 						++s;
-						if(is_chartype(*s, ct_symbol) && OPTSET(parse_pi))
+
+						if (is_chartype(*s, ct_symbol) && OPTSET(parse_pi))
 						{
 							mark = s;
 							SCANWHILE(is_chartype(*s, ct_symbol)); // Read PI target
 							ENDSEG();
 							
-							PUSHNODE(node_pi); // Append a new node on the tree.
-
-							cursor->name = mark;
-
-							if (is_chartype(ch, ct_space))
+							// stricmp / strcasecmp is not portable
+							if ((mark[0] == 'x' || mark[0] == 'X') && (mark[1] == 'm' || mark[1] == 'M')
+								&& (mark[2] == 'l' || mark[2] == 'L') && mark[3] == 0)
 							{
-								SKIPWS();
-
-								mark = s;
+								SCANFOR(*s == '?' && *(s+1) == '>'); // Look for '?>'.
+								s += 2;
 							}
-							else mark = 0;
+							else
+							{
+								PUSHNODE(node_pi); // Append a new node on the tree.
 
-							SCANFOR(*s == '?' && *(s+1) == '>'); // Look for '?>'.
-							ENDSEG();
+								cursor->name = mark;
 
-							cursor->value = mark;
+								if (is_chartype(ch, ct_space))
+								{
+									SKIPWS();
+	
+									mark = s;
+								}
+								else mark = 0;
 
-							POPNODE();
+								SCANFOR(*s == '?' && *(s+1) == '>'); // Look for '?>'.
+								ENDSEG();
+								++s; // Step over >
 
-							goto LOC_LEAVE;
+								cursor->value = mark;
+
+								POPNODE();
+							}
 						}
 						else // Bad PI or parse_pi not set.
 						{
 							SCANFOR(*s == '?' && *(s+1) == '>'); // Look for '?>'.
-							++s;
-							goto LOC_LEAVE;
+							s += 2;
 						}
 					}
-					else if(*s == '!') // '<!...'
+					else if (*s == '!') // '<!...'
 					{
 						++s;
 						if(*s == '-') // '<!-...'
@@ -814,15 +880,13 @@ namespace pugi
 									if (OPTSET(parse_comments))
 										*s = 0; // Zero-terminate this segment at the first terminating '-'.
 									
-									s += 2; // Step over the '\0-'.
+									s += 3; // Step over the '\0->'.
 								}
 								
 								if (OPTSET(parse_comments))
 								{
 									POPNODE(); // Pop since this is a standalone.
 								}
-								
-								goto LOC_LEAVE; // Look for any following PCDATA.
 							}
 						}
 						else if(*s == '[')
@@ -857,17 +921,17 @@ namespace pugi
 									SCANFOR(*s == ']' && *(s+1) == ']' && *(s+2) == '>');
 									++s;
 								}
-								++s; // Step over the last ']'.
-								goto LOC_LEAVE; // Look for any following PCDATA.
+
+								s += 2; // Step over the last ']>'.
 							}
-							continue; // Probably a corrupted CDATA section, so just eat it.
+							else return 0;
 						}
-						else if(*s=='D' && *++s=='O' && *++s=='C' && *++s=='T' && *++s=='Y' && *++s=='P' && *++s=='E')
+						else if (*s=='D' && *++s=='O' && *++s=='C' && *++s=='T' && *++s=='Y' && *++s=='P' && *++s=='E')
 						{
 							++s;
 							SKIPWS(); // Eat any whitespace.
 						LOC_DOCTYPE:
-							SCANWHILE(*s == '\'' || *s == '"' || *s == '[' || *s == '>');
+							SCANFOR(*s == '\'' || *s == '"' || *s == '[' || *s == '>');
 							if(*s == '\'' || *s == '"') // '...SYSTEM "..."
 							{
 								ch = *s++;
@@ -886,195 +950,143 @@ namespace pugi
 									if(bd == 0) break;
 									++s;
 								}
-								// Note: 's' now points to end of DTD, i.e.: ']'.
-								SCANFOR(*s == '>');
-								continue;
 							}
-							// Fall-through
-							continue;
+							
+							SCANFOR(*s == '>');
+							++s;
 						}
+						else return 0;
 					}
-					else if(is_chartype(*s, ct_symbol)) // '<#...'
+					else if (is_chartype(*s, ct_symbol)) // '<#...'
 					{
-						cursor = append_node(cursor); // Append a new node to the tree.
+						cursor = cursor->append_node(alloc); // Append a new node to the tree.
 
 						cursor->name = s;
 						SCANWHILE(is_chartype(*s, ct_symbol)); // Scan for a terminator.
 						ENDSEG(); // Save char in 'ch', terminate & step over.
-						if (*s!=0 && ch == '/') // '</...'
+
+						if (*s!=0 && ch == '/') // '<#.../'
 						{
-							SCANFOR(*s == '>'); // Scan for '>'
+							SKIPWS();
+							if (*s != '>') return s;
+							
 							POPNODE(); // Pop.
-							goto LOC_LEAVE;
-						}
-						else if(*s!=0 && !is_chartype(ch, ct_space))
-						{
-							if (ch != '>') SCANWHILE(*s != '>');
-							if (!*s) return s;
-							goto LOC_PCDATA; // No attributes, so scan for PCDATA.
-						}
-						else if(*s!=0 && is_chartype(ch, ct_space))
-						{
-							SKIPWS(); // Eat any whitespace.
-						LOC_ATTRIBUTE:
-							if(is_chartype(*s, ct_symbol)) // <... #...
-							{
-								xml_attribute_struct* a = append_attribute(cursor); // Make space for this attribute.
-								a->name = s; // Save the offset.
-								SCANWHILE(is_chartype(*s, ct_symbol)); // Scan for a terminator.
-								ENDSEG(); // Save char in 'ch', terminate & step over.
-								if(*s!=0 && is_chartype(ch, ct_space)) SKIPWS(); // Eat any whitespace.
-								if(*s!=0 && (ch == '=' || *s == '=')) // '<... #=...'
-								{
-									if(*s == '=') ++s;
-									SKIPWS(); // Eat any whitespace.
-									if(*s == '\'' || *s == '"') // '<... #="...'
-									{
-										ch = *s; // Save quote char to avoid breaking on "''" -or- '""'.
-										++s; // Step over the quote.
-										a->value = s; // Save the offset.
 
-										s = strconv_attribute(s, ch);
-										
-										if (!s) return s;
-
-										if(*s == '>')
-										{
-											++s;
-											goto LOC_PCDATA;
-										}
-										else if(*s == '/')
-										{
-											++s;
-											POPNODE();
-											SKIPWS(); // Eat any whitespace.
-											goto LOC_LEAVE;
-										}
-										else if(is_chartype(*s, ct_space)) // This may indicate a following attribute.
-										{
-											SKIPWS(); // Eat any whitespace.
-											goto LOC_ATTRIBUTE; // Go scan for additional attributes.
-										}
-									}
-								}
-								goto LOC_ATTRIBUTE;
-							}
-
-							SCANWHILE(*s != '>' && *s != '/');
-						}
-					LOC_LEAVE:
-						if(*s == '>') // '...>'
-						{
-							++s; // Step over the '>'.
-						LOC_PCDATA: // '>...<'
-							mark = s; // Save this offset while searching for a terminator.
-							SKIPWS(); // Eat whitespace if no genuine PCDATA here.
-							// We hit a '<...', with only whitespace, so don't bother storing anything.
- 							if((mark == s || !OPTSET(parse_ws_pcdata)) && *s == '<')
-							{
-								if(*(s+1) == '/') // '</...'
-								{
-								    ++s;
-									goto LOC_CLOSE;
-								}
-								else goto LOC_SEARCH; // Expect a new element enter, so go scan for it.
-							}
-							
-							s = mark;
-							
-							bool preserve = OPTSET(parse_ext_pcdata) || cursor->type != node_document;
-
-							if (preserve)
-							{
-								PUSHNODE(node_pcdata); // Append a new node on the tree.
-								cursor->value = s; // Save the offset.
-
-								s = strconv_pcdata(s, OPTSET(parse_escapes), OPTSET(parse_eol));
-								
-								if (!s) return s;
-								
-								POPNODE(); // Pop since this is a standalone.
-							}
-							else
-							{
-								SCANFOR(*s == '<'); // '...<'
-							}
-
-							// We're after '<...', otherwise we would not get here
-							if(*s == '/') goto LOC_CLOSE;
-							else if(*s == '!') goto LOC_CLASSIFY; // We hit a '<!...'. We must test this here if we want comments intermixed w/PCDATA.
-							else if(*s) goto LOC_CLASSIFY;
-							else return s;
-						}
-						// Fall-through A.
-						else if(*s == '/') // '.../'
-						{
 							++s;
-							if(*s == '>') // '.../>'
-							{
-								POPNODE(); // Pop.
-								goto LOC_LEAVE;
-							}
 						}
-					}
-					// Fall-through B.
-					else if(*s == '/') // '.../'
-					{
-					LOC_CLOSE:
-						++s;
-						
-						if (OPTSET(parse_match_end_tags))
+						else if (*s!=0 && ch == '>')
 						{
-							while (cursor && cursor->type != node_document)
-							{
-								char* tagname = s;
-	
-								// is it the matching tag?
-								char* name = cursor->name;
-								
-								if (name)
+							// end of tag
+						}
+						else if (*s!=0 && is_chartype(ch, ct_space))
+						{
+						    while (*s)
+						    {
+								SKIPWS(); // Eat any whitespace.
+						
+								if (is_chartype(*s, ct_symbol)) // <... #...
 								{
-									while (*tagname && is_chartype(*tagname, ct_symbol))
-									{
-										if (*tagname++ != *name++) goto TAG_NEXTMATCH;
-									}
+									xml_attribute_struct* a = cursor->append_attribute(alloc); // Make space for this attribute.
+									a->name = s; // Save the offset.
+									SCANWHILE(is_chartype(*s, ct_symbol)); // Scan for a terminator.
+									ENDSEG(); // Save char in 'ch', terminate & step over.
+									if(*s!=0 && is_chartype(ch, ct_space)) SKIPWS(); // Eat any whitespace.
 									
-									if (!*name)
+									if(*s!=0 && (ch == '=' || *s == '=')) // '<... #=...'
 									{
-										// we've found matching tag
-										POPNODE();
-										s = tagname;
-										break;
+										if(*s == '=') ++s;
+										SKIPWS(); // Eat any whitespace.
+										if(*s == '\'' || *s == '"') // '<... #="...'
+										{
+											ch = *s; // Save quote char to avoid breaking on "''" -or- '""'.
+											++s; // Step over the quote.
+											a->value = s; // Save the offset.
+
+											s = strconv_attribute(s, ch);
+										
+											if (!s) return s;
+										}
+										else return s;
 									}
 								}
+								else if (*s == '/')
+								{
+									++s;
 
-							TAG_NEXTMATCH:
-								POPNODE();
-							}
-						}
-						else if (OPTSET(parse_check_end_tags))
-						{
-							char* name = cursor->name;
-							if (!name) return s;
-						
-							while (*s && is_chartype(*s, ct_symbol))
-							{
-								if (*s++ != *name++) return s;
-							}
-							if (*name) return s;
+									SKIPWS();
+									if (*s != '>') return s;
 							
-							POPNODE(); // Pop.
+									POPNODE(); // Pop.
+
+									++s;
+
+									break;
+								}
+								else if (*s == '>')
+								{
+									++s;
+
+									break;
+								}
+							}
+
+							if (!*s) return s;
 						}
-						else
+						else return s;
+					}
+					else if (*s == '/')
+					{
+						++s;
+
+						char* name = cursor->name;
+						if (!name) return s;
+						
+						while (*s && is_chartype(*s, ct_symbol))
 						{
-							SCANFOR(*s == '>'); // '...>'
-							POPNODE(); // Pop.
+							if (*s++ != *name++) return s;
 						}
+						if (*name) return s;
+							
+						POPNODE(); // Pop.
 
 						SKIPWS();
-												
-						goto LOC_LEAVE;
+
+						if (*s != '>') return s;
+						++s;
 					}
+					else return s;
+				}
+				else
+				{
+					mark = s; // Save this offset while searching for a terminator.
+					SKIPWS(); // Eat whitespace if no genuine PCDATA here.
+					if((mark == s || !OPTSET(parse_ws_pcdata)) && (!*s || *s == '<'))
+					{
+						continue;
+					}
+							
+					s = mark;
+							
+					bool preserve = OPTSET(parse_ext_pcdata) || cursor->type != node_document;
+
+					if (preserve)
+					{
+						PUSHNODE(node_pcdata); // Append a new node on the tree.
+						cursor->value = s; // Save the offset.
+
+						s = strconv_pcdata(s, OPTSET(parse_escapes), OPTSET(parse_eol));
+								
+						if (!s) return s;
+								
+						POPNODE(); // Pop since this is a standalone.
+					}
+					else
+					{
+						SCANFOR(*s == '<'); // '...<'
+					}
+
+					// We're after '<'
+					goto LOC_TAG;
 				}
 			}
 			return s;
@@ -1195,14 +1207,6 @@ namespace pugi
 
 	typedef int (*strcmpfunc)(const char*, const char*);
 
-	xml_attribute_struct::xml_attribute_struct(): name(0), value(0), prev_attribute(0), next_attribute(0)
-	{
-	}
-	
-	xml_node_struct::xml_node_struct(xml_node_type type): type(type), parent(0), name(0), value(0), first_child(0), last_child(0), prev_sibling(0), next_sibling(0), first_attribute(0), last_attribute(0)
-	{
-	}
-
 	xml_tree_walker::xml_tree_walker() : _deep(0)
 	{
 	}
@@ -1240,7 +1244,7 @@ namespace pugi
 	{
 	}
 
-	xml_attribute::xml_attribute(const xml_attribute_struct* attr): _attr(attr)
+	xml_attribute::xml_attribute(xml_attribute_struct* attr): _attr(attr)
 	{
 	}
 
@@ -1340,11 +1344,66 @@ namespace pugi
 		return (!empty() && _attr->value) ? _attr->value : "";
 	}
 
+	unsigned int xml_attribute::document_order() const
+	{
+		return empty() ? 0 : _attr->document_order;
+	}
+
+	xml_attribute& xml_attribute::operator=(const char* rhs)
+	{
+		set_value(rhs);
+		return *this;
+	}
+	
+	xml_attribute& xml_attribute::operator=(int rhs)
+	{
+		char buf[128];
+		sprintf(buf, "%d", rhs);
+		set_value(buf);
+		return *this;
+	}
+
+	xml_attribute& xml_attribute::operator=(double rhs)
+	{
+		char buf[128];
+		sprintf(buf, "%g", rhs);
+		set_value(buf);
+		return *this;
+	}
+	
+	xml_attribute& xml_attribute::operator=(bool rhs)
+	{
+		set_value(rhs ? "true" : "false");
+		return *this;
+	}
+
+	bool xml_attribute::set_name(const char* rhs)
+	{
+		if (empty()) return false;
+		
+		bool insitu = _attr->name_insitu;
+		bool res = strcpy_insitu(_attr->name, insitu, rhs);
+		_attr->name_insitu = insitu;
+		
+		return res;
+	}
+		
+	bool xml_attribute::set_value(const char* rhs)
+	{
+		if (empty()) return false;
+
+		bool insitu = _attr->value_insitu;
+		bool res = strcpy_insitu(_attr->value, insitu, rhs);
+		_attr->value_insitu = insitu;
+		
+		return res;
+	}
+
 	xml_node::xml_node(): _root(0)
 	{
 	}
 
-	xml_node::xml_node(const xml_node_struct* p): _root(p)
+	xml_node::xml_node(xml_node_struct* p): _root(p)
 	{
 	}
 	
@@ -1425,7 +1484,7 @@ namespace pugi
 
 	bool xml_node::empty() const
 	{
-		return (_root == 0 || _root->type == node_null);
+		return (_root == 0);
 	}
 	
 	bool xml_node::type_document() const
@@ -1433,6 +1492,13 @@ namespace pugi
 		return (_root && _root == _root->parent && _root->type == node_document);
 	}
 	
+	xml_allocator& xml_node::get_allocator() const
+	{
+		xml_node_struct* r = root()._root;
+
+		return static_cast<xml_document_struct*>(r)->allocator;
+	}
+
 	const char* xml_node::name() const
 	{
 		return (!empty() && _root->name) ? _root->name : "";
@@ -1440,7 +1506,7 @@ namespace pugi
 
 	xml_node_type xml_node::type() const
 	{
-		return (_root) ? (xml_node_type)_root->type : node_null;
+		return (_root) ? _root->type : node_null;
 	}
 	
 	const char* xml_node::value() const
@@ -1558,7 +1624,14 @@ namespace pugi
 
 	xml_node xml_node::parent() const
 	{
-		return (!type_document()) ? xml_node(_root->parent) : xml_node();
+		return (!empty() && !type_document()) ? xml_node(_root->parent) : xml_node();
+	}
+
+	xml_node xml_node::root() const
+	{
+		xml_node r = *this;
+		while (r && !r.type_document()) r = r.parent();
+		return r;
 	}
 
 	const char* xml_node::child_value() const
@@ -1600,6 +1673,63 @@ namespace pugi
 	{
 		if (_root) return xml_node(_root->last_child);
 		else return xml_node();
+	}
+
+	bool xml_node::set_name(const char* rhs)
+	{
+		switch (type())
+		{
+		case node_pi:
+		case node_element:
+		{
+			bool insitu = _root->name_insitu;
+			bool res = strcpy_insitu(_root->name, insitu, rhs);
+			_root->name_insitu = insitu;
+		
+			return res;
+		}
+
+		default:
+			return false;
+		}
+	}
+		
+	bool xml_node::set_value(const char* rhs)
+	{
+		switch (type())
+		{
+		case node_pi:
+		case node_cdata:
+		case node_pcdata:
+		case node_comment:
+		{
+			bool insitu = _root->value_insitu;
+			bool res = strcpy_insitu(_root->value, insitu, rhs);
+			_root->value_insitu = insitu;
+		
+			return res;
+		}
+
+		default:
+			return false;
+		}
+	}
+
+	xml_attribute xml_node::append_attribute(const char* name)
+	{
+		if (type() != node_element) return xml_attribute();
+		
+		xml_attribute a(_root->append_attribute(get_allocator()));
+		a.set_name(name);
+		
+		return a;
+	}
+
+	xml_node xml_node::append_child(xml_node_type type)
+	{
+		if (this->type() != node_element || type == node_document || type == node_null) return xml_node();
+		
+		return xml_node(_root->append_node(get_allocator(), type));
 	}
 
 	namespace impl
@@ -1848,6 +1978,38 @@ namespace pugi
 		return true;
 	}
 
+	unsigned int xml_node::document_order() const
+	{
+		return empty() ? 0 : _root->document_order;
+	}
+
+	void xml_node::precompute_document_order()
+	{
+		if (type() != node_document) return;
+
+		struct tree_traverser
+		{
+			unsigned int m_current;
+					
+			tree_traverser(): m_current(1)
+			{
+			}
+					
+			void traverse(xml_node& n)
+			{
+				n._root->document_order = m_current++;
+				
+				for (xml_attribute a = n.first_attribute(); a; a = a.next_attribute())
+					a._attr->document_order = m_current++;
+					
+				for (xml_node c = n.first_child(); c; c = c.next_sibling())
+					traverse(c);
+			}
+		};
+			
+		tree_traverser().traverse(*this);
+	}
+
 	xml_node_iterator::xml_node_iterator()
 	{
 	}
@@ -1856,11 +2018,11 @@ namespace pugi
 	{
 	}
 
-	xml_node_iterator::xml_node_iterator(const xml_node_struct* ref): _wrap(ref)
+	xml_node_iterator::xml_node_iterator(xml_node_struct* ref): _wrap(ref)
 	{
 	}
 		
-	xml_node_iterator::xml_node_iterator(const xml_node_struct* ref, const xml_node_struct* prev): _prev(prev), _wrap(ref)
+	xml_node_iterator::xml_node_iterator(xml_node_struct* ref, xml_node_struct* prev): _prev(prev), _wrap(ref)
 	{
 	}
 
@@ -1920,11 +2082,11 @@ namespace pugi
 	{
 	}
 
-	xml_attribute_iterator::xml_attribute_iterator(const xml_attribute_struct* ref): _wrap(ref)
+	xml_attribute_iterator::xml_attribute_iterator(xml_attribute_struct* ref): _wrap(ref)
 	{
 	}
 		
-	xml_attribute_iterator::xml_attribute_iterator(const xml_attribute_struct* ref, const xml_attribute_struct* prev): _prev(prev), _wrap(ref)
+	xml_attribute_iterator::xml_attribute_iterator(xml_attribute_struct* ref, xml_attribute_struct* prev): _prev(prev), _wrap(ref)
 	{
 	}
 
@@ -2011,6 +2173,8 @@ namespace pugi
 		delete _buffer;
 		_buffer = 0;
 
+		if (_xmldoc) _xmldoc->free();
+
 		xml_memory_block* current = _memory.next;
 
 		while (current)
@@ -2056,13 +2220,64 @@ namespace pugi
 		length = stream.tellg();
 		stream.seekg(pos, std::ios_base::beg);
 
-		char* s = new char[length + 1];
+		char* s;
+
+		try
+		{
+			s = new char[length + 1];
+		}
+		catch (const std::bad_alloc&)
+		{
+			return;
+		}
+
 		stream.read(s, length);
 		s[length] = 0;
 
 		parse(transfer_ownership_tag(), s, optmsk); // Parse the input string.
 	}
 #endif
+
+	char* xml_parser::load(const char* name,unsigned int optmsk)
+	{
+		FILE* file = fopen(name, "rb");
+		if (!file) return 0;
+
+		fseek(file, 0, SEEK_END);
+		long length = ftell(file);
+		fseek(file, 0, SEEK_SET);
+
+		if (length < 0)
+		{
+			fclose(file);
+			return 0;
+		}
+		
+		char* s;
+
+		try
+		{
+			s = new char[length + 1];
+		}
+		catch (const std::bad_alloc&)
+		{
+			fclose(file);
+			return 0;
+		}
+
+		size_t read = fread(s, (size_t)length, 1, file);
+		fclose(file);
+
+		if (read != 1)
+		{
+			delete[] s;
+			return 0;
+		}
+
+		s[length] = 0;
+		
+		return parse(transfer_ownership_tag(), s, optmsk); // Parse the input string.
+	}
 
 	char* xml_parser::parse(char* xmlstr,unsigned int optmsk)
 	{
@@ -2072,8 +2287,9 @@ namespace pugi
 
 		xml_allocator alloc(&_memory);
 		
-		_xmldoc = alloc.allocate<xml_node_struct>(node_document); // Allocate a new root.
+		_xmldoc = alloc.allocate<xml_document_struct>(); // Allocate a new root.
 		_xmldoc->parent = _xmldoc; // Point to self.
+		static_cast<xml_document_struct*>(_xmldoc)->allocator = alloc;
 		if(optmsk != parse_noset) _optmsk = optmsk;
 		
 		xml_parser_impl parser(alloc);
@@ -2083,21 +2299,11 @@ namespace pugi
 	
 	char* xml_parser::parse(const transfer_ownership_tag&, char* xmlstr,unsigned int optmsk)
 	{
-		free();
-
-		if(!xmlstr) return 0;
+		char* result = parse(xmlstr, optmsk);
 
 		_buffer = xmlstr;
 
-		xml_allocator alloc(&_memory);
-		
-		_xmldoc = alloc.allocate<xml_node_struct>(node_document); // Allocate a new root.
-		_xmldoc->parent = _xmldoc; // Point to self.
-		if(optmsk != parse_noset) _optmsk = optmsk;
-		
-		xml_parser_impl parser(alloc);
-		
-		return parser.parse(xmlstr,_xmldoc,_optmsk); // Parse the input string.
+		return result;
 	}
 
 #ifndef PUGIXML_NO_STL
@@ -2131,4 +2337,9 @@ namespace pugi
 		return result;
 	}
 #endif
+	
+	size_t utf8_length(const char* s)
+	{
+		return strutf8_utf16_size(s);
+	}
 }
