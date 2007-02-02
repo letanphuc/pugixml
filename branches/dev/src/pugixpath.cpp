@@ -146,6 +146,67 @@ namespace
 		}
 		else throw std::exception("Wrong types");
 	}
+	
+	struct document_order_comparator: public std::binary_function<const xpath_node&, const xpath_node&, bool>
+	{
+		bool operator()(const xpath_node& lhs, const xpath_node& rhs) const
+		{
+			unsigned int lo = lhs.attribute() ? lhs.attribute().document_order() : lhs.node().document_order();
+			unsigned int ro = rhs.attribute() ? rhs.attribute().document_order() : rhs.node().document_order();
+			
+			if (lo != 0 && ro != 0)
+				return lo < ro;
+
+			xml_node ln = lhs.node(), rn = rhs.node();
+
+			if (lhs.attribute() && rhs.attribute())
+			{
+				if (lhs.parent() == rhs.parent()) return lhs.attribute() < rhs.attribute();
+				
+				ln = lhs.parent();
+				rn = rhs.parent();
+			}
+			else if (lhs.attribute())
+			{
+				if (lhs.parent() == rhs.node()) return false;
+				
+				ln = lhs.parent();
+			}
+			else if (rhs.attribute())
+			{
+				if (rhs.parent() == lhs.node()) return true;
+				
+				rn = rhs.parent();
+			}
+
+			if (ln == rn) return false;
+				
+			xml_node lp = ln, rp = rn;
+				
+			while (lp != rp)
+			{
+				ln = lp;
+				lp = lp.parent();
+					
+				if (lp != rp)
+				{
+					rn = rp;
+					rp = rp.parent();
+				}
+			}
+				
+			if (!lp) // no common parent - ???
+				return false;
+			else // lp is parent, ln & rn are distinct siblings
+			{
+				for (; ln; ln = ln.next_sibling());
+					if (ln == rn)
+						return true;
+			
+				return false;
+			}
+		}
+	};
 };
 
 namespace pugi
@@ -158,20 +219,25 @@ namespace pugi
 	{
 	}
 		
-	xpath_node::xpath_node(const xml_attribute& attribute): m_attribute(attribute)
+	xpath_node::xpath_node(const xml_attribute& attribute, const xml_node& parent): m_attribute(attribute), m_node(parent)
 	{
 	}
 
-	const xml_node& xpath_node::node() const
+	xml_node xpath_node::node() const
 	{
-		return m_node;
+		return m_attribute ? xml_node() : m_node;
 	}
 		
-	const xml_attribute& xpath_node::attribute() const
+	xml_attribute xpath_node::attribute() const
 	{
 		return m_attribute;
 	}
 	
+	xml_node xpath_node::parent() const
+	{
+		return m_attribute ? m_node : m_node.parent();
+	}
+
 	xpath_node::operator xpath_node::unspecified_bool_type() const
 	{
 		return (m_node || m_attribute) ? &xpath_node::m_node : 0;
@@ -731,21 +797,21 @@ namespace pugi
 		xpath_ast_node(const xpath_ast_node&);
 		xpath_ast_node& operator=(const xpath_ast_node&);
 
-		void push(xpath_node_set& ns, const xml_attribute& a)
+		void push(xpath_node_set& ns, const xml_attribute& a, const xml_node& parent)
 		{
 			switch (m_test)
 			{
 			case nodetest_name:
-				if (!strcmp(a.name(), m_contents)) ns.push_unique(a);
+				if (!strcmp(a.name(), m_contents)) ns.push_back(xpath_node(a, parent));
 				break;
 				
 			case nodetest_all:
-				ns.push_unique(a);
+				ns.push_back(xpath_node(a, parent));
 				break;
 				
 			case nodetest_all_in_namespace:
 				if (!strncmp(a.name(), m_contents, strlen(m_contents)) && a.name()[strlen(m_contents)] == ':')
-					ns.push_unique(a);
+					ns.push_back(xpath_node(a, parent));
 				break;
 			}
 		}
@@ -755,7 +821,7 @@ namespace pugi
 			switch (m_test)
 			{
 			case nodetest_name:
-				if (!strcmp(n.name(), m_contents)) ns.push_unique(n);
+				if (!strcmp(n.name(), m_contents)) ns.push_back(n);
 				break;
 				
 			case nodetest_type:
@@ -764,21 +830,21 @@ namespace pugi
 					(n.type() == node_cdata && !strcmp(m_contents, "text")) ||
 					(n.type() == node_pi && !strcmp(m_contents, "processing-instruction")) ||
 					(n.type() == node_element && !strcmp(m_contents, "node")))
-					ns.push_unique(n);
+					ns.push_back(n);
 					break;
 					
 			case nodetest_pi:
 				if (n.type() == node_pi && !strcmp(n.name(), m_contents))
-					ns.push_unique(n);
+					ns.push_back(n);
 				break;
 				
 			case nodetest_all:
-				ns.push_unique(n);
+				ns.push_back(n);
 				break;
 				
 			case nodetest_all_in_namespace:
 				if (!strncmp(n.name(), m_contents, strlen(m_contents)) && n.name()[strlen(m_contents)] == ':')
-					ns.push_unique(n);
+					ns.push_back(n);
 				break;
 			} 
 		}
@@ -786,7 +852,7 @@ namespace pugi
 		void fill_attribute(xpath_node_set& ns, const xml_node& n)
 		{
 			for (xml_attribute a = n.first_attribute(); a; a = a.next_attribute())
-				push(ns, a);
+				push(ns, a, n);
 		}
 		
 		void fill_child(xpath_node_set& ns, const xml_node& n)
@@ -890,7 +956,21 @@ namespace pugi
 				return xpath_result(-m_left->evaluate(c).as_number());
 
 			case ast_op_union:
-				throw std::exception("not implemented for now");
+			{
+				xpath_result l = m_left->evaluate(c);
+				const xpath_node_set& ls = l.as_node_set();
+								
+				xpath_result r = m_left->evaluate(c);
+				const xpath_node_set& rs = r.as_node_set();
+				
+				xpath_node_set ns = ls;
+				ns.insert(ns.end(), rs.begin(), rs.end());
+				
+				std::sort(ns.begin(), ns.end(), document_order_comparator());
+				ns.erase(std::unique(ns.begin(), ns.end()), ns.end());
+				
+				return xpath_result(ns);
+			}
 
 			case ast_predicate:
 			{
@@ -903,14 +983,21 @@ namespace pugi
 			
 				xpath_context oc = c;
 			
-				for (xpath_node_set::const_iterator it = nodes.begin(); it != nodes.end(); ++it)
+				for (size_t i = 0; i < nodes.size(); ++i)
 				{
-					c.n = *it;
-					c.position = std::distance(nodes.begin(), it) + 1;
+					c.n = nodes[i];
+					c.position = i + 1;
 					c.size = size;
 				
-					if (m_right->evaluate(c).as_boolean())
-						ns.push_unique(*it);
+					xpath_result r = m_right->evaluate(c);
+					
+					if (r.type() == xpath_result::t_number)
+					{
+						if ((size_t)r.as_number() == i + 1)
+							ns.push_back(nodes[i]);
+					}
+					else if (r.as_boolean())
+						ns.push_back(nodes[i]);
 				}
 			
 				c = oc;
@@ -1144,6 +1231,23 @@ namespace pugi
 			
 				switch (m_axis)
 				{
+				case axis_ancestor:
+				case axis_ancestor_or_self:
+
+				case axis_attribute:
+					if (m_left)
+					{
+						xpath_result r = m_left->evaluate(c);
+						const xpath_node_set& s = r.as_node_set();
+						
+						for (xpath_node_set::const_iterator it = s.begin(); it != s.end(); ++it)
+							if (it->node())
+								fill_attribute(ns, it->node());
+					}
+					else if (c.n.node()) fill_attribute(ns, c.n.node());
+					
+					break;
+
 				case axis_child:
 					if (m_left)
 					{
@@ -1158,24 +1262,65 @@ namespace pugi
 					
 					break;
 				
-				case axis_attribute:
+				case axis_descendant:
+				case axis_descendant_or_self:
+				case axis_following:
+				
+				case axis_namespace:
+					break;
+				
+				case axis_parent:
+				{
 					if (m_left)
 					{
 						xpath_result r = m_left->evaluate(c);
 						const xpath_node_set& s = r.as_node_set();
 						
 						for (xpath_node_set::const_iterator it = s.begin(); it != s.end(); ++it)
-							if (it->node())
-								fill_attribute(ns, it->node());
+						{
+							xml_node p = it->parent();
+							if (p) push(ns, p);
+						}
 					}
-					else if (c.n.node()) fill_attribute(ns, c.n.node());
+					else
+					{
+						xml_node p = c.n.parent();
+						if (p) push(ns, p);
+					}
 					
 					break;
-	
+				}
+				
+				case axis_preceding:
+				case axis_preceding_sibling:
+				
+				case axis_self:
+				{
+					if (m_left)
+					{
+						return m_left->evaluate(c);
+					}
+					else
+					{
+						if (c.n.node()) push(ns, c.n.node());
+						else push(ns, c.n.attribute(), c.n.parent());
+					}
+
+					break;
+				}
+				
 				default:
 					throw std::exception("Not implemented");
 				}
 				
+				std::sort(ns.begin(), ns.end(), document_order_comparator());
+				ns.erase(std::unique(ns.begin(), ns.end()), ns.end());
+				
+				// reverse axis
+				if (m_axis == axis_ancestor || m_axis == axis_ancestor_or_self || m_axis == axis_preceding ||
+					m_axis == axis_preceding_sibling)
+					std::reverse(ns.begin(), ns.end());
+
 				return xpath_result(ns);
 
 				break;
@@ -1207,7 +1352,7 @@ namespace pugi
 						m_dest.push_back(n);
 						
 						for (xml_attribute a = n.first_attribute(); a; a = a.next_attribute())
-							m_dest.push_back(a);
+							m_dest.push_back(xpath_node(a, n));
 						
 						return true;
 					}
