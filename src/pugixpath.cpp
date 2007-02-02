@@ -287,15 +287,77 @@ namespace pugi
 		return m_node != n.m_node || m_attribute != n.m_attribute;
 	}
 
-	xpath_node_set::xpath_node_set(): m_type(type_unsorted)
+	xpath_node_set::xpath_node_set(): m_type(type_unsorted), m_begin(&m_storage), m_end(&m_storage), m_eos(&m_storage + 1), m_using_storage(true)
 	{
 	}
+
+	xpath_node_set::~xpath_node_set()
+	{
+		if (!m_using_storage) delete[] m_begin;
+	}
+		
+	xpath_node_set::xpath_node_set(const xpath_node_set& ns): m_type(type_unsorted), m_begin(&m_storage), m_end(&m_storage), m_eos(&m_storage + 1), m_using_storage(true)
+	{
+		*this = ns;
+	}
+	
+	xpath_node_set& xpath_node_set::operator=(const xpath_node_set& ns)
+	{
+		if (!m_using_storage) delete[] m_begin;
+		
+		m_begin = m_end = m_eos = 0;
+		
+		if (ns.size() == 1)
+		{
+			m_storage = ns[0];
+			m_begin = &m_storage;
+			m_end = m_eos = &m_storage + 1;
+			m_using_storage = true;
+		}
+		else
+		{
+			m_using_storage = false;
+			append(ns.begin(), ns.end());
+		}
+		
+		return *this;
+	}	
 
 	xpath_node_set::type_t xpath_node_set::type() const
 	{
 		return m_type;
 	}
 		
+	size_t xpath_node_set::size() const
+	{
+		return m_end - m_begin;
+	}
+		
+	bool xpath_node_set::empty() const
+	{
+		return size() == 0;
+	}
+		
+	xpath_node_set::iterator xpath_node_set::begin()
+	{
+		return m_begin;
+	}
+	
+	xpath_node_set::const_iterator xpath_node_set::begin() const
+	{
+		return m_begin;
+	}
+		
+	xpath_node_set::iterator xpath_node_set::end()
+	{
+		return m_end;
+	}
+	
+	xpath_node_set::const_iterator xpath_node_set::end() const
+	{
+		return m_end;
+	}
+	
 	void xpath_node_set::sort(bool reverse)
 	{
 		std::sort(begin(), end(), document_order_comparator());
@@ -306,14 +368,48 @@ namespace pugi
 		m_type = reverse ? type_sorted_reverse : type_sorted;
 	}
 
-	xpath_node& xpath_node_set::operator[](size_t i)
-	{
-		return m_type == type_sorted_reverse ? *(end() - 1 - i) : *(begin() + i);
-	}
-	
 	const xpath_node& xpath_node_set::operator[](size_t i) const
 	{
 		return m_type == type_sorted_reverse ? *(end() - 1 - i) : *(begin() + i);
+	}
+
+	void xpath_node_set::push_back(const xpath_node& n)
+	{
+		if (m_end == m_eos)
+			append(&n, &n + 1);
+		else
+		{
+			*m_end = n;
+			++m_end;
+		}
+	}
+
+	template <typename Iterator> void xpath_node_set::append(Iterator begin, Iterator end)
+	{
+		size_t count = std::distance(begin, end);
+		size_t size = m_end - m_begin;
+		size_t capacity = m_eos - m_begin;
+		
+		if (capacity < size + count)
+		{
+			if (capacity < 2) capacity = 2;
+			
+			while (capacity < size + count) capacity += capacity / 2;
+			
+			xpath_node* storage = new xpath_node[capacity];
+			std::copy(m_begin, m_end, storage);
+			
+			if (!m_using_storage) delete[] m_begin;
+			
+			m_using_storage = false;
+			
+			m_begin = storage;
+			m_end = storage + size;
+			m_eos = storage + capacity;
+		}
+		
+		std::copy(begin, end, m_end);
+		m_end += count;
 	}
 
 	xpath_result::xpath_result(const xpath_node_set& value): m_type(t_node_set), m_nodeset_value(value)
@@ -1311,10 +1407,11 @@ namespace pugi
 				const xpath_node_set& rs = r.as_node_set();
 				
 				xpath_node_set ns = ls;
-				ns.insert(ns.end(), rs.begin(), rs.end());
+				ns.append(rs.begin(), rs.end());
 				
 				ns.sort();
-				ns.erase(std::unique(ns.begin(), ns.end()), ns.end());
+				// TODO
+				// ns.erase(std::unique(ns.begin(), ns.end()), ns.end());
 				
 				return xpath_result(ns);
 			}
@@ -1644,7 +1741,8 @@ namespace pugi
 				{
 					ns.sort(m_axis == axis_ancestor || m_axis == axis_ancestor_or_self ||
 							m_axis == axis_preceding || m_axis == axis_preceding_sibling);
-					ns.erase(std::unique(ns.begin(), ns.end()), ns.end());
+					// TODO
+					// ns.erase(std::unique(ns.begin(), ns.end()), ns.end());
 				}
 				
 				return xpath_result(ns);
