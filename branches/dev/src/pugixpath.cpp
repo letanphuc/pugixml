@@ -171,6 +171,15 @@ namespace
 			}
 		}
 	};
+
+	struct duplicate_comparator: public std::binary_function<const xpath_node&, const xpath_node&, bool>
+	{
+		bool operator()(const xpath_node& lhs, const xpath_node& rhs) const
+		{
+			if (lhs.attribute()) return rhs.attribute() ? lhs.attribute() < rhs.attribute() : true;
+			else return rhs.attribute() ? false : lhs.node() < rhs.node();
+		}
+	};
 };
 
 namespace pugi
@@ -239,7 +248,7 @@ namespace pugi
 		
 		if (ns.size() == 1)
 		{
-			m_storage = ns[0];
+			m_storage = *ns.m_begin;
 			m_begin = &m_storage;
 			m_end = m_eos = &m_storage + 1;
 			m_using_storage = true;
@@ -298,11 +307,6 @@ namespace pugi
 		m_type = reverse ? type_sorted_reverse : type_sorted;
 	}
 
-	const xpath_node& xpath_node_set::operator[](size_t i) const
-	{
-		return m_type == type_sorted_reverse ? *(end() - 1 - i) : *(begin() + i);
-	}
-
 	void xpath_node_set::push_back(const xpath_node& n)
 	{
 		if (m_end == m_eos)
@@ -345,6 +349,27 @@ namespace pugi
 	void xpath_node_set::truncate(iterator it)
 	{
 		m_end = it;
+	}
+
+	xpath_node xpath_node_set::first() const
+	{
+		switch (m_type)
+		{
+		case type_sorted: return *begin();
+		case type_sorted_reverse: return *(end() - 1);
+		case type_unsorted: return *std::min_element(begin(), end(), document_order_comparator());
+		default: return xpath_node();
+		}
+	}
+
+	void xpath_node_set::remove_duplicates()
+	{
+		if (m_type == type_unsorted)
+		{
+			std::sort(begin(), end(), duplicate_comparator());
+		}
+		
+		truncate(std::unique(begin(), end()));
 	}
 
 	xpath_result::xpath_result(const xpath_node_set& value): m_type(t_node_set), m_nodeset_value(value)
@@ -412,7 +437,7 @@ namespace pugi
 			if (m_nodeset_value.empty()) return "";
 			else
 			{
-				return string_value(m_nodeset_value[0]);
+				return string_value(m_nodeset_value.first());
 			}
 		}
 		else throw std::exception("Unknown type");
@@ -757,6 +782,7 @@ namespace pugi
 		ast_op_negate,					// left - right
 		ast_op_union,					// left | right
 		ast_predicate,					// select * from left where right
+		ast_predicate_posinv,			// select * from left where right; proximity position invariant
 		ast_variable,					// variable value
 		ast_string_constant,			// string constant
 		ast_number_constant,			// number constant
@@ -853,7 +879,7 @@ namespace pugi
 		// node test for ast_step (node name/namespace/node type/pi target)
 		const char* m_contents;
 
-		// for t_step
+		// for t_step / t_predicate
 		axis_t m_axis;
 		nodetest_t m_test;
 		
@@ -1000,23 +1026,29 @@ namespace pugi
 			switch (axis)
 			{
 			case axis_attribute:
+				ns.m_type = ns.empty() ? xpath_node_set::type_sorted : xpath_node_set::type_unsorted;
+				
 				for (xml_attribute a = n.first_attribute(); a; a = a.next_attribute())
 					step_push(ns, a, n);
 				
 				break;
 			
 			case axis_child:
+				ns.m_type = ns.empty() ? xpath_node_set::type_sorted : xpath_node_set::type_unsorted;
+
 				for (xml_node c = n.first_child(); c; c = c.next_sibling())
 					step_push(ns, c);
 					
 				break;
 			
-			case axis_descendant_or_self:
-				step_push(ns, n);
-				// fall through
-				
 			case axis_descendant:
+			case axis_descendant_or_self:
 			{
+				ns.m_type = ns.empty() ? xpath_node_set::type_sorted : xpath_node_set::type_unsorted;
+				
+				if (axis == axis_descendant_or_self)
+					step_push(ns, n);
+					
 				xml_node cur = n.first_child();
 				
 				if (cur)
@@ -1045,12 +1077,16 @@ namespace pugi
 			}
 			
 			case axis_following_sibling:
+				ns.m_type = ns.empty() ? xpath_node_set::type_sorted : xpath_node_set::type_unsorted;
+
 				for (xml_node c = n.next_sibling(); c; c = c.next_sibling())
 					step_push(ns, c);
 				
 				break;
 			
 			case axis_preceding_sibling:
+				ns.m_type = ns.empty() ? xpath_node_set::type_sorted_reverse : xpath_node_set::type_unsorted;
+
 				for (xml_node c = n.previous_sibling(); c; c = c.previous_sibling())
 					step_push(ns, c);
 				
@@ -1058,6 +1094,8 @@ namespace pugi
 			
 			case axis_following:
 			{
+				ns.m_type = ns.empty() ? xpath_node_set::type_sorted : xpath_node_set::type_unsorted;
+
 				struct tree_traverser: public xml_tree_walker
 				{
 					xpath_ast_node& m_node;
@@ -1088,6 +1126,9 @@ namespace pugi
 
 			case axis_preceding:
 			{
+				// fix me!
+				ns.m_type = ns.empty() ? xpath_node_set::type_sorted : xpath_node_set::type_unsorted;
+
 				struct tree_traverser: public xml_tree_walker
 				{
 					xpath_ast_node& m_node;
@@ -1115,12 +1156,14 @@ namespace pugi
 				break;
 			}
 			
-			case axis_ancestor_or_self:
-				step_push(ns, n);
-				// fall through
-				
 			case axis_ancestor:
+			case axis_ancestor_or_self:
 			{
+				ns.m_type = ns.empty() ? xpath_node_set::type_sorted_reverse : xpath_node_set::type_unsorted;
+
+				if (axis == axis_ancestor_or_self)
+					step_push(ns, n);
+
 				xml_node cur = n.parent();
 				
 				while (cur)
@@ -1142,13 +1185,25 @@ namespace pugi
 		{
 			switch (axis)
 			{
-			case axis_ancestor_or_self:
-				step_push(ns, a, p);
-				// fall through
-				
 			case axis_ancestor:
-				step_fill<axis_ancestor_or_self>(ns, p);
+			case axis_ancestor_or_self:
+			{
+				ns.m_type = ns.empty() ? xpath_node_set::type_sorted_reverse : xpath_node_set::type_unsorted;
+
+				if (axis == axis_ancestor_or_self)
+					step_push(ns, a, p);
+
+				xml_node cur = p;
+				
+				while (cur)
+				{
+					step_push(ns, cur);
+					
+					cur = cur.parent();
+				}
+				
 				break;
+			}
 			
 			default:
 				throw std::exception("Unimplemented axis");
@@ -1263,6 +1318,11 @@ namespace pugi
 			set_contents(contents);
 		}
 		
+		xpath_ast_node(ast_type_t type, xpath_ast_node* left, xpath_ast_node* right, axis_t axis): m_type(type),
+			m_left(left), m_right(right), m_third(0), m_concat_next(0), m_contents(0), m_rettype(ast_type_none), m_axis(axis)
+		{
+		}
+
 		xpath_ast_node(ast_type_t type, xpath_ast_node* left = 0, xpath_ast_node* right = 0, xpath_ast_node* third = 0): m_type(type),
 			m_left(left), m_right(right), m_third(third), m_concat_next(0), m_contents(0), m_rettype(ast_type_none)
 		{
@@ -1519,7 +1579,7 @@ namespace pugi
 				xpath_node_set ns = m_left->eval_node_set(c);
 				if (ns.empty()) return "";
 				
-				xpath_node na = ns[0];
+				xpath_node na = ns.first();
 				
 				if (na.attribute()) return na.attribute().name();
 				else return na.node().name();
@@ -1653,7 +1713,7 @@ namespace pugi
 				case ast_type_node_set:
 				{
 					xpath_node_set ns = eval_node_set(c);
-					return ns.empty() ? "" : string_value(ns[0]);
+					return ns.empty() ? "" : string_value(ns.first());
 				}
 				}
 				
@@ -1673,8 +1733,7 @@ namespace pugi
 				
 				ls.append(rs.begin(), rs.end());
 				
-				ls.sort();
-				ls.truncate(std::unique(ls.begin(), ls.end()));
+				ls.remove_duplicates();
 				
 				return ls;
 			}
@@ -1682,6 +1741,8 @@ namespace pugi
 			case ast_predicate:
 			{
 				xpath_node_set set = m_left->eval_node_set(c);
+				set.sort(m_axis == axis_ancestor || m_axis == axis_ancestor_or_self ||
+						 m_axis == axis_preceding || m_axis == axis_preceding_sibling);
 				
 				xpath_context oc = c;
 			
@@ -1712,6 +1773,34 @@ namespace pugi
 				return set;
 			}
 			
+			case ast_predicate_posinv:
+			{
+				xpath_node_set set = m_left->eval_node_set(c);
+				
+				xpath_context oc = c;
+			
+				size_t i = 0;
+				
+				xpath_node_set::iterator last = set.begin();
+				
+				// remove_if... or well, sort of
+				for (xpath_node_set::const_iterator it = set.begin(); it != set.end(); ++it, ++i)
+				{
+					c.n = *it;
+					c.position = i + 1;
+					c.size = set.size();
+				
+					if (m_right->eval_boolean(c))
+						*last++ = *it;
+				}
+			
+				c = oc;
+				
+				set.truncate(last);
+			
+				return set;
+			}
+
 			case ast_func_id:
 				return xpath_node_set();
 			
@@ -1777,9 +1866,7 @@ namespace pugi
 					throw std::exception("Not implemented");
 				}
 				
-				ns.sort(m_axis == axis_ancestor || m_axis == axis_ancestor_or_self ||
-					m_axis == axis_preceding || m_axis == axis_preceding_sibling);
-				// ns.truncate(std::unique(ns.begin(), ns.end()));
+				ns.remove_duplicates();
 				
 				return ns;
 
@@ -1825,6 +1912,109 @@ namespace pugi
 			}
 		}
 		
+		bool contains(ast_type_t type)
+		{
+			if (m_type == type) return true;
+			
+			switch (m_type)
+			{
+			case ast_op_or:
+			case ast_op_and:
+			case ast_op_equal:
+			case ast_op_not_equal:
+			case ast_op_less:
+			case ast_op_greater:
+			case ast_op_less_or_equal:
+			case ast_op_greater_or_equal:
+			case ast_op_add:
+			case ast_op_subtract:
+			case ast_op_multiply:
+			case ast_op_divide:
+			case ast_op_mod:
+			case ast_op_negate:
+				return m_left->contains(type) || m_right->contains(type);
+			
+			case ast_op_union:
+			case ast_predicate:
+				return false;
+			
+				return false;
+			
+			case ast_variable:
+				throw std::exception("Semantics error: variables are not supported");
+				
+			case ast_string_constant:
+			case ast_number_constant:
+			case ast_func_last:
+			case ast_func_position:
+				return false;
+		
+			case ast_func_count:
+			case ast_func_id:
+			case ast_func_local_name_0:
+			case ast_func_local_name_1:
+			case ast_func_namespace_uri_0:
+			case ast_func_namespace_uri_1:
+			case ast_func_name_0:
+			case ast_func_name_1:
+			case ast_func_string_0:
+			case ast_func_string_1:
+				if (m_left) return m_left->contains(type);
+				return false;
+				
+			case ast_func_concat:
+				if (m_left->contains(type)) return true;
+				
+				for (xpath_ast_node* n = m_right; n; n = n->m_concat_next)
+					if (n->contains(type)) return true;
+					
+				return false;
+		
+			case ast_func_starts_with:
+			case ast_func_contains:
+			case ast_func_substring_before:
+			case ast_func_substring_after:
+			case ast_func_substring_2:
+			case ast_func_substring_3:
+			case ast_func_string_length_0:
+			case ast_func_string_length_1:
+			case ast_func_normalize_space_0:
+			case ast_func_normalize_space_1:
+			case ast_func_translate:
+			case ast_func_boolean:
+			case ast_func_not:
+			case ast_func_true:
+			case ast_func_false:
+			case ast_func_lang:
+			case ast_func_number_0:
+			case ast_func_number_1:
+			case ast_func_sum:
+			case ast_func_floor:
+			case ast_func_ceiling:
+			case ast_func_round:
+				if (m_left && m_left->contains(type)) return true;
+				if (m_right && m_right->contains(type)) return true;
+				if (m_third && m_third->contains(type)) return true;
+
+				return false;
+				if (m_left) m_left->check_semantics();
+				m_rettype = ast_type_number;
+				break;
+		
+				if (m_left) m_left->check_semantics();
+				m_rettype = ast_type_number;
+				break;
+		
+			case ast_step:
+			case ast_step_root:
+			case ast_step_root_or_descendant:
+				return false;
+			
+			default:
+				throw std::exception("Unknown semantics error");
+			}
+		}
+
 		void check_semantics()
 		{
 			switch (m_type)
@@ -1866,11 +2056,15 @@ namespace pugi
 				break;
 			
 			case ast_predicate:
+			case ast_predicate_posinv:
 				m_left->check_semantics();
 				m_right->check_semantics();
 				if (m_left->rettype() != ast_type_node_set)
 					throw std::exception("Semantics error: predicate has to be applied to node set");
 				m_rettype = ast_type_node_set;
+				
+				if (!m_right->contains(ast_func_position) && m_right->rettype() != ast_type_number)
+					m_type = ast_predicate_posinv;
 				break;
 			
 			case ast_variable:
@@ -2253,7 +2447,7 @@ namespace pugi
 	    	{
 	    		m_lexer.next();
 
-	    		n = new xpath_ast_node(ast_predicate, n, parse_expression());
+	    		n = new xpath_ast_node(ast_predicate, n, parse_expression(), axis_child);
 
 	    		if (m_lexer.current() != lex_close_square_brace)
 	    			throw std::exception("Unmatched square brace");
@@ -2433,7 +2627,7 @@ namespace pugi
 			{
 				m_lexer.next();
 				
-				n = new xpath_ast_node(ast_predicate, n, parse_expression());
+				n = new xpath_ast_node(ast_predicate, n, parse_expression(), axis);
 				
 				if (m_lexer.current() != lex_close_square_brace)
 	    			throw std::exception("unmatched square brace");
@@ -2762,7 +2956,7 @@ namespace pugi
 	{
 		xpath_result r = query->evaluate(*this);
 		const xpath_node_set& s = r.as_node_set();
-		return s.empty() ? xpath_node() : s[0];
+		return s.empty() ? xpath_node() : s.first();
 	}
 
 	xpath_node_set xml_node::select_nodes(const char* query) const
