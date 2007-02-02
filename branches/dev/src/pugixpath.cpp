@@ -31,6 +31,40 @@
 
 namespace
 {
+	enum chartype
+	{
+		ct_space = 1,			// \r, \n, space, tab
+		ct_start_symbol = 2,	// Any symbol > 127, a-z, A-Z, _, :
+		ct_digit = 4,			// 0-9
+		ct_symbol = 8			// Any symbol > 127, a-z, A-Z, 0-9, _, :, -, .
+	};
+
+	static unsigned char chartype_table[256] =
+	{
+		0, 0, 0, 0, 0, 0, 0, 0,					0, 1, 1, 0, 0, 1, 0, 0,				// 0-15
+		0, 0, 0, 0, 0, 0, 0, 0,					0, 0, 0, 0, 0, 0, 0, 0,				// 16-31
+		1, 0, 0, 0, 0, 0, 0, 0,					0, 0, 0, 0, 0, 8, 8, 0,				// 32-47
+		12, 12, 12, 12, 12, 12, 12, 12,			12, 12, 10, 0, 0, 0, 0, 0,			// 48-63
+		0, 10, 10, 10, 10, 10, 10, 10,			10, 10, 10, 10, 10, 10, 10, 10,		// 64-79
+		10, 10, 10, 10, 10, 10, 10, 10,			10, 10, 10, 0, 0, 0, 0, 10,			// 80-95
+		0, 10, 10, 10, 10, 10, 10, 10,			10, 10, 10, 10, 10, 10, 10, 10,		// 96-111
+		10, 10, 10, 10, 10, 10, 10, 10,			10, 10, 10, 0, 0, 0, 0, 0,			// 112-127
+
+		10, 10, 10, 10, 10, 10, 10, 10,			10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10,			10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10,			10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10,			10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10,			10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10,			10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10,			10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10,			10, 10, 10, 10, 10, 10, 10, 10
+	};
+	
+	bool is_chartype(char c, chartype ct)
+	{
+		return !!(chartype_table[static_cast<unsigned char>(c)] & ct);
+	}
+
 	bool starts_with(const std::string& s, const char* pattern)
 	{
 		return s.compare(0, strlen(pattern), pattern) == 0;
@@ -447,13 +481,47 @@ namespace pugi
 	private:
 		const char* m_cur;
 
-		std::string m_cur_lexeme_contents;
+		char* m_cur_lexeme_contents;
+		size_t m_clc_size;
+		size_t m_clc_capacity;
+
 		lexeme_t m_cur_lexeme;
+
+		void contents_clear()
+		{
+			m_clc_size = 0;
+		}
+
+		void contents_push(char c)
+		{
+			if (m_clc_size == m_clc_capacity)
+			{
+				if (!m_clc_capacity) m_clc_capacity = 16;
+				else m_clc_capacity *= 2;
+
+				char* s = new char[m_clc_capacity + 1];
+				if (m_cur_lexeme_contents) strcpy(s, m_cur_lexeme_contents);
+				
+				delete[] m_cur_lexeme_contents;
+				m_cur_lexeme_contents = s;
+			}
+
+			m_cur_lexeme_contents[m_clc_size++] = c;
+			m_cur_lexeme_contents[m_clc_size] = 0;
+		}
 
 	public:
 		explicit xpath_lexer(const char* query): m_cur(query)
 		{
+			m_clc_capacity = m_clc_size = 0;
+			m_cur_lexeme_contents = 0;
+
 			next();
+		}
+		
+		~xpath_lexer()
+		{
+			delete[] m_cur_lexeme_contents;
 		}
 		
 		const char* state() const
@@ -469,9 +537,9 @@ namespace pugi
 
 		void next()
 		{
-			m_cur_lexeme_contents.erase(m_cur_lexeme_contents.begin(), m_cur_lexeme_contents.end());
+			contents_clear();
 
-			while (*m_cur && *m_cur <= 32) ++m_cur;
+			while (is_chartype(*m_cur, ct_space)) ++m_cur;
 
 			switch (*m_cur)
 			{
@@ -602,14 +670,15 @@ namespace pugi
 					m_cur += 2;
 					m_cur_lexeme = lex_double_dot;
 				}
-				else if (*(m_cur+1) >= '0' && *(m_cur+1) <= '9')
+				else if (is_chartype(*(m_cur+1), ct_digit))
 				{
-					m_cur_lexeme_contents += "0.";
+					contents_push('0');
+					contents_push('.');
 
 					++m_cur;
 
-					while (*m_cur >= '0' && *m_cur <= '9')
-						m_cur_lexeme_contents += *m_cur++;
+					while (is_chartype(*m_cur, ct_digit))
+						contents_push(*m_cur++);
 					
 					m_cur_lexeme = lex_number;
 				}
@@ -634,7 +703,7 @@ namespace pugi
 				++m_cur;
 
 				while (*m_cur && *m_cur != terminator)
-					m_cur_lexeme_contents += *m_cur++;
+					contents_push(*m_cur++);
 				
 				if (!*m_cur)
 					m_cur_lexeme = lex_none;
@@ -648,29 +717,27 @@ namespace pugi
 			}
 
 			default:
-				if (*m_cur >= '0' && *m_cur <= '9')
+				if (is_chartype(*m_cur, ct_digit))
 				{
-					while (*m_cur >= '0' && *m_cur <= '9')
-						m_cur_lexeme_contents += *m_cur++;
+					while (is_chartype(*m_cur, ct_digit))
+						contents_push(*m_cur++);
 				
-					if (*m_cur == '.' && (*(m_cur+1) >= '0' && *(m_cur+1) <= '9'))
+					if (*m_cur == '.' && is_chartype(*(m_cur+1), ct_digit))
 					{
-						m_cur_lexeme_contents += *m_cur++;
+						contents_push(*m_cur++);
 
-						while (*m_cur >= '0' && *m_cur <= '9')
-							m_cur_lexeme_contents += *m_cur++;
+						while (is_chartype(*m_cur, ct_digit))
+							contents_push(*m_cur++);
 					}
 
 					m_cur_lexeme = lex_number;
 				}
-				else if ((*m_cur >= 'A' && *m_cur <= 'Z') || (*m_cur >= 'a' && *m_cur <= 'z') || *m_cur < 0 || *m_cur == '_' || *m_cur == ':')
+				else if (is_chartype(*m_cur, ct_start_symbol))
 				{
-					while ((*m_cur >= 'A' && *m_cur <= 'Z') || (*m_cur >= 'a' && *m_cur <= 'z') || *m_cur < 0
-							|| *m_cur == '_' || *m_cur == ':' || *m_cur == '-' || *m_cur == '.'
-							|| (*m_cur >= '0' && *m_cur <= '9'))
-						m_cur_lexeme_contents += *m_cur++;
+					while (is_chartype(*m_cur, ct_symbol))
+						contents_push(*m_cur++);
 				
-					while (*m_cur && *m_cur <= 32) ++m_cur;
+					while (is_chartype(*m_cur, ct_space)) ++m_cur;
 
 					m_cur_lexeme = lex_string;
 				}
@@ -684,7 +751,7 @@ namespace pugi
 
 		const char* contents() const
 		{
-			return m_cur_lexeme_contents.c_str();
+			return m_cur_lexeme_contents;
 		}
 	};
 
@@ -1659,20 +1726,59 @@ namespace pugi
 				
 				bool axis_specified = true;
 				
-				if (starts_with(nt_name, "ancestor::")) axis = axis_ancestor;
-				else if (starts_with(nt_name, "ancestor-or-self::")) axis = axis_ancestor_or_self;
-				else if (starts_with(nt_name, "attribute::")) axis = axis_attribute;
-				else if (starts_with(nt_name, "child::")) axis = axis_child;
-				else if (starts_with(nt_name, "descendant::")) axis = axis_descendant;
-				else if (starts_with(nt_name, "descendant-or-self::")) axis = axis_descendant_or_self;
-				else if (starts_with(nt_name, "following::")) axis = axis_following;
-				else if (starts_with(nt_name, "following-sibling::")) axis = axis_following_sibling;
-				else if (starts_with(nt_name, "namespace::")) axis = axis_namespace;
-				else if (starts_with(nt_name, "parent::")) axis = axis_parent;
-				else if (starts_with(nt_name, "preceding::")) axis = axis_preceding;
-				else if (starts_with(nt_name, "preceding-sibling::")) axis = axis_preceding_sibling;
-				else if (starts_with(nt_name, "self::")) axis = axis_ancestor_or_self;
-				else axis_specified = false;
+				switch (nt_name[0])
+				{
+				case 'a':
+					if (starts_with(nt_name, "ancestor::")) axis = axis_ancestor;
+					else if (starts_with(nt_name, "ancestor-or-self::")) axis = axis_ancestor_or_self;
+					else if (starts_with(nt_name, "attribute::")) axis = axis_attribute;
+					else axis_specified = false;
+					
+					break;
+				
+				case 'c':
+					if (starts_with(nt_name, "child::")) axis = axis_child;
+					else axis_specified = false;
+					
+					break;
+				
+				case 'd':
+					if (starts_with(nt_name, "descendant::")) axis = axis_descendant;
+					else if (starts_with(nt_name, "descendant-or-self::")) axis = axis_descendant_or_self;
+					else axis_specified = false;
+					
+					break;
+				
+				case 'f':
+					if (starts_with(nt_name, "following::")) axis = axis_following;
+					else if (starts_with(nt_name, "following-sibling::")) axis = axis_following_sibling;
+					else axis_specified = false;
+					
+					break;
+				
+				case 'n':
+					if (starts_with(nt_name, "namespace::")) axis = axis_namespace;
+					else axis_specified = false;
+					
+					break;
+				
+				case 'p':
+					if (starts_with(nt_name, "parent::")) axis = axis_parent;
+					else if (starts_with(nt_name, "preceding::")) axis = axis_preceding;
+					else if (starts_with(nt_name, "preceding-sibling::")) axis = axis_preceding_sibling;
+					else axis_specified = false;
+					
+					break;
+				
+				case 's':
+					if (starts_with(nt_name, "self::")) axis = axis_ancestor_or_self;
+					else axis_specified = false;
+					
+					break;
+
+				default:
+					axis_specified = false;
+				}
 				
 				if (axis_specified)
 				{
