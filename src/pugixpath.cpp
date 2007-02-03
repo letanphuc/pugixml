@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// Pug Improved XML Parser - Version 0.2
+// Pug Improved XML Parser - Version 0.3
 // --------------------------------------------------------
 // Copyright (C) 2006-2007, by Arseny Kapoulkine (arseny.kapoulkine@gmail.com)
 // This work is based on the pugxml parser, which is:
@@ -13,16 +13,12 @@
 
 #include "pugixml.hpp"
 
-#include <string>
-
 #include <iostream>
-#include <functional>
-
 #include <algorithm>
 
-#include <limits>
-
 #include <cmath>
+#include <cfloat>
+#include <cassert>
 
 namespace
 {
@@ -111,13 +107,14 @@ namespace
 				
 				return result;
 			}
+			
 			default:
-				throw std::exception("Unknown node type");
+				return "";
 			}
 		}
 	}
 	
-	struct document_order_comparator: public std::binary_function<const xpath_node&, const xpath_node&, bool>
+	struct document_order_comparator
 	{
 		bool operator()(const xpath_node& lhs, const xpath_node& rhs) const
 		{
@@ -178,7 +175,7 @@ namespace
 		}
 	};
 
-	struct duplicate_comparator: public std::binary_function<const xpath_node&, const xpath_node&, bool>
+	struct duplicate_comparator
 	{
 		bool operator()(const xpath_node& lhs, const xpath_node& rhs) const
 		{
@@ -187,19 +184,115 @@ namespace
 		}
 	};
 	
-	bool convert_number_to_boolean(double value)
+	/* From trio
+	 *
+	 * Endian-agnostic indexing macro.
+	 *
+	 * The value of internalEndianMagic, when converted into a 64-bit
+	 * integer, becomes 0x0706050403020100 (we could have used a 64-bit
+	 * integer value instead of a double, but not all platforms supports
+	 * that type). The value is automatically encoded with the correct
+	 * endianess by the compiler, which means that we can support any
+	 * kind of endianess. The individual bytes are then used as an index
+	 * for the IEEE 754 bit-patterns and masks.
+	 */
+	#define DOUBLE_INDEX(x) (((unsigned char *)&internal_endian_magic)[7-(x)])
+
+	static const double internal_endian_magic = 7.949928895127363e-275;
+
+	static const unsigned char ieee_754_exponent_mask[] = { 0x7F, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+	static const unsigned char ieee_754_mantissa_mask[] = { 0x00, 0x0F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
+	static const unsigned char ieee_754_qnan_array[] = { 0x7F, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	
+	bool is_special(double value, bool& has_mantissa)
 	{
-		return (value != 0 && value == value);
+		bool is_special_quantity = true;
+
+		has_mantissa = false;
+
+		for (int i = 0; i < sizeof(double); ++i)
+		{
+			unsigned char current = ((unsigned char *)&value)[DOUBLE_INDEX(i)];
+			
+			is_special_quantity = is_special_quantity && (current & ieee_754_exponent_mask[i]) == ieee_754_exponent_mask[i];
+			has_mantissa = has_mantissa || (current & ieee_754_mantissa_mask[i]) != 0;
+		}
+		
+		return is_special_quantity;
+	}
+
+	double gen_nan()
+	{
+#if FLT_RADIX == 2 && DBL_MAX_EXP == 1024 && DBL_MANT_DIG == 53
+		// IEEE 754
+		
+		double result;
+
+		for (int i = 0; i < sizeof(double); ++i)
+		{
+			((unsigned char *)&result)[DOUBLE_INDEX(i)] = ieee_754_qnan_array[i];
+		}
+		
+		return result;
+#else
+		const volatile double zero = 0.0;
+		return zero / zero;
+#endif
 	}
 	
-	char* convert_number_to_string(double value)
+	bool is_nan(double value)
 	{
-		if (value != value) return "NaN";
-		else if (value + 1 == value) return value < 0 ? "-Infinity" : "Infinity";
+#if defined(__USE_ISOC99)
+		return isnan(value);
+#elif defined(_MSC_VER) || defined(__BORLANDC__)
+		return _isnan(value);
+#elif FLT_RADIX == 2 && DBL_MAX_EXP == 1024 && DBL_MANT_DIG == 53
+		// IEEE 754
+
+		bool has_mantissa;
+		
+		bool is_special_quantity = is_special(value, has_mantissa);
+  
+		return (is_special_quantity && has_mantissa);
+#else
+		return value != value;
+#endif
+	}
+	
+	bool is_inf(double value)
+	{
+#if defined(__USE_ISOC99)
+		return !std::isfinite(value);
+#elif defined(_MSC_VER) || defined(__BORLANDC__)
+		return !_finite(value);
+#elif FLT_RADIX == 2 && DBL_MAX_EXP == 1024 && DBL_MANT_DIG == 53
+		// IEEE 754
+  
+		bool has_mantissa;
+		
+		bool is_special_quantity = is_special(value, has_mantissa);
+  
+		return (is_special_quantity && !has_mantissa);
+#else
+		return value + 1 == value && value - 1 == value;
+#endif
+	}
+	
+	bool convert_number_to_boolean(double value)
+	{
+		return (value != 0 && !is_nan(value));
+	}
+	
+	const char* convert_number_to_string(double value)
+	{
+		if (is_nan(value)) return "NaN";
+		else if (is_inf(value)) return value < 0 ? "-Infinity" : "Infinity";
 		
 		static char buf[100];
 		
-		if (value == (int)value) itoa((int)value, buf, 10);
+		if (value == (int)value) sprintf(buf, "%d", (int)value);
 		else
 		{
 			sprintf(buf, "%f", value);
@@ -218,8 +311,6 @@ namespace
 	
 	double convert_string_to_number(const char* string)
 	{
-		const double NaN = std::numeric_limits<double>::quiet_NaN();
-		
 		while (is_chartype(*string, ct_space)) ++string;
 		
 		double sign = 1;
@@ -232,7 +323,7 @@ namespace
 		
 		double r = 0;
 		
-		if (!*string) return NaN;
+		if (!*string) return gen_nan();
 		
 		while (is_chartype(*string, ct_digit))
 		{
@@ -245,10 +336,10 @@ namespace
 			if (is_chartype(*string, ct_space))
 			{
 				while (is_chartype(*string, ct_space)) ++string;
-				if (*string) return NaN;
+				if (*string) return gen_nan();
 			}
 			
-			if (*string != '.') return NaN;
+			if (*string != '.') return gen_nan();
 			
 			++string;
 			
@@ -262,13 +353,13 @@ namespace
 			}
 			
 			while (is_chartype(*string, ct_space)) ++string;
-			if (*string) return NaN;
+			if (*string) return gen_nan();
 		}
 		
 		return r;
 	}
 	
-	double round(double value)
+	double ieee754_round(double value)
 	{
 		return value == value ? floor(value + 0.5) : value;
 	}
@@ -329,12 +420,69 @@ namespace
 		
 		return "";
 	}
+
+	template <class T> struct equal_to
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs == rhs;
+		}
+	};
+
+	template <class T> struct not_equal_to
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs != rhs;
+		}
+	};
+
+	template <class T> struct greater
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs > rhs;
+		}
+	};
+	
+	template <class T> struct less
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs < rhs;
+		}
+	};
+
+	template <class T> struct greater_equal
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs >= rhs;
+		}
+	};
+
+	template <class T> struct less_equal
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs <= rhs;
+		}
+	};
 };
 
 namespace pugi
 {
+	xpath_exception::xpath_exception(const char* message): m_message(message)
+	{
+	}
+	
+	const char* xpath_exception::what() const throw()
+	{
+		return m_message;
+	}
+	
 	const size_t xpath_memory_block_size = 4096;		///< Memory block size, 4 kb
-		
+
 	class xpath_allocator
 	{
 		struct memory_block
@@ -349,61 +497,47 @@ namespace pugi
 			char data[xpath_memory_block_size];
 		};
 		
-		struct memory_tag
-		{
-			memory_tag* next;
-		};
-		
-		memory_block* _root;
-		memory_tag* _tag;
+		memory_block* m_root;
 		
 	public:
-		xpath_allocator(): _root(0), _tag(0)
+		xpath_allocator(): m_root(0)
 		{
-			_root = new memory_block;
+			m_root = new memory_block;
 		}
 		
 		~xpath_allocator()
 		{
-			while (_root)
+			while (m_root)
 			{
-				memory_block* cur = _root->next;
-				delete _root;
-				_root = cur;
-			}
-
-			while (_tag)
-			{
-				memory_tag* cur = _tag->next;
-				::operator delete(_tag);
-				_tag = cur;
+				memory_block* cur = m_root->next;
+				delete m_root;
+				m_root = cur;
 			}
 		}
 
 		void* alloc(size_t size)
 		{
-			if (size > xpath_memory_block_size)
+			if (m_root->size + size <= xpath_memory_block_size)
 			{
-				memory_tag* ptr = static_cast<memory_tag*>(::operator new(size + sizeof(memory_tag)));
-				ptr->next = _tag;
-				_tag = ptr;
-				
-				return ptr + 1;
-			}
-			else if (_root->size + size <= xpath_memory_block_size)
-			{
-				void* buf = _root->data + _root->size;
-				_root->size += size;
+				void* buf = m_root->data + m_root->size;
+				m_root->size += size;
 				return buf;
 			}
 			else
 			{
-				_root->next = new memory_block();
-				_root = _root->next;
-
-				_root->size = size;
-	
-				return _root->data;
+				memory_block* block;
+				
+				if (size > xpath_memory_block_size)
+					block = static_cast<memory_block*>(operator new(size + sizeof(memory_block) - xpath_memory_block_size));
+				else
+					block = new memory_block;
+					
+				block->next = m_root;
+				block->size = size;
+				
+				m_root = block;
+				
+				return block->data;
 			}
 		}
 	};
@@ -416,7 +550,7 @@ namespace pugi
 	{
 	}
 		
-	xpath_node::xpath_node(const xml_attribute& attribute, const xml_node& parent): m_attribute(attribute), m_node(parent)
+	xpath_node::xpath_node(const xml_attribute& attribute, const xml_node& parent): m_node(parent), m_attribute(attribute)
 	{
 	}
 
@@ -594,71 +728,6 @@ namespace pugi
 		}
 		
 		truncate(std::unique(begin(), end()));
-	}
-
-	xpath_result::xpath_result(const xpath_node_set& value): m_type(t_node_set), m_nodeset_value(value)
-	{
-	}
-
-	xpath_result::xpath_result(double value): m_type(t_number), m_number_value(value)
-	{
-	}
-
-	xpath_result::xpath_result(bool value): m_type(t_boolean), m_boolean_value(value)
-	{
-	}
-
-	xpath_result::xpath_result(const char* value): m_type(t_string), m_string_value(value)
-	{
-	}
-
-	xpath_result::xpath_result(const std::string& value): m_type(t_string), m_string_value(value)
-	{
-	}
-
-	const xpath_node_set& xpath_result::as_node_set() const
-	{
-		if (m_type == t_node_set) return m_nodeset_value;
-		else throw std::exception("Can't convert to node set from anything else");
-	}
-
-	bool xpath_result::as_boolean() const
-	{
-		if (m_type == t_boolean) return m_boolean_value;
-		else if (m_type == t_number) return convert_number_to_boolean(m_number_value);
-		else if (m_type == t_string) return !m_string_value.empty();
-		else if (m_type == t_node_set) return !m_nodeset_value.empty();
-		else throw std::exception("Unknown type");
-	}
-
-	double xpath_result::as_number() const
-	{
-		if (m_type == t_boolean) return m_boolean_value ? 1.f : 0.f;
-		else if (m_type == t_number) return m_number_value;
-		else if (m_type == t_string) return convert_string_to_number(m_string_value.c_str());
-		else if (m_type == t_node_set) return convert_string_to_number(as_string().c_str());
-		else throw std::exception("Unknown type");
-	}
-		
-	std::string xpath_result::as_string() const
-	{
-		if (m_type == t_boolean) return m_boolean_value ? "true" : "false";
-		else if (m_type == t_number) return convert_number_to_string(m_number_value);
-		else if (m_type == t_string) return m_string_value;
-		else if (m_type == t_node_set)
-		{
-			if (m_nodeset_value.empty()) return "";
-			else
-			{
-				return string_value(m_nodeset_value.first());
-			}
-		}
-		else throw std::exception("Unknown type");
-	}
-
-	xpath_result::type_t xpath_result::type() const
-	{
-		return m_type;
 	}
 
 	struct xpath_context
@@ -1113,7 +1182,10 @@ namespace pugi
 				else if (lhs->rettype() == ast_type_string || rhs->rettype() == ast_type_string)
 					return C<std::string>()(lhs->eval_string(c), rhs->eval_string(c));
 				else
-					throw std::exception("Wrong types");
+				{
+					assert(!"Wrong types");
+					return false;
+				}
 			}
 			else if (lhs->rettype() == ast_type_node_set && rhs->rettype() == ast_type_node_set)
 			{
@@ -1159,7 +1231,11 @@ namespace pugi
 					
 					return false;
 				}
-				else throw std::exception("Wrong types");
+				else
+				{
+					assert(!"Wrong types");
+					return false;
+				}
 			}
 			else if (lhs->rettype() == ast_type_node_set && rhs->rettype() != ast_type_node_set)
 			{
@@ -1191,9 +1267,17 @@ namespace pugi
 					
 					return false;
 				}
-				else throw std::exception("Wrong types");
+				else
+				{
+					assert(!"Wrong types");
+					return false;
+				}
 			}
-			else throw std::exception("Wrong types");
+			else
+			{
+				assert(!"Wrong types");
+				return false;
+			}
 		}
 
 		template <template <class> class C> bool compare_rel(xpath_ast_node* lhs, xpath_ast_node* rhs, xpath_context& c)
@@ -1244,7 +1328,11 @@ namespace pugi
 				
 				return false;
 			}
-			else throw std::exception("Wrong types");
+			else
+			{
+				assert(!"Wrong types");
+				return false;
+			}
 		}
 		
 		void apply_predicate(xpath_node_set& ns, size_t first, xpath_ast_node* expr, const xpath_context& context)
@@ -1307,6 +1395,9 @@ namespace pugi
 				if (!strncmp(a.name(), m_contents, strlen(m_contents)) && a.name()[strlen(m_contents)] == ':')
 					ns.push_back(xpath_node(a, parent));
 				break;
+			
+			default:
+				;
 			}
 		}
 		
@@ -1452,8 +1543,9 @@ namespace pugi
 			
 				xml_node root = n;
 				while (root.parent()) root = root.parent();
-
-				root.traverse(tree_traverser(*this, ns, n));
+				
+				tree_traverser t(*this, ns, n);
+				root.traverse(t);
 				
 				break;
 			}
@@ -1485,8 +1577,9 @@ namespace pugi
 				while (root.parent()) root = root.parent();
 				
 				size_t s = ns.size();
-			
-				root.traverse(tree_traverser(*this, ns, n));
+				
+				tree_traverser t(*this, ns, n);
+				root.traverse(t);
 				
 				std::reverse(ns.begin() + s, ns.end());
 				
@@ -1514,7 +1607,7 @@ namespace pugi
 			}
 				
 			default:
-				throw std::exception("Unimplemented axis");
+				throw xpath_exception("Unimplemented axis");
 			}
 		}
 		
@@ -1543,7 +1636,7 @@ namespace pugi
 			}
 			
 			default:
-				throw std::exception("Unimplemented axis");
+				throw xpath_exception("Unimplemented axis");
 			}
 		}
 		
@@ -1670,7 +1763,7 @@ namespace pugi
 				break;
 			
 			default:
-				throw std::exception("Unimplemented axis");
+				throw xpath_exception("Unimplemented axis");
 			}
 		}
 		
@@ -1685,25 +1778,25 @@ namespace pugi
 			else m_contents = 0;
 		}
 	public:
-		xpath_ast_node(ast_type_t type, const char* contents, xpath_allocator* a): m_type(type), m_contents(0), m_rettype(ast_type_none)
+		xpath_ast_node(ast_type_t type, const char* contents, xpath_allocator* a): m_type(type), m_rettype(ast_type_none), m_contents(0)
 		{
 			set_contents(contents, a);
 		}
 		
 		xpath_ast_node(ast_type_t type, xpath_ast_node* left, xpath_ast_node* right, axis_t axis): m_type(type),
-			m_left(left), m_right(right), m_third(0), m_next(0), m_contents(0), m_rettype(ast_type_none),
+			m_rettype(ast_type_none), m_left(left), m_right(right), m_third(0), m_next(0), m_contents(0),
 			m_axis(axis)
 		{
 		}
 
 		xpath_ast_node(ast_type_t type, xpath_ast_node* left = 0, xpath_ast_node* right = 0, xpath_ast_node* third = 0): m_type(type),
-			m_left(left), m_right(right), m_third(third), m_next(0), m_contents(0), m_rettype(ast_type_none)
+			m_rettype(ast_type_none), m_left(left), m_right(right), m_third(third), m_next(0), m_contents(0)
 		{
 		}
 
 		xpath_ast_node(ast_type_t type, xpath_ast_node* left, axis_t axis, nodetest_t test, const char* contents, xpath_allocator* a):
-			m_type(type), m_left(left), m_right(0), m_third(0), m_next(0), m_contents(0),
-			m_axis(axis), m_test(test), m_rettype(ast_type_none)
+			m_type(type), m_rettype(ast_type_none), m_left(left), m_right(0), m_third(0), m_next(0),
+			m_contents(0), m_axis(axis), m_test(test)
 		{
 			set_contents(contents, a);
 		}
@@ -1731,22 +1824,22 @@ namespace pugi
 				else return m_right->eval_boolean(c);
 				
 			case ast_op_equal:
-				return compare_eq<std::equal_to>(m_left, m_right, c);
+				return compare_eq<equal_to>(m_left, m_right, c);
 
 			case ast_op_not_equal:
-				return compare_eq<std::not_equal_to>(m_left, m_right, c);
+				return compare_eq<not_equal_to>(m_left, m_right, c);
 	
 			case ast_op_less:
-				return compare_rel<std::less>(m_left, m_right, c);
+				return compare_rel<less>(m_left, m_right, c);
 			
 			case ast_op_greater:
-				return compare_rel<std::greater>(m_left, m_right, c);
+				return compare_rel<greater>(m_left, m_right, c);
 
 			case ast_op_less_or_equal:
-				return compare_rel<std::less_equal>(m_left, m_right, c);
+				return compare_rel<less_equal>(m_left, m_right, c);
 			
 			case ast_op_greater_or_equal:
-				return compare_rel<std::greater_equal>(m_left, m_right, c);
+				return compare_rel<greater_equal>(m_left, m_right, c);
 
 			case ast_func_starts_with:
 				return starts_with(m_left->eval_string(c), m_right->eval_string(c).c_str());
@@ -1782,11 +1875,14 @@ namespace pugi
 					{
 						const char* value = a.value();
 						
-						if (!strnicmp(value, lang.c_str(), lang.length()))
+						// strnicmp / strncasecmp is not portable
+						for (std::string::iterator it = lang.begin(); it != lang.end(); ++it)
 						{
-							return value[lang.length()] == 0 || value[lang.length()] == '-';
+							if (tolower(*it) != tolower(*value)) return false;
+							++value;
 						}
-						else return false;
+						
+						return *value == 0 || *value == '-';
 					}
 				}
 				
@@ -1799,13 +1895,17 @@ namespace pugi
 				{
 				case ast_type_number:
 					return convert_number_to_boolean(eval_number(c));
+					
 				case ast_type_string:
 					return !eval_string(c).empty();
-				case ast_type_node_set:
+					
+				case ast_type_node_set:				
 					return !eval_node_set(c).empty();
+					
+				default:
+					assert(!"Wrong expression for ret type boolean");
+					return false;
 				}
-				
-				throw std::exception("Unknown error");
 			}
 			}
 		}
@@ -1884,18 +1984,26 @@ namespace pugi
 
 			case ast_func_round:
 				// correct except for negative zero (it returns positive zero instead of negative)
-				return round(m_left->eval_number(c));
+				return ieee754_round(m_left->eval_number(c));
 			
 			default:
 			{
 				switch (m_rettype)
 				{
-				case ast_type_boolean: return eval_boolean(c) ? 1 : 0;
-				case ast_type_string: return convert_string_to_number(eval_string(c).c_str());
-				case ast_type_node_set: return convert_string_to_number(eval_string(c).c_str());
+				case ast_type_boolean:
+					return eval_boolean(c) ? 1 : 0;
+					
+				case ast_type_string:
+					return convert_string_to_number(eval_string(c).c_str());
+					
+				case ast_type_node_set:
+					return convert_string_to_number(eval_string(c).c_str());
+					
+				default:
+					assert(!"Wrong expression for ret type number");
+					return 0;
 				}
 				
-				throw std::exception("Unknown operation");
 			}
 			}
 		}
@@ -2003,7 +2111,7 @@ namespace pugi
 			case ast_func_substring_2:
 			{
 				std::string s = m_left->eval_string(c);
-				double first = round(m_right->eval_number(c));
+				double first = ieee754_round(m_right->eval_number(c));
 				
 				if (first != first) return ""; // NaN
 				else if (first >= s.length() + 1) return "";
@@ -2016,8 +2124,8 @@ namespace pugi
 			case ast_func_substring_3:
 			{
 				std::string s = m_left->eval_string(c);
-				double first = round(m_right->eval_number(c));
-				double last = first + round(m_third->eval_number(c));
+				double first = ieee754_round(m_right->eval_number(c));
+				double last = first + ieee754_round(m_third->eval_number(c));
 				
 				if (first != first || last != last) return "";
 				else if (first >= s.length() + 1) return "";
@@ -2077,16 +2185,22 @@ namespace pugi
 			{
 				switch (m_rettype)
 				{
-				case ast_type_boolean: return eval_boolean(c) ? "true" : "false";
-				case ast_type_number: return convert_number_to_string(eval_number(c));
+				case ast_type_boolean:
+					return eval_boolean(c) ? "true" : "false";
+					
+				case ast_type_number:
+					return convert_number_to_string(eval_number(c));
+					
 				case ast_type_node_set:
 				{
 					xpath_node_set ns = eval_node_set(c);
 					return ns.empty() ? "" : string_value(ns.first());
 				}
-				}
 				
-				throw std::exception("Unknown error");
+				default:
+					assert(!"Wrong expression for ret type string");
+					return "";
+				}
 			}
 			}
 		}
@@ -2231,7 +2345,7 @@ namespace pugi
 					break;
 
 				default:
-					throw std::exception("Not implemented");
+					throw xpath_exception("Not implemented");
 				}
 				
 				ns.remove_duplicates();
@@ -2253,7 +2367,8 @@ namespace pugi
 			}
 
 			default:
-				throw std::exception("Unknown operation");
+				assert(!"Wrong expression for ret type node set");
+				return xpath_node_set();
 			}
 		}
 		
@@ -2286,7 +2401,7 @@ namespace pugi
 				return false;
 			
 			case ast_variable:
-				throw std::exception("Semantics error: variables are not supported");
+				throw xpath_exception("Semantics error: variables are not supported");
 				
 			case ast_string_constant:
 			case ast_number_constant:
@@ -2342,20 +2457,13 @@ namespace pugi
 				if (m_third && m_third->contains(type)) return true;
 
 				return false;
-				if (m_left) m_left->check_semantics();
-				m_rettype = ast_type_number;
-				break;
-		
-				if (m_left) m_left->check_semantics();
-				m_rettype = ast_type_number;
-				break;
 		
 			case ast_step:
 			case ast_step_root:
 				return false;
 			
 			default:
-				throw std::exception("Unknown semantics error");
+				throw xpath_exception("Unknown semantics error");
 			}
 		}
 
@@ -2395,7 +2503,7 @@ namespace pugi
 				m_left->check_semantics();
 				m_right->check_semantics();
 				if (m_left->rettype() != ast_type_node_set || m_right->rettype() != ast_type_node_set)
-					throw std::exception("Semantics error: union operator has to be applied to node sets");
+					throw xpath_exception("Semantics error: union operator has to be applied to node sets");
 				m_rettype = ast_type_node_set;
 				break;
 			
@@ -2404,7 +2512,7 @@ namespace pugi
 				m_left->check_semantics();
 				m_right->check_semantics();
 				if (m_left->rettype() != ast_type_node_set)
-					throw std::exception("Semantics error: predicate has to be applied to node set");
+					throw xpath_exception("Semantics error: predicate has to be applied to node set");
 				m_rettype = ast_type_node_set;
 				
 				if (!m_right->contains(ast_func_position) && m_right->rettype() != ast_type_number)
@@ -2417,7 +2525,7 @@ namespace pugi
 				break;
 
 			case ast_variable:
-				throw std::exception("Semantics error: variable are not supported");
+				throw xpath_exception("Semantics error: variable are not supported");
 				
 			case ast_string_constant:
 				m_rettype = ast_type_string;
@@ -2435,7 +2543,7 @@ namespace pugi
 			case ast_func_count:
 				m_left->check_semantics();
 				if (m_left->rettype() != ast_type_node_set)
-					throw std::exception("Semantics error: count() has to be applied to node set");
+					throw xpath_exception("Semantics error: count() has to be applied to node set");
 				m_rettype = ast_type_number;
 				break;
 				
@@ -2454,7 +2562,7 @@ namespace pugi
 				{
 					m_left->check_semantics();
 					if (m_left->rettype() != ast_type_node_set)
-						throw std::exception("Semantics error: function has to be applied to node set");
+						throw xpath_exception("Semantics error: function has to be applied to node set");
 				}
 				m_rettype = ast_type_string;
 				break;
@@ -2524,7 +2632,7 @@ namespace pugi
 			case ast_func_sum:
 				m_left->check_semantics();
 				if (m_left->rettype() != ast_type_node_set)
-					throw std::exception("Semantics error: sum() has to be applied to node set");
+					throw xpath_exception("Semantics error: sum() has to be applied to node set");
 				m_rettype = ast_type_number;
 				break;
 				
@@ -2540,7 +2648,7 @@ namespace pugi
 				{
 					m_left->check_semantics();
 					if (m_left->rettype() != ast_type_node_set)
-						throw std::exception("Semantics error: step has to be applied to node set");
+						throw xpath_exception("Semantics error: step has to be applied to node set");
 				}
 				
 				for (xpath_ast_node* n = m_right; n; n = n->m_next)
@@ -2554,7 +2662,7 @@ namespace pugi
 				break;
 			
 			default:
-				throw std::exception("Unknown semantics error");
+				throw xpath_exception("Unknown semantics error");
 			}
 		}
 		
@@ -2591,7 +2699,7 @@ namespace pugi
 	    		m_lexer.next();
 
 	    		if (m_lexer.current() != lex_string)
-	    			throw std::exception("incorrect variable reference");
+	    			throw xpath_exception("incorrect variable reference");
 
 				xpath_ast_node* n = new (m_alloc) xpath_ast_node(ast_variable, m_lexer.contents(), m_alloc);
 				m_lexer.next();
@@ -2606,7 +2714,7 @@ namespace pugi
 				xpath_ast_node* n = parse_expression();
 
 				if (m_lexer.current() != lex_close_brace)
-					throw std::exception("unmatched braces");
+					throw xpath_exception("unmatched braces");
 
 				m_lexer.next();
 
@@ -2641,7 +2749,7 @@ namespace pugi
 				xpath_ast_node* last_concat = 0;
 				
 				if (m_lexer.current() != lex_open_brace)
-					throw std::exception("Unrecognized function call");
+					throw xpath_exception("Unrecognized function call");
 				m_lexer.next();
 
 				if (m_lexer.current() != lex_close_brace)
@@ -2650,7 +2758,7 @@ namespace pugi
 				while (m_lexer.current() != lex_close_brace)
 				{
 					if (m_lexer.current() != lex_comma)
-						throw std::exception("no comma between function arguments");
+						throw xpath_exception("no comma between function arguments");
 					m_lexer.next();
 					
 					xpath_ast_node* n = parse_expression();
@@ -2665,7 +2773,7 @@ namespace pugi
 						}
 					}
 					else if (argc >= 4)
-						throw std::exception("Too many function arguments");
+						throw xpath_exception("Too many function arguments");
 					else
 						args[argc++] = n;
 				}
@@ -2806,11 +2914,11 @@ namespace pugi
 					}
 				}
 				
-				throw std::exception("Unrecognized function or wrong parameter count");
+				throw xpath_exception("Unrecognized function or wrong parameter count");
 			}
 
 	    	default:
-	    		throw std::exception("unrecognizable primary expression");
+	    		throw xpath_exception("unrecognizable primary expression");
 	    	}
 	    }
 	    
@@ -2828,7 +2936,7 @@ namespace pugi
 	    		n = new (m_alloc) xpath_ast_node(ast_filter, n, parse_expression(), axis_child);
 
 	    		if (m_lexer.current() != lex_close_square_brace)
-	    			throw std::exception("Unmatched square brace");
+	    			throw xpath_exception("Unmatched square brace");
 	    	
 	    		m_lexer.next();
 	    	}
@@ -2982,25 +3090,25 @@ namespace pugi
 						else if (nt_name == "processing-instruction")
 							nt_type = nodetest_type_pi;
 						else
-							throw std::exception("Unrecognized node type");
+							throw xpath_exception("Unrecognized node type");
 						
 						nt_name.clear();
 					}
 					else if (nt_name == "processing-instruction")
 					{
 						if (m_lexer.current() != lex_quoted_string)
-							throw std::exception("Only literals are allowed as arguments to processing-instruction()");
+							throw xpath_exception("Only literals are allowed as arguments to processing-instruction()");
 					
 						nt_type = nodetest_pi;
 						nt_name = m_lexer.contents();
 						m_lexer.next();
 						
 						if (m_lexer.current() != lex_close_brace)
-							throw std::exception("Unmatched brace near processing-instruction()");
+							throw xpath_exception("Unmatched brace near processing-instruction()");
 						m_lexer.next();
 					}
 					else
-						throw std::exception("Unmatched brace near node type test");
+						throw xpath_exception("Unmatched brace near node type test");
 
 				}
 				// namespace *
@@ -3012,7 +3120,7 @@ namespace pugi
 					else
 					{
 						if (nt_name.find(':') != nt_name.size() - 1)
-							throw std::exception("Wrong namespace-like node test");
+							throw xpath_exception("Wrong namespace-like node test");
 						
 						nt_name.erase(nt_name.size() - 1);
 						
@@ -3028,7 +3136,7 @@ namespace pugi
 				nt_type = nodetest_all;
 				m_lexer.next();
 			}
-			else throw std::exception("Unrecognized node test");
+			else throw xpath_exception("Unrecognized node test");
 			
 			xpath_ast_node* n = new (m_alloc) xpath_ast_node(ast_step, set, axis, nt_type, nt_name.c_str(), m_alloc);
 			
@@ -3041,7 +3149,7 @@ namespace pugi
 				xpath_ast_node* pred = new (m_alloc) xpath_ast_node(ast_predicate, parse_expression(), 0, axis);
 				
 				if (m_lexer.current() != lex_close_square_brace)
-	    			throw std::exception("unmatched square brace");
+	    			throw xpath_exception("unmatched square brace");
 				m_lexer.next();
 				
 				if (last) last->set_next(pred);
@@ -3089,7 +3197,7 @@ namespace pugi
 				{
 					n = parse_relative_location_path(n);
 				}
-				catch (const std::exception&)
+				catch (const xpath_exception&)
 				{
 					m_lexer.reset(state);
 				}
@@ -3303,7 +3411,7 @@ namespace pugi
 		}
 
 	public:
-		explicit xpath_parser(const char* query, xpath_allocator* alloc): m_lexer(query), m_alloc(alloc)
+		explicit xpath_parser(const char* query, xpath_allocator* alloc): m_alloc(alloc), m_lexer(query)
 		{
 		}
 
@@ -3313,7 +3421,7 @@ namespace pugi
 		}
 	};
 
-	xpath_query::xpath_query(const char* query): m_root(0), m_alloc(0)
+	xpath_query::xpath_query(const char* query): m_alloc(0), m_root(0)
 	{
 		compile(query);
 	}
@@ -3345,62 +3453,82 @@ namespace pugi
 		return !!m_root;
 	}
 
-	xpath_result xpath_query::evaluate(const xml_node& n)
+	bool xpath_query::evaluate_boolean(const xml_node& n)
 	{
-		if (!m_root) return xpath_result(false);
+		if (!m_root) return false;
 		
 		xpath_context c;
 		
-		c.root = n;
-		while (c.root.parent())
-			c.root = c.root.parent();
-			
+		c.root = n.root();
 		c.n = n;
 		c.position = 1;
 		c.size = 1;
 		
-		switch (m_root->rettype())
-		{
-		case ast_type_boolean: return xpath_result(m_root->eval_boolean(c));
-		case ast_type_number: return xpath_result(m_root->eval_number(c));
-		case ast_type_string: return xpath_result(m_root->eval_string(c));
-		case ast_type_node_set: return xpath_result(m_root->eval_node_set(c));
-		default: return xpath_result(false);
-		}
+		return m_root->eval_boolean(c);
+	}
+	
+	double xpath_query::evaluate_number(const xml_node& n)
+	{
+		if (!m_root) return gen_nan();
+		
+		xpath_context c;
+		
+		c.root = n.root();
+		c.n = n;
+		c.position = 1;
+		c.size = 1;
+		
+		return m_root->eval_number(c);
+	}
+	
+	std::string xpath_query::evaluate_string(const xml_node& n)
+	{
+		if (!m_root) return std::string();
+		
+		xpath_context c;
+		
+		c.root = n.root();
+		c.n = n;
+		c.position = 1;
+		c.size = 1;
+		
+		return m_root->eval_string(c);
+	}
+	
+	xpath_node_set xpath_query::evaluate_node_set(const xml_node& n)
+	{
+		if (!m_root) return xpath_node_set();
+		
+		xpath_context c;
+		
+		c.root = n.root();
+		c.n = n;
+		c.position = 1;
+		c.size = 1;
+		
+		return m_root->eval_node_set(c);
 	}
 
 	xpath_node xml_node::select_single_node(const char* query) const
 	{
 		xpath_query q(query);
-		return select_single_node(&q);
+		return select_single_node(q);
 	}
 
-	xpath_node xml_node::select_single_node(xpath_query* query) const
+	xpath_node xml_node::select_single_node(xpath_query& query) const
 	{
-		xpath_result r = query->evaluate(*this);
-		const xpath_node_set& s = r.as_node_set();
+		xpath_node_set s = query.evaluate_node_set(*this);
 		return s.empty() ? xpath_node() : s.first();
 	}
 
 	xpath_node_set xml_node::select_nodes(const char* query) const
 	{
 		xpath_query q(query);
-		return select_nodes(&q);
+		return select_nodes(q);
 	}
 
-	xpath_node_set xml_node::select_nodes(xpath_query* query) const
+	xpath_node_set xml_node::select_nodes(xpath_query& query) const
 	{
-		return query->evaluate(*this).as_node_set();
-	}
-		
-	xpath_result xml_node::evaluate(const char* query) const
-	{
-		xpath_query q(query);
-		return evaluate(&q);
-	}
-
-	xpath_result xml_node::evaluate(xpath_query* query) const
-	{
-		return query->evaluate(*this);
+		return query.evaluate_node_set(*this);
 	}
 }
