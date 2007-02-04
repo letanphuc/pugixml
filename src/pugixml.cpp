@@ -2142,38 +2142,21 @@ namespace pugi
 	{
 	}
 
-	xml_parser::xml_parser(unsigned int optmsk): _buffer(0), _xmldoc(0), _optmsk(optmsk)
+	xml_document::xml_document(): _buffer(0)
 	{
 	}
 
-#ifndef PUGIXML_NO_STL
-	xml_parser::xml_parser(std::istream& stream,unsigned int optmsk): _buffer(0), _xmldoc(0), _optmsk(optmsk)
-	{
-		parse(stream, _optmsk);
-	}
-#endif
-
-	xml_parser::xml_parser(char* xmlstr,unsigned int optmsk): _buffer(0), _xmldoc(0), _optmsk(optmsk)
-	{
-		parse(xmlstr, _optmsk);
-	}
-
-	xml_parser::xml_parser(const transfer_ownership_tag& tag, char* xmlstr ,unsigned int optmsk): _buffer(0), _xmldoc(0), _optmsk(optmsk)
-	{
-		parse(tag, xmlstr, _optmsk);
-	}
-
-	xml_parser::~xml_parser()
+	xml_document::~xml_document()
 	{
 		free();
 	}
 
-	void xml_parser::free()
+	void xml_document::free()
 	{
 		delete _buffer;
 		_buffer = 0;
 
-		if (_xmldoc) _xmldoc->free();
+		if (_root) _root->free();
 
 		xml_memory_block* current = _memory.next;
 
@@ -2188,33 +2171,9 @@ namespace pugi
 		_memory.size = 0;
 	}
 
-	xml_parser::operator xml_node() const
-	{
-		return xml_node(_xmldoc);
-	}
-	
-	xml_node xml_parser::document() const
-	{
-		return xml_node(_xmldoc);
-	}
-
-	unsigned int xml_parser::options() const
-	{
-		return _optmsk;
-	}
-
-	unsigned int xml_parser::options(unsigned int optmsk)
-	{
-		unsigned int prev = _optmsk;
-		_optmsk = optmsk;
-		return prev;
-	}
-
 #ifndef PUGIXML_NO_STL
-	void xml_parser::parse(std::istream& stream,unsigned int optmsk)
+	void xml_document::load(std::istream& stream, unsigned int options)
 	{
-		free();
-
 		std::streamoff length = 0, pos = stream.tellg();
 		stream.seekg(0, std::ios_base::end);
 		length = stream.tellg();
@@ -2234,14 +2193,32 @@ namespace pugi
 		stream.read(s, length);
 		s[length] = 0;
 
-		parse(transfer_ownership_tag(), s, optmsk); // Parse the input string.
+		parse(transfer_ownership_tag(), s, options); // Parse the input string.
 	}
 #endif
 
-	char* xml_parser::load(const char* name,unsigned int optmsk)
+	void xml_document::load(const char* contents, unsigned int options)
+	{
+		char* s;
+
+		try
+		{
+			s = new char[strlen(contents) + 1];
+		}
+		catch (const std::bad_alloc&)
+		{
+			return;
+		}
+
+		strcpy(s, contents);
+
+		parse(transfer_ownership_tag(), s, options); // Parse the input string.
+	}
+
+	void xml_document::load_file(const char* name, unsigned int options)
 	{
 		FILE* file = fopen(name, "rb");
-		if (!file) return 0;
+		if (!file) return;
 
 		fseek(file, 0, SEEK_END);
 		long length = ftell(file);
@@ -2250,7 +2227,7 @@ namespace pugi
 		if (length < 0)
 		{
 			fclose(file);
-			return 0;
+			return;
 		}
 		
 		char* s;
@@ -2262,7 +2239,7 @@ namespace pugi
 		catch (const std::bad_alloc&)
 		{
 			fclose(file);
-			return 0;
+			return;
 		}
 
 		size_t read = fread(s, (size_t)length, 1, file);
@@ -2271,39 +2248,37 @@ namespace pugi
 		if (read != 1)
 		{
 			delete[] s;
-			return 0;
+			return;
 		}
 
 		s[length] = 0;
 		
-		return parse(transfer_ownership_tag(), s, optmsk); // Parse the input string.
+		parse(transfer_ownership_tag(), s, options); // Parse the input string.
 	}
 
-	char* xml_parser::parse(char* xmlstr,unsigned int optmsk)
+	void xml_document::parse(char* xmlstr, unsigned int options)
 	{
 		free();
 
-		if(!xmlstr) return 0;
+		if (!xmlstr) return;
 
 		xml_allocator alloc(&_memory);
 		
-		_xmldoc = alloc.allocate<xml_document_struct>(); // Allocate a new root.
-		_xmldoc->parent = _xmldoc; // Point to self.
-		static_cast<xml_document_struct*>(_xmldoc)->allocator = alloc;
-		if(optmsk != parse_noset) _optmsk = optmsk;
+		_root = alloc.allocate<xml_document_struct>(); // Allocate a new root.
+		_root->parent = _root; // Point to self.
+		xml_allocator& a = static_cast<xml_document_struct*>(_root)->allocator;
+		a = alloc;
 		
-		xml_parser_impl parser(alloc);
+		xml_parser_impl parser(a);
 		
-		return parser.parse(xmlstr,_xmldoc,_optmsk); // Parse the input string.
+		parser.parse(xmlstr, _root, options); // Parse the input string.
 	}
-	
-	char* xml_parser::parse(const transfer_ownership_tag&, char* xmlstr,unsigned int optmsk)
+		
+	void xml_document::parse(const transfer_ownership_tag&, char* xmlstr, unsigned int options)
 	{
-		char* result = parse(xmlstr, optmsk);
+		parse(xmlstr, options);
 
 		_buffer = xmlstr;
-
-		return result;
 	}
 
 #ifndef PUGIXML_NO_STL

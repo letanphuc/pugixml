@@ -205,7 +205,7 @@ namespace pugi
 		friend class xml_node_iterator;
 		friend class xml_parser;
 
-	private:
+	protected:
 		xml_node_struct* _root; ///< Pointer to node root.
 
     	/// Safe bool type
@@ -595,92 +595,56 @@ namespace pugi
 
 	struct transfer_ownership_tag {};
 
-	/// Provides a high-level interface to the XML parser.
-	class xml_parser
+	/// Document (DOM tree root)
+	class xml_document: public xml_node
 	{
 	private:
 		char*				_buffer; ///< character buffer
 
 		xml_memory_block	_memory; ///< Memory block
 		
-		xml_node_struct*	_xmldoc; ///< Pointer to current XML document tree root.
-		unsigned int		_optmsk; ///< Parser options.
-	
-		xml_parser(const xml_parser&);
-		const xml_parser& operator=(const xml_parser&);
+		xml_document(const xml_document&);
+		const xml_document& operator=(const xml_document&);
 
 		void free();	///< free memory
 
 	public:
-		/// Constructor.
-		/// \param optmsk - Options mask.
-		xml_parser(unsigned int optmsk = parse_default);
-
-		/// Parse constructor.
-		/// \param xmlstr - readwrite string with xml data
-		/// \param optmsk - Options mask.
-		/// \see parse
-		xml_parser(char* xmlstr, unsigned int optmsk = parse_default);
-
-		/// Parse constructor that gains ownership.
-		/// \param xmlstr - readwrite string with xml data
-		/// \param optmsk - Options mask.
-		/// \see parse
-		xml_parser(const transfer_ownership_tag&, char* xmlstr, unsigned int optmsk = parse_default);
-
-#ifndef PUGIXML_NO_STL
-		/// Parse constructor.
-		/// \param stream - stream with xml data
-		/// \param optmsk - Options mask.
-		/// \see parse
-		xml_parser(std::istream& stream, unsigned int optmsk = parse_default);
-#endif
+		/// Ctor
+		xml_document();
 
 		/// Dtor
-		~xml_parser();
-
-	public:
-		/// Cast as xml_node (same as document).
-		operator xml_node() const;
-
-		/// Returns the root wrapped by an xml_node.
-		xml_node document() const;
-
-	public:
-		/// Get parser options mask.
-		unsigned int options() const;
-
-		/// Set parser options mask.
-		unsigned int options(unsigned int optmsk);
+		~xml_document();
 
 	public:
 #ifndef PUGIXML_NO_STL
-		/// Parse the given XML stream
+		/// Load document from stream
 		/// \param stream - stream with xml data
-		/// \param optmsk - Options mask.
-		void parse(std::istream& stream, unsigned int optmsk = parse_noset);
+		/// \param options - options
+		void load(std::istream& stream, unsigned int options = parse_default);
 #endif
 
-		/// Parse the file
+		/// Load document from (const) string
+		/// \param name - string
+		/// \param options - options
+		void load(const char* contents, unsigned int options = parse_default);
+
+		/// Load document from file
 		/// \param name - file name
-		/// \param optmsk - Options mask.
-		/// \return last position or NULL
-		/// \rem input string is zero-segmented
-		char* load(const char* name, unsigned int optmsk = parse_noset);
+		/// \param options - options
+		void load_file(const char* name, unsigned int options = parse_default);
 
 		/// Parse the given XML string in-situ.
 		/// \param xmlstr - readwrite string with xml data
-		/// \param optmsk - Options mask.
-		/// \return last position or NULL
+		/// \param options - options
 		/// \rem input string is zero-segmented
-		char* parse(char* xmlstr, unsigned int optmsk = parse_noset);
+		void parse(char* xmlstr, unsigned int options = parse_default);
 		
 		/// Parse the given XML string in-situ (gains ownership).
 		/// \param xmlstr - readwrite string with xml data
-		/// \param optmsk - Options mask.
+		/// \param options - options
 		/// \return last position or NULL
 		/// \rem input string is zero-segmented
-		char* parse(const transfer_ownership_tag&, char* xmlstr, unsigned int optmsk = parse_noset);
+		void parse(const transfer_ownership_tag&, char* xmlstr, unsigned int options = parse_default);
 	};
 
 	/// XPath
