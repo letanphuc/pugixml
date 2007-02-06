@@ -1945,10 +1945,10 @@ namespace pugi
 				return (double)m_left->eval_node_set(c).size();
 			
 			case ast_func_string_length_0:
-				return (double)utf8_length(string_value(c.n).c_str());
+				return (double)string_value(c.n).size();
 			
 			case ast_func_string_length_1:
-				return (double)utf8_length(m_left->eval_string(c).c_str());
+				return (double)m_left->eval_string(c).size();
 			
 			case ast_func_number_0:
 				return convert_string_to_number(string_value(c.n).c_str());
