@@ -358,6 +358,18 @@ namespace pugi
 		/// Add node with specified type (for element nodes)
 		xml_node append_child(xml_node_type type = node_element);
 
+		/// Remove specified attribute
+		void remove_attribute(const xml_attribute& a);
+
+		/// Remove specified attribute
+		void remove_attribute(const char* name);
+
+		/// Remove specified child
+		void remove_child(const xml_node& n);
+
+		/// Remove specified child
+		void remove_child(const char* name);
+
 	public:
 		/// Access node's first attribute if any, else xml_attribute()
 		xml_attribute first_attribute() const;
@@ -751,8 +763,6 @@ namespace pugi
 	/// Convert utf8 to utf16
 	std::wstring utf16(const char* str);
 #endif
-	
-	size_t utf8_length(const char* s);
 }
 
 /// Inline implementation
