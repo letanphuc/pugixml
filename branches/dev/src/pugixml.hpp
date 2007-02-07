@@ -632,31 +632,35 @@ namespace pugi
 		/// Load document from stream
 		/// \param stream - stream with xml data
 		/// \param options - options
-		void load(std::istream& stream, unsigned int options = parse_default);
+		/// \return success flag
+		bool load(std::istream& stream, unsigned int options = parse_default);
 #endif
 
 		/// Load document from (const) string
 		/// \param name - string
 		/// \param options - options
-		void load(const char* contents, unsigned int options = parse_default);
+		/// \return success flag
+		bool load(const char* contents, unsigned int options = parse_default);
 
 		/// Load document from file
 		/// \param name - file name
 		/// \param options - options
-		void load_file(const char* name, unsigned int options = parse_default);
+		/// \return success flag
+		bool load_file(const char* name, unsigned int options = parse_default);
 
 		/// Parse the given XML string in-situ.
 		/// \param xmlstr - readwrite string with xml data
 		/// \param options - options
+		/// \return success flag
 		/// \rem input string is zero-segmented
-		void parse(char* xmlstr, unsigned int options = parse_default);
+		bool parse(char* xmlstr, unsigned int options = parse_default);
 		
 		/// Parse the given XML string in-situ (gains ownership).
 		/// \param xmlstr - readwrite string with xml data
 		/// \param options - options
-		/// \return last position or NULL
+		/// \return success flag
 		/// \rem input string is zero-segmented
-		void parse(const transfer_ownership_tag&, char* xmlstr, unsigned int options = parse_default);
+		bool parse(const transfer_ownership_tag&, char* xmlstr, unsigned int options = parse_default);
 	};
 
 	/// XPath
