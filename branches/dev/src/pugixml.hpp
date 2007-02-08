@@ -62,7 +62,6 @@ namespace pugi
 	const unsigned int parse_eol				= 0x00000200; ///< Perform EOL handling
 	///< Set all flags, except parse_ws_pcdata, parse_trim_attribute, parse_pi and parse_comments
 	const unsigned int parse_default			= parse_cdata | parse_ext_pcdata | parse_escapes | parse_wconv_attribute | parse_eol;
-	const unsigned int parse_noset				= 0x80000000; ///< Parse with flags in xml_parser
 
 	const unsigned int parse_w3c				= parse_pi | parse_comments | parse_cdata |
 												parse_escapes | parse_wconv_attribute |
@@ -203,7 +202,6 @@ namespace pugi
 	class xml_node
 	{
 		friend class xml_node_iterator;
-		friend class xml_parser;
 
 	protected:
 		xml_node_struct* _root; ///< Pointer to node root.
@@ -355,8 +353,20 @@ namespace pugi
 		/// Add attribute with specified name (for element nodes)
 		xml_attribute append_attribute(const char* name);
 
+		/// Insert attribute with specified name (for element nodes)
+		xml_attribute insert_attribute_after(const char* name, const xml_attribute& attr);
+
+		/// Insert attribute with specified name (for element nodes)
+		xml_attribute insert_attribute_before(const char* name, const xml_attribute& attr);
+
 		/// Add node with specified type (for element nodes)
 		xml_node append_child(xml_node_type type = node_element);
+
+		/// Insert node with specified type (for element nodes)
+		xml_node insert_child_after(xml_node_type type, const xml_node& node);
+
+		/// Insert node with specified type (for element nodes)
+		xml_node insert_child_before(xml_node_type type, const xml_node& node);
 
 		/// Remove specified attribute
 		void remove_attribute(const xml_attribute& a);
