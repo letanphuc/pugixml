@@ -67,6 +67,13 @@ namespace pugi
 												parse_escapes | parse_wconv_attribute |
 												parse_ws_pcdata | parse_eol;
 
+	/// Formatting flags
+	const unsigned int format_indent			= 0x01;	///< Indent elements depending on depth
+	const unsigned int format_utf8				= 0x02;	///< UTF-8 or unknown encoding
+	const unsigned int format_write_bom			= 0x04;	///< Write BOM at the beginning of file
+	const unsigned int format_raw				= 0x08;	///< Write raw data, without line breaks and indenting
+	const unsigned int format_default			= format_indent | format_utf8;
+		
 	/// Forward declarations
 	struct xml_attribute_struct;
 	struct xml_node_struct;
@@ -496,6 +503,11 @@ namespace pugi
 
 		/// Compute document order for the whole tree (valid only for node_document)
 		void precompute_document_order();
+
+	#ifndef PUGIXML_NO_STL
+		/// Print subtree to stream
+		void print(std::ostream& os, const char* indent = "\t", unsigned int flags = format_default, unsigned int depth = 0);
+	#endif
 	};
 
 	/// Child node iterator.
@@ -671,6 +683,13 @@ namespace pugi
 		/// \return success flag
 		/// \rem input string is zero-segmented
 		bool parse(const transfer_ownership_tag&, char* xmlstr, unsigned int options = parse_default);
+		
+#ifndef PUGIXML_NO_STL
+		/// Save XML to file
+		/// \param name - file name
+		/// \return success flag
+		bool save_file(const char* name, const char* indent = "\t", unsigned int flags = format_default);
+#endif
 	};
 
 	/// XPath
