@@ -1598,7 +1598,7 @@ namespace pugi
 
 	xml_node_type xml_node::type() const
 	{
-		return (_root) ? static_cast<xml_node_type>(_root->type) : node_null;
+		return _root ? static_cast<xml_node_type>(_root->type) : node_null;
 	}
 	
 	const char* xml_node::value() const
@@ -1817,11 +1817,103 @@ namespace pugi
 		return a;
 	}
 
+	xml_attribute xml_node::insert_attribute_before(const char* name, const xml_attribute& attr)
+	{
+		if (type() != node_element || attr.empty()) return xml_attribute();
+		
+		// check that attribute belongs to *this
+		xml_attribute_struct* cur = attr._attr;
+
+		while (cur->prev_attribute) cur = cur->prev_attribute;
+
+		if (cur != _root->first_attribute) return xml_attribute();
+
+		xml_attribute a(get_allocator().allocate<xml_attribute_struct>());
+		a.set_name(name);
+
+		if (attr._attr->prev_attribute)
+			attr._attr->prev_attribute->next_attribute = a._attr;
+		else
+			_root->first_attribute = a._attr;
+		
+		a._attr->prev_attribute = attr._attr->prev_attribute;
+		a._attr->next_attribute = attr._attr;
+		attr._attr->prev_attribute = a._attr;
+				
+		return a;
+	}
+
+	xml_attribute xml_node::insert_attribute_after(const char* name, const xml_attribute& attr)
+	{
+		if (type() != node_element || attr.empty()) return xml_attribute();
+		
+		// check that attribute belongs to *this
+		xml_attribute_struct* cur = attr._attr;
+
+		while (cur->prev_attribute) cur = cur->prev_attribute;
+
+		if (cur != _root->first_attribute) return xml_attribute();
+
+		xml_attribute a(get_allocator().allocate<xml_attribute_struct>());
+		a.set_name(name);
+
+		if (attr._attr->next_attribute)
+			attr._attr->next_attribute->prev_attribute = a._attr;
+		else
+			_root->last_attribute = a._attr;
+		
+		a._attr->next_attribute = attr._attr->next_attribute;
+		a._attr->prev_attribute = attr._attr;
+		attr._attr->next_attribute = a._attr;
+
+		return a;
+	}
+
 	xml_node xml_node::append_child(xml_node_type type)
 	{
 		if ((this->type() != node_element && this->type() != node_document) || type == node_document || type == node_null) return xml_node();
 		
 		return xml_node(_root->append_node(get_allocator(), type));
+	}
+
+	xml_node xml_node::insert_child_before(xml_node_type type, const xml_node& node)
+	{
+		if ((this->type() != node_element && this->type() != node_document) || type == node_document || type == node_null) return xml_node();
+		if (node.parent() != *this) return xml_node();
+	
+		xml_node n(get_allocator().allocate<xml_node_struct>(type));
+		n._root->parent = _root;
+		
+		if (node._root->prev_sibling)
+			node._root->prev_sibling->next_sibling = n._root;
+		else
+			_root->first_child = n._root;
+		
+		n._root->prev_sibling = node._root->prev_sibling;
+		n._root->next_sibling = node._root;
+		node._root->prev_sibling = n._root;
+
+		return n;
+	}
+
+	xml_node xml_node::insert_child_after(xml_node_type type, const xml_node& node)
+	{
+		if ((this->type() != node_element && this->type() != node_document) || type == node_document || type == node_null) return xml_node();
+		if (node.parent() != *this) return xml_node();
+	
+		xml_node n(get_allocator().allocate<xml_node_struct>(type));
+		n._root->parent = _root;
+	
+		if (node._root->next_sibling)
+			node._root->next_sibling->prev_sibling = n._root;
+		else
+			_root->last_child = n._root;
+		
+		n._root->next_sibling = node._root->next_sibling;
+		n._root->prev_sibling = node._root;
+		node._root->next_sibling = n._root;
+
+		return n;
 	}
 
 	void xml_node::remove_attribute(const char* name)
