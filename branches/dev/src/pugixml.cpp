@@ -651,7 +651,7 @@ namespace pugi
 			}
 		}
 		
-		template <bool opt_escape, bool opt_eol> static char* strconv_pcdata(char* s)
+		template <bool opt_escape, bool opt_eol> static char* strconv_pcdata_t(char* s)
 		{
 			if (!*s) return 0;
 
@@ -688,12 +688,12 @@ namespace pugi
 		static char* strconv_pcdata(char* s, unsigned int opt_escape, unsigned int opt_eol)
 		{
 			if (opt_escape)
-				return opt_eol ? strconv_pcdata<true, true>(s) : strconv_pcdata<true, false>(s);
+				return opt_eol ? strconv_pcdata_t<true, true>(s) : strconv_pcdata_t<true, false>(s);
 			else
-				return opt_eol ? strconv_pcdata<false, true>(s) : strconv_pcdata<false, false>(s);
+				return opt_eol ? strconv_pcdata_t<false, true>(s) : strconv_pcdata_t<false, false>(s);
 		}
 
-		template <bool opt_escape, bool opt_wnorm, bool opt_wconv, bool opt_eol> static char* strconv_attribute(char* s, char end_quote)
+		template <bool opt_escape, bool opt_wnorm, bool opt_wconv, bool opt_eol> static char* strconv_attribute_t(char* s, char end_quote)
 		{
 			if (!*s) return 0;
 			
@@ -779,26 +779,26 @@ namespace pugi
 				{
 					if (opt_escape)
 					{
-						if (opt_wnorm) func = &strconv_attribute<true, true, true, true>;
-						else func = &strconv_attribute<true, false, true, true>;
+						if (opt_wnorm) func = &strconv_attribute_t<true, true, true, true>;
+						else func = &strconv_attribute_t<true, false, true, true>;
 					}
 					else
 					{
-						if (opt_wnorm) func = &strconv_attribute<false, true, true, true>;
-						else func = &strconv_attribute<false, false, true, true>;
+						if (opt_wnorm) func = &strconv_attribute_t<false, true, true, true>;
+						else func = &strconv_attribute_t<false, false, true, true>;
 					}
 				}
 				else
 				{
 					if (opt_escape)
 					{
-						if (opt_wnorm) func = &strconv_attribute<true, true, false, true>;
-						else func = &strconv_attribute<true, false, false, true>;
+						if (opt_wnorm) func = &strconv_attribute_t<true, true, false, true>;
+						else func = &strconv_attribute_t<true, false, false, true>;
 					}
 					else
 					{
-						if (opt_wnorm) func = &strconv_attribute<false, true, false, true>;
-						else func = &strconv_attribute<false, false, false, true>;
+						if (opt_wnorm) func = &strconv_attribute_t<false, true, false, true>;
+						else func = &strconv_attribute_t<false, false, false, true>;
 					}
 				}
 			}
@@ -808,26 +808,26 @@ namespace pugi
 				{
 					if (opt_escape)
 					{
-						if (opt_wnorm) func = &strconv_attribute<true, true, true, false>;
-						else func = &strconv_attribute<true, false, true, false>;
+						if (opt_wnorm) func = &strconv_attribute_t<true, true, true, false>;
+						else func = &strconv_attribute_t<true, false, true, false>;
 					}
 					else
 					{
-						if (opt_wnorm) func = &strconv_attribute<false, true, true, false>;
-						else func = &strconv_attribute<false, false, true, false>;
+						if (opt_wnorm) func = &strconv_attribute_t<false, true, true, false>;
+						else func = &strconv_attribute_t<false, false, true, false>;
 					}
 				}
 				else
 				{
 					if (opt_escape)
 					{
-						if (opt_wnorm) func = &strconv_attribute<true, true, false, false>;
-						else func = &strconv_attribute<true, false, false, false>;
+						if (opt_wnorm) func = &strconv_attribute_t<true, true, false, false>;
+						else func = &strconv_attribute_t<true, false, false, false>;
 					}
 					else
 					{
-						if (opt_wnorm) func = &strconv_attribute<false, true, false, false>;
-						else func = &strconv_attribute<false, false, false, false>;
+						if (opt_wnorm) func = &strconv_attribute_t<false, true, false, false>;
+						else func = &strconv_attribute_t<false, false, false, false>;
 					}
 				}
 			}
@@ -2282,27 +2282,28 @@ namespace pugi
 	{
 		if (type() != node_document) return;
 
-		struct tree_traverser
+		unsigned int current = 1;
+		xml_node cur = *this;
+
+		for (;;)
 		{
-			unsigned int m_current;
-					
-			tree_traverser(): m_current(1)
-			{
-			}
-					
-			void traverse(xml_node& n)
-			{
-				n._root->document_order = m_current++;
-				
-				for (xml_attribute a = n.first_attribute(); a; a = a.next_attribute())
-					a._attr->document_order = m_current++;
-					
-				for (xml_node c = n.first_child(); c; c = c.next_sibling())
-					traverse(c);
-			}
-		};
+			cur._root->document_order = current++;
 			
-		tree_traverser().traverse(*this);
+			for (xml_attribute a = cur.first_attribute(); a; a = a.next_attribute())
+				a._attr->document_order = current++;
+					
+			if (cur.first_child())
+				cur = cur.first_child();
+			else if (cur.next_sibling())
+				cur = cur.next_sibling();
+			else
+			{
+				while (cur && !cur.next_sibling()) cur = cur.parent();
+				cur = cur.next_sibling();
+				
+				if (!cur) break;
+			}
+		}
 	}
 
 #ifndef PUGIXML_NO_STL
