@@ -1213,7 +1213,7 @@ namespace pugi
 
 					s = mark;
 							
-					bool preserve = OPTSET(parse_ext_pcdata) || cursor->type != node_document;
+					bool preserve = OPTSET(parse_ext_pcdata) || static_cast<xml_node_type>(cursor->type) != node_document;
 
 					if (preserve)
 					{
@@ -1644,7 +1644,7 @@ namespace pugi
 	
 	bool xml_node::type_document() const
 	{
-		return (_root && _root == _root->parent && _root->type == node_document);
+		return (_root && _root == _root->parent && static_cast<xml_node_type>(_root->type) == node_document);
 	}
 	
 	xml_allocator& xml_node::get_allocator() const
@@ -1793,7 +1793,7 @@ namespace pugi
 	{
 		if (!empty())
 			for (xml_node_struct* i = _root->first_child; i; i = i->next_sibling)
-				if ((i->type == node_pcdata || i->type == node_cdata) && i->value)
+				if ((static_cast<xml_node_type>(i->type) == node_pcdata || static_cast<xml_node_type>(i->type) == node_cdata) && i->value)
 					return i->value;
 		return "";
 	}
@@ -2062,7 +2062,7 @@ namespace pugi
 				if (i->name && !pred(name,i->name))
 				{
 					for (xml_node_struct* j = i->first_child; j; j = j->next_sibling)
-						if (j->type == node_pcdata && j->value && !pred(value, j->value))
+						if (static_cast<xml_node_type>(j->type) == node_pcdata && j->value && !pred(value, j->value))
 							return xml_node(i);
 				}
 				else if (i->first_child)
@@ -2168,7 +2168,7 @@ namespace pugi
 		if(!_root) return xml_node();
 		for (xml_node_struct* i = _root->first_child; i; i = i->next_sibling)
 		{
-			if (i->type == type) return xml_node(i);
+			if (static_cast<xml_node_type>(i->type) == type) return xml_node(i);
 			else if (i->first_child)
 			{
 				xml_node subsearch(i);
