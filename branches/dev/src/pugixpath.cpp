@@ -217,7 +217,7 @@ namespace
 
 		has_mantissa = false;
 
-		for (int i = 0; i < sizeof(double); ++i)
+		for (unsigned int i = 0; i < sizeof(double); ++i)
 		{
 			unsigned char current = ((unsigned char *)&value)[DOUBLE_INDEX(i)];
 			
@@ -235,7 +235,7 @@ namespace
 		
 		double result = 0;
 
-		for (int i = 0; i < sizeof(double); ++i)
+		for (unsigned int i = 0; i < sizeof(double); ++i)
 		{
 			((unsigned char *)&result)[DOUBLE_INDEX(i)] = ieee_754_qnan_array[i];
 		}
