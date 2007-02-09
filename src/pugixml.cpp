@@ -21,6 +21,11 @@
 # include <fstream>
 #endif
 
+#if defined(_MSC_VER)
+#	pragma warning(disable: 4127) // conditional expression is constant
+#	pragma warning(disable: 4996) // this function or variable may be unsafe
+#endif
+
 namespace pugi
 {
 	class xml_allocator
