@@ -19,6 +19,12 @@
 #include <cfloat>
 #include <cassert>
 
+#if defined(_MSC_VER)
+#	pragma warning(disable: 4127) // conditional expression is constant
+#	pragma warning(disable: 4702) // unreachable code
+#	pragma warning(disable: 4996) // this function or variable may be unsafe
+#endif
+
 namespace
 {
 	using namespace pugi;
@@ -1538,6 +1544,9 @@ namespace pugi
 						
 						return true;
 					}
+				
+				private:
+					tree_traverser& operator=(const tree_traverser&) {return *this;}
 				};
 			
 				xml_node root = n;
@@ -1570,6 +1579,9 @@ namespace pugi
 						m_node.step_push(m_ns, c);
 						return true;
 					}
+				
+				private:
+					tree_traverser& operator=(const tree_traverser&) {return *this;}
 				};
 				
 				xml_node root = n;
