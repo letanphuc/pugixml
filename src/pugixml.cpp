@@ -26,7 +26,7 @@
 #	pragma warning(disable: 4996) // this function or variable may be unsafe
 #endif
 
-#define STATIC_ASSERT(cond) { static const char condition_failed[(cond) ? 1 : -1] = {0}; }
+#define STATIC_ASSERT(cond) { static const char condition_failed[(cond) ? 1 : -1] = {0}; (void)condition_failed; }
 
 namespace pugi
 {
@@ -268,10 +268,12 @@ namespace pugi
 
 		for (; *s; ++s)
 		{
-			if (*s < 0x80) length += 1;
-			else if (*s < 0x800) length += 2;
-			else if (*s < 0x10000) length += 3;
-			else if (*s < 0x200000) length += 4;
+			unsigned int ch = *s;
+
+			if (ch < 0x80) length += 1;
+			else if (ch < 0x800) length += 2;
+			else if (ch < 0x10000) length += 3;
+			else if (ch < 0x200000) length += 4;
 		}
 
 		return length;
@@ -2365,6 +2367,9 @@ namespace pugi
 			if (value()[0]) os << ' ' << value();
 			os << "?>";
 			break;
+		
+		default:
+			;
 		}
 	}
 #endif
