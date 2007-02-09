@@ -227,7 +227,7 @@ namespace
 #if FLT_RADIX == 2 && DBL_MAX_EXP == 1024 && DBL_MANT_DIG == 53
 		// IEEE 754
 		
-		double result;
+		double result = 0;
 
 		for (int i = 0; i < sizeof(double); ++i)
 		{
@@ -3440,7 +3440,7 @@ namespace pugi
 			m_root = p.parse();
 			m_root->check_semantics();
 		}
-		catch (const std::exception& e)
+		catch (const std::exception&)
 		{
 			return false;
 		}
