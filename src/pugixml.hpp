@@ -57,9 +57,9 @@ namespace pugi
 	const unsigned int parse_ws_pcdata			= 0x00000008; ///< Do not skip PCDATA that consists only of whitespaces
 	const unsigned int parse_ext_pcdata			= 0x00000010; ///< Do not skip PCDATA that is outside all tags (i.e. root)
 	const unsigned int parse_escapes			= 0x00000020; ///< Parse &lt;, &gt;, &amp;, &quot;, &apos;, &#.. sequences
+	const unsigned int parse_eol				= 0x00000040; ///< Perform EOL handling
 	const unsigned int parse_wnorm_attribute	= 0x00000080; ///< Normalize spaces in attributes (convert space-like characters to spaces + merge adjacent spaces + trim leading/trailing spaces)
 	const unsigned int parse_wconv_attribute	= 0x00000100; ///< Convert space-like characters to spaces in attributes (only if wnorm is not set)
-	const unsigned int parse_eol				= 0x00000200; ///< Perform EOL handling
 	///< Set all flags, except parse_ws_pcdata, parse_trim_attribute, parse_pi and parse_comments
 	const unsigned int parse_default			= parse_cdata | parse_ext_pcdata | parse_escapes | parse_wconv_attribute | parse_eol;
 

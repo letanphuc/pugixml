@@ -26,6 +26,8 @@
 #	pragma warning(disable: 4996) // this function or variable may be unsafe
 #endif
 
+#define STATIC_ASSERT(cond) { static const char condition_failed[(cond) ? 1 : -1] = {0}; }
+
 namespace pugi
 {
 	class xml_allocator
@@ -651,7 +653,7 @@ namespace pugi
 			}
 		}
 		
-		template <bool opt_escape, bool opt_eol> static char* strconv_pcdata_t(char* s)
+		template <bool opt_eol, bool opt_escape> static char* strconv_pcdata_t(char* s)
 		{
 			if (!*s) return 0;
 
@@ -685,15 +687,21 @@ namespace pugi
 			}
 		}
 
-		static char* strconv_pcdata(char* s, unsigned int opt_escape, unsigned int opt_eol)
+		static char* strconv_pcdata(char* s, unsigned int optmask)
 		{
-			if (opt_escape)
-				return opt_eol ? strconv_pcdata_t<true, true>(s) : strconv_pcdata_t<true, false>(s);
-			else
-				return opt_eol ? strconv_pcdata_t<false, true>(s) : strconv_pcdata_t<false, false>(s);
+			STATIC_ASSERT(parse_escapes == 0x20 && parse_eol == 0x40);
+	
+			switch ((optmask >> 5) & 3) // get bitmask for flags (eol escapes)
+			{
+			case 0: return strconv_pcdata_t<0, 0>(s);
+			case 1: return strconv_pcdata_t<0, 1>(s);
+			case 2: return strconv_pcdata_t<1, 0>(s);
+			case 3: return strconv_pcdata_t<1, 1>(s);
+			default: return 0; // should not get here
+			}
 		}
 
-		template <bool opt_escape, bool opt_wnorm, bool opt_wconv, bool opt_eol> static char* strconv_attribute_t(char* s, char end_quote)
+		template <bool opt_wconv, bool opt_wnorm, bool opt_eol, bool opt_escape> static char* strconv_attribute_t(char* s, char end_quote)
 		{
 			if (!*s) return 0;
 			
@@ -771,65 +779,29 @@ namespace pugi
 			}
 		}
 	
-		static void strconv_attribute_setup(char* (*&func)(char*, char), unsigned int opt_escape, unsigned int opt_wnorm, unsigned int opt_wconv, unsigned int opt_eol)
+		static char* strconv_attribute(char* s, char end_quote, unsigned int optmask)
 		{
-			if (opt_eol)
+			STATIC_ASSERT(parse_escapes == 0x20 && parse_eol == 0x40 && parse_wnorm_attribute == 0x80 && parse_wconv_attribute == 0x100);
+	
+			switch ((optmask >> 5) & 15) // get bitmask for flags (wconv wnorm eol escapes)
 			{
-				if (opt_wconv)
-				{
-					if (opt_escape)
-					{
-						if (opt_wnorm) func = &strconv_attribute_t<true, true, true, true>;
-						else func = &strconv_attribute_t<true, false, true, true>;
-					}
-					else
-					{
-						if (opt_wnorm) func = &strconv_attribute_t<false, true, true, true>;
-						else func = &strconv_attribute_t<false, false, true, true>;
-					}
-				}
-				else
-				{
-					if (opt_escape)
-					{
-						if (opt_wnorm) func = &strconv_attribute_t<true, true, false, true>;
-						else func = &strconv_attribute_t<true, false, false, true>;
-					}
-					else
-					{
-						if (opt_wnorm) func = &strconv_attribute_t<false, true, false, true>;
-						else func = &strconv_attribute_t<false, false, false, true>;
-					}
-				}
-			}
-			else
-			{
-				if (opt_wconv)
-				{
-					if (opt_escape)
-					{
-						if (opt_wnorm) func = &strconv_attribute_t<true, true, true, false>;
-						else func = &strconv_attribute_t<true, false, true, false>;
-					}
-					else
-					{
-						if (opt_wnorm) func = &strconv_attribute_t<false, true, true, false>;
-						else func = &strconv_attribute_t<false, false, true, false>;
-					}
-				}
-				else
-				{
-					if (opt_escape)
-					{
-						if (opt_wnorm) func = &strconv_attribute_t<true, true, false, false>;
-						else func = &strconv_attribute_t<true, false, false, false>;
-					}
-					else
-					{
-						if (opt_wnorm) func = &strconv_attribute_t<false, true, false, false>;
-						else func = &strconv_attribute_t<false, false, false, false>;
-					}
-				}
+			case 0: return strconv_attribute_t <0, 0, 0, 0>(s, end_quote);
+			case 1: return strconv_attribute_t <0, 0, 0, 1>(s, end_quote);
+			case 2: return strconv_attribute_t <0, 0, 1, 0>(s, end_quote);
+			case 3: return strconv_attribute_t <0, 0, 1, 1>(s, end_quote);
+			case 4: return strconv_attribute_t <0, 1, 0, 0>(s, end_quote);
+			case 5: return strconv_attribute_t <0, 1, 0, 1>(s, end_quote);
+			case 6: return strconv_attribute_t <0, 1, 1, 0>(s, end_quote);
+			case 7: return strconv_attribute_t <0, 1, 1, 1>(s, end_quote);
+			case 8: return strconv_attribute_t <1, 0, 0, 0>(s, end_quote);
+			case 9: return strconv_attribute_t <1, 0, 0, 1>(s, end_quote);
+			case 10: return strconv_attribute_t<1, 0, 1, 0>(s, end_quote);
+			case 11: return strconv_attribute_t<1, 0, 1, 1>(s, end_quote);
+			case 12: return strconv_attribute_t<1, 1, 0, 0>(s, end_quote);
+			case 13: return strconv_attribute_t<1, 1, 0, 1>(s, end_quote);
+			case 14: return strconv_attribute_t<1, 1, 1, 0>(s, end_quote);
+			case 15: return strconv_attribute_t<1, 1, 1, 1>(s, end_quote);
+			default: return 0; // should not get here
 			}
 		}
 		
@@ -855,10 +827,6 @@ namespace pugi
 		bool parse(char* s, xml_node_struct* xmldoc, unsigned int optmsk = parse_default)
 		{
 			if (!s || !xmldoc) return false;
-
-			char* (*strconv_attribute)(char*, char);
-
-			strconv_attribute_setup(strconv_attribute, OPTSET(parse_escapes), OPTSET(parse_wnorm_attribute), OPTSET(parse_wconv_attribute), OPTSET(parse_eol));
 
 			// UTF-8 BOM
 			if ((unsigned char)*s == 0xEF && (unsigned char)*(s+1) == 0xBB && (unsigned char)*(s+2) == 0xBF)
@@ -1145,7 +1113,7 @@ namespace pugi
 											++s; // Step over the quote.
 											a->value = s; // Save the offset.
 
-											s = strconv_attribute(s, ch);
+											s = strconv_attribute(s, ch, optmsk);
 										
 											if (!s) return false;
 
@@ -1225,7 +1193,7 @@ namespace pugi
 						PUSHNODE(node_pcdata); // Append a new node on the tree.
 						cursor->value = s; // Save the offset.
 
-						s = strconv_pcdata(s, OPTSET(parse_escapes), OPTSET(parse_eol));
+						s = strconv_pcdata(s, optmsk);
 								
 						if (!s) return false;
 								
