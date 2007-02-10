@@ -19,6 +19,7 @@
 #ifndef PUGIXML_NO_STL
 #	include <string>
 #	include <istream>
+#	include <exception>
 #endif
 
 // No XPath without STL

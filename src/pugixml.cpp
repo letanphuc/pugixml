@@ -14,6 +14,7 @@
 #include "pugixml.hpp"
 
 #include <cstdlib>
+#include <cstdio>
 
 #include <new>
 
@@ -382,6 +383,7 @@ namespace pugi
 		return reinterpret_cast<const char*>(str);
 	}
 
+#ifndef PUGIXML_NO_STL
 	template <bool quotes, bool utf8> static void text_output_escaped(std::ostream& os, const char* s)
 	{
 		while (*s)
@@ -432,6 +434,7 @@ namespace pugi
 			}
 		}
 	}
+#endif
 
 	struct xml_parser
 	{

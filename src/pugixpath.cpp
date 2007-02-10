@@ -13,6 +13,8 @@
 
 #include "pugixml.hpp"
 
+#ifndef PUGIXML_NO_XPATH
+
 #include <algorithm>
 
 #include <cmath>
@@ -3531,3 +3533,5 @@ namespace pugi
 		return query.evaluate_node_set(*this);
 	}
 }
+
+#endif
