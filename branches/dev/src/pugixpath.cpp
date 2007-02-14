@@ -1774,18 +1774,18 @@ namespace pugi
 			}
 		}
 		
-		void set_contents(const char* value, xpath_allocator* a)
+		void set_contents(const char* value, xpath_allocator& a)
 		{
 			if (value)
 			{
-				char* c = static_cast<char*>(a->alloc(strlen(value) + 1));
+				char* c = static_cast<char*>(a.alloc(strlen(value) + 1));
 				strcpy(c, value);
 				m_contents = c;
 			}
 			else m_contents = 0;
 		}
 	public:
-		xpath_ast_node(ast_type_t type, const char* contents, xpath_allocator* a): m_type(type), m_rettype(ast_type_none), m_contents(0)
+		xpath_ast_node(ast_type_t type, const char* contents, xpath_allocator& a): m_type(type), m_rettype(ast_type_none), m_contents(0)
 		{
 			set_contents(contents, a);
 		}
@@ -1801,7 +1801,7 @@ namespace pugi
 		{
 		}
 
-		xpath_ast_node(ast_type_t type, xpath_ast_node* left, axis_t axis, nodetest_t test, const char* contents, xpath_allocator* a):
+		xpath_ast_node(ast_type_t type, xpath_ast_node* left, axis_t axis, nodetest_t test, const char* contents, xpath_allocator& a):
 			m_type(type), m_rettype(ast_type_none), m_left(left), m_right(0), m_third(0), m_next(0),
 			m_contents(0), m_axis(axis), m_test(test)
 		{
@@ -2676,12 +2676,12 @@ namespace pugi
 			return m_rettype;
 		}
 		
-		void* operator new(size_t size, xpath_allocator* a)
+		void* operator new(size_t size, xpath_allocator& a)
 		{
-			return a->alloc(size);
+			return a.alloc(size);
 		}
 		
-		void operator delete(void*, xpath_allocator*)
+		void operator delete(void*, xpath_allocator&)
 		{
 		}
 	};
@@ -2689,8 +2689,11 @@ namespace pugi
 	class xpath_parser
 	{
 	private:
-	    xpath_allocator* m_alloc;
+	    xpath_allocator& m_alloc;
 	    xpath_lexer m_lexer;
+
+		xpath_parser(const xpath_parser&);
+		xpath_parser& operator=(const xpath_parser&);
 	    
 	    // PrimaryExpr ::= VariableReference | '(' Expr ')' | Literal | Number | FunctionCall
 	    xpath_ast_node* parse_primary_expression()
@@ -3414,7 +3417,7 @@ namespace pugi
 		}
 
 	public:
-		explicit xpath_parser(const char* query, xpath_allocator* alloc): m_alloc(alloc), m_lexer(query)
+		explicit xpath_parser(const char* query, xpath_allocator& alloc): m_alloc(alloc), m_lexer(query)
 		{
 		}
 
@@ -3439,7 +3442,7 @@ namespace pugi
 		delete m_alloc;
 		m_alloc = new xpath_allocator;
 
-		xpath_parser p(query, m_alloc);
+		xpath_parser p(query, *m_alloc);
 
 		try
 		{

@@ -36,7 +36,6 @@
 namespace pugi
 {
 	/// Tree node classification.
-	/// See 'xml_node_struct::type'
 	enum xml_node_type
 	{
 		node_null,			///< Undifferentiated entity
@@ -48,14 +47,70 @@ namespace pugi
 		node_pi				///< E.g. '<?...?>'
 	};
 
-	/// Parser Options
-	const size_t memory_block_size = 32768;		///< Memory block size, 32 kb
+	/// Parsing options
+	
+	/**
+	 * Memory block size, used for fast allocator. Memory for DOM tree is allocated in blocks of
+	 * memory_block_size + 4.
+	 * This value affects size of xml_memory class.
+	 */
+	const size_t memory_block_size = 32768;
 
-	const unsigned int parse_minimal			= 0x00000000; ///< Unset the following flags.
-	const unsigned int parse_pi					= 0x00000001; ///< Parse '<?...?>'
-	const unsigned int parse_comments			= 0x00000002; ///< Parse '<!--...-->'
-	const unsigned int parse_cdata				= 0x00000004; ///< Parse '<![CDATA[...]]>'
-	const unsigned int parse_ws_pcdata			= 0x00000008; ///< Do not skip PCDATA that consists only of whitespaces
+	/**
+	 * Minimal parsing mode. Equivalent to turning all other flags off.
+	 */
+	const unsigned int parse_minimal			= 0x00000000;
+
+	/**
+	 * This flag determines if processing instructions (nodes with type node_pi; such nodes have the
+	 * form of <? target content ?> or <? target ?> in XML) are to be put in DOM tree. If this flag is off,
+	 * they are not put in the tree, but are still parsed and checked for correctness.
+	 *
+	 * The corresponding node in DOM tree will have type node_pi, name "target" and value "content",
+	 * if any.
+	 *
+	 * Note that <?xml ...?> (document declaration) is not considered to be a PI.
+	 *
+	 * This flag is off by default.
+	 */
+	const unsigned int parse_pi					= 0x00000001;
+
+	/**
+	 * This flag determines if comments (nodes with type node_comment; such nodes have the form of
+	 * <!-- content --> in XML) are to be put in DOM tree. If this flag is off, they are not put in
+	 * the tree, but are still parsed and checked for correctness.
+	 *
+	 * The corresponding node in DOM tree will have type node_comment, empty name and value "content".
+	 *
+	 * This flag is off by default.
+	 */
+	const unsigned int parse_comments			= 0x00000002;
+
+	/**
+	 * This flag determines if CDATA sections (nodes with type node_cdata; such nodes have the form
+	 * of <![CDATA[[content]]> in XML) are to be put in DOM tree. If this flag is off, they are not
+	 * put in the tree, but are still parsed and checked for correctness.
+	 *
+	 * The corresponding node in DOM tree will have type node_cdata, empty name and value "content".
+	 *
+	 * This flag is on by default.
+	 */
+	const unsigned int parse_cdata				= 0x00000004;
+
+	/**
+	 * This flag determines if nodes with PCDATA (regular text) that consist only of whitespace
+	 * characters are to be put in DOM tree. Often whitespace-only data is not significant for the
+	 * application, and the cost of allocating and storing such nodes (both memory and speed-wise)
+	 * can be significant. For example, after parsing XML string "<node> <a/> </node>", <node> element
+	 * will have 3 children when parse_ws_pcdata is set (child with type node_pcdata and value=" ",
+	 * child with type node_element and name "a", and another child with type node_pcdata and
+	 * value=" "), and only 1 child when parse_ws_pcdata is not set.
+	 * 
+	 * This flag is off by default.
+	 */
+	const unsigned int parse_ws_pcdata			= 0x00000008;
+
+
 	const unsigned int parse_ext_pcdata			= 0x00000010; ///< Do not skip PCDATA that is outside all tags (i.e. root)
 	const unsigned int parse_escapes			= 0x00000020; ///< Parse &lt;, &gt;, &amp;, &quot;, &apos;, &#.. sequences
 	const unsigned int parse_eol				= 0x00000040; ///< Perform EOL handling
@@ -63,10 +118,6 @@ namespace pugi
 	const unsigned int parse_wconv_attribute	= 0x00000100; ///< Convert space-like characters to spaces in attributes (only if wnorm is not set)
 	///< Set all flags, except parse_ws_pcdata, parse_trim_attribute, parse_pi and parse_comments
 	const unsigned int parse_default			= parse_cdata | parse_ext_pcdata | parse_escapes | parse_wconv_attribute | parse_eol;
-
-	const unsigned int parse_w3c				= parse_pi | parse_comments | parse_cdata |
-												parse_escapes | parse_wconv_attribute |
-												parse_ws_pcdata | parse_eol;
 
 	/// Formatting flags
 	const unsigned int format_indent			= 0x01;	///< Indent elements depending on depth
