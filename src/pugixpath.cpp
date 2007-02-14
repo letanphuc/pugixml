@@ -17,9 +17,12 @@
 
 #include <algorithm>
 
-#include <cmath>
-#include <cfloat>
 #include <cassert>
+
+#include <stdio.h>
+#include <math.h>
+#include <float.h>
+#include <ctype.h>
 
 #if defined(_MSC_VER)
 #	pragma warning(disable: 4127) // conditional expression is constant
@@ -271,7 +274,7 @@ namespace
 	bool is_inf(double value)
 	{
 #if defined(__USE_ISOC99)
-		return !std::isfinite(value);
+		return !isfinite(value);
 #elif defined(_MSC_VER) || defined(__BORLANDC__)
 		return !_finite(value);
 #elif FLT_RADIX == 2 && DBL_MAX_EXP == 1024 && DBL_MANT_DIG == 53
@@ -1495,7 +1498,8 @@ namespace pugi
 							cur = cur.next_sibling();
 						else
 						{
-							while (!cur.next_sibling() && cur != n && cur.parent())
+							// Borland C++ workaround
+							while (!cur.next_sibling() && cur != n && (bool)cur.parent())
 								cur = cur.parent();
 						
 							if (cur != n)
@@ -1584,6 +1588,7 @@ namespace pugi
 								while (!cur.previous_sibling());
 													
 								cur = cur.previous_sibling();
+								
 								if (!cur) break;
 							}
 						}
@@ -2201,7 +2206,7 @@ namespace pugi
 				case ast_type_node_set:
 				{
 					xpath_node_set ns = eval_node_set(c);
-					return ns.empty() ? "" : string_value(ns.first());
+					return ns.empty() ? std::string("") : string_value(ns.first());
 				}
 				
 				default:

@@ -13,8 +13,8 @@
 
 #include "pugixml.hpp"
 
-#include <cstdlib>
-#include <cstdio>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include <new>
 
@@ -22,9 +22,14 @@
 # include <fstream>
 #endif
 
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
 #	pragma warning(disable: 4127) // conditional expression is constant
 #	pragma warning(disable: 4996) // this function or variable may be unsafe
+#endif
+
+#ifdef __BORLANDC__
+#	pragma warn -8008 // condition is always false
+#	pragma warn -8066 // unreachable code
 #endif
 
 #define STATIC_ASSERT(cond) { static const char condition_failed[(cond) ? 1 : -1] = {0}; (void)condition_failed; }
@@ -446,7 +451,7 @@ namespace
 			if (end) // there was a gap already; collapse it
 			{
 				// Move [old_gap_end, new_gap_start) to [old_gap_start, ...)
-				memmove(end - size, end, s - end);
+				std::memmove(end - size, end, s - end);
 			}
 				
 			s += count; // end of current gap
@@ -462,7 +467,7 @@ namespace
 			if (end)
 			{
 				// Move [old_gap_end, current_pos) to [old_gap_start, ...)
-				memmove(end - size, end, s - end);
+				std::memmove(end - size, end, s - end);
 
 				return s - size;
 			}
@@ -1378,6 +1383,11 @@ namespace pugi
       	return empty() ? 0 : &xml_attribute::_attr;
    	}
 
+   	bool xml_attribute::operator!() const
+   	{
+   		return empty();
+   	}
+
 	bool xml_attribute::operator==(const xml_attribute& r) const
 	{
 		return (_attr == r._attr);
@@ -1524,6 +1534,18 @@ namespace pugi
 		return res;
 	}
 
+#ifdef __BORLANDC__
+	bool operator&&(const xml_attribute& lhs, bool rhs)
+	{
+		return lhs ? rhs : false;
+	}
+
+	bool operator||(const xml_attribute& lhs, bool rhs)
+	{
+		return lhs ? true : rhs;
+	}
+#endif
+
 	xml_node::xml_node(): _root(0)
 	{
 	}
@@ -1535,6 +1557,11 @@ namespace pugi
 	xml_node::operator xml_node::unspecified_bool_type() const
 	{
       	return empty() ? 0 : &xml_node::_root;
+   	}
+
+   	bool xml_node::operator!() const
+   	{
+   		return empty();
    	}
 
 	xml_node::iterator xml_node::begin() const
@@ -2369,6 +2396,18 @@ namespace pugi
 	}
 #endif
 
+#ifdef __BORLANDC__
+	bool operator&&(const xml_node& lhs, bool rhs)
+	{
+		return lhs ? rhs : false;
+	}
+
+	bool operator||(const xml_node& lhs, bool rhs)
+	{
+		return lhs ? true : rhs;
+	}
+#endif
+
 	xml_node_iterator::xml_node_iterator()
 	{
 	}
@@ -2533,7 +2572,7 @@ namespace pugi
 #ifndef PUGIXML_NO_STL
 	bool xml_document::load(std::istream& stream, unsigned int options)
 	{
-		std::streamoff length = 0, pos = stream.tellg();
+		std::streamoff length, pos = stream.tellg();
 		stream.seekg(0, std::ios_base::end);
 		length = stream.tellg();
 		stream.seekg(pos, std::ios_base::beg);

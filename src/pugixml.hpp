@@ -201,6 +201,9 @@ namespace pugi
     	/// Safe bool conversion
     	operator unspecified_bool_type() const;
 
+    	/// Borland C++ workaround
+    	bool operator!() const;
+
     	/// Get next attribute if any, else xml_attribute()
     	xml_attribute next_attribute() const;
 
@@ -256,6 +259,12 @@ namespace pugi
 		/// Access the attribute value.
 		const char* value() const;
 	};
+
+#ifdef __BORLANDC__
+	/// Borland C++ workaround
+	bool operator&&(const xml_attribute& lhs, bool rhs);
+	bool operator||(const xml_attribute& lhs, bool rhs);
+#endif
 
 	/// Provides a light-weight wrapper for manipulating xml_node_struct structures.
 	class xml_node
@@ -322,6 +331,9 @@ namespace pugi
 	public:
     	/// Safe bool conversion
 		operator unspecified_bool_type() const;
+
+		/// Borland C++ workaround
+		bool operator!() const;
 	
 		/// Comparison operators
 		bool operator==(const xml_node& r) const;
@@ -561,6 +573,12 @@ namespace pugi
 		void print(std::ostream& os, const char* indent = "\t", unsigned int flags = format_default, unsigned int depth = 0);
 	#endif
 	};
+
+#ifdef __BORLANDC__
+	/// Borland C++ workaround
+	bool operator&&(const xml_node& lhs, bool rhs);
+	bool operator||(const xml_node& lhs, bool rhs);
+#endif
 
 	/// Child node iterator.
 	class xml_node_iterator
