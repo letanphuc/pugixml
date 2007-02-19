@@ -141,7 +141,7 @@ namespace pugi
  	 * 2. Afterwards sequences of spaces are replaced with a single space
  	 * 3. Leading/trailing whitespace characters are trimmed
  	 * 
- 	 * This flag is off by default
+ 	 * This flag is off by default.
  	 */
  	const unsigned int parse_wnorm_attribute	= 0x0040;
 
@@ -152,7 +152,7 @@ namespace pugi
  	 * are also performed if parse_wnorm_attribute is on, so this flag has no effect if
  	 * parse_wnorm_attribute flag is set.
  	 * 
- 	 * This flag is on by default
+ 	 * This flag is on by default.
  	 */
  	const unsigned int parse_wconv_attribute	= 0x0080;
 	
@@ -166,11 +166,43 @@ namespace pugi
 
 	/// Formatting flags
 	
-	const unsigned int format_indent			= 0x01;	///< Indent elements depending on depth
-	const unsigned int format_utf8				= 0x02;	///< UTF-8 or unknown encoding
-	const unsigned int format_write_bom			= 0x04;	///< Write BOM at the beginning of file
-	const unsigned int format_raw				= 0x08;	///< Write raw data, without line breaks and indenting
-	const unsigned int format_default			= format_indent | format_utf8;
+	/**
+	 * Indent the nodes that are written to output stream with as many indentation strings as deep
+	 * the node is in DOM tree.
+	 *
+	 * This flag is on by default.
+	 */
+	const unsigned int format_indent	= 0x01;
+	
+	/**
+	 * This flag determines how the non-printable symbols are written to output stream - they are
+	 * either considered UTF-8 and are written as UTF-8 character, escaped with &#...;, or they are
+	 * considered to be ASCII and each ASCII character is escaped separately.
+	 *
+	 * This flag is on by default.
+	 */
+	const unsigned int format_utf8		= 0x02;
+	
+	/**
+	 * This flag determines if UTF-8 BOM is to be written to output stream.
+	 *
+	 * This flag is off by default.
+	 */
+	const unsigned int format_write_bom	= 0x04;
+	
+	/**
+	 * If this flag is on, no indentation is performed and no line breaks are written to output file.
+	 * This means that the data is written to output stream as is.
+	 *
+	 * This flag is off by default.
+	 */
+	const unsigned int format_raw		= 0x08;
+	
+	/**
+	 * This is the default set of formatting flags. It includes indenting nodes depending on their
+	 * depth in DOM tree and considering input data to be UTF-8.
+	 */
+	const unsigned int format_default	= format_indent | format_utf8;
 		
 	/// Forward declarations
 	struct xml_attribute_struct;
@@ -216,8 +248,8 @@ namespace pugi
 	
 	/**
 	 * A light-weight wrapper for manipulating attributes in DOM tree.
-	 * Note: xml_attribute does not create any memory for the attribute it wraps; 
-	 * it only wraps a pointer to an existing attribute.
+	 * Note: xml_attribute does not allocate any memory for the attribute it wraps; it only wraps a
+	 * pointer to existing attribute.
 	 */
 	class xml_attribute
 	{
@@ -240,8 +272,17 @@ namespace pugi
 		xml_attribute();
 		
 	public:
+    	/**
+    	 * Safe bool conversion.
+    	 * Allows xml_node to be used in a context where boolean variable is expected, such as 'if (node)'.
+    	 */
+    	operator unspecified_bool_type() const;
+
+    	/// Borland C++ workaround
+    	bool operator!() const;
+
 		/**
-		 * Compares wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 * Compare wrapped pointer to the attribute to the pointer that is wrapped by \a r.
 		 *
 		 * \param r - value to compare to
 		 * \return comparison result
@@ -249,7 +290,7 @@ namespace pugi
 		bool operator==(const xml_attribute& r) const;
 		
 		/**
-		 * Compares wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 * Compare wrapped pointer to the attribute to the pointer that is wrapped by \a r.
 		 *
 		 * \param r - value to compare to
 		 * \return comparison result
@@ -257,7 +298,7 @@ namespace pugi
 		bool operator!=(const xml_attribute& r) const;
 		
 		/**
-		 * Compares wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 * Compare wrapped pointer to the attribute to the pointer that is wrapped by \a r.
 		 *
 		 * \param r - value to compare to
 		 * \return comparison result
@@ -265,7 +306,7 @@ namespace pugi
 		bool operator<(const xml_attribute& r) const;
 		
 		/**
-		 * Compares wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 * Compare wrapped pointer to the attribute to the pointer that is wrapped by \a r.
 		 *
 		 * \param r - value to compare to
 		 * \return comparison result
@@ -273,7 +314,7 @@ namespace pugi
 		bool operator>(const xml_attribute& r) const;
 		
 		/**
-		 * Compares wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 * Compare wrapped pointer to the attribute to the pointer that is wrapped by \a r.
 		 *
 		 * \param r - value to compare to
 		 * \return comparison result
@@ -281,82 +322,144 @@ namespace pugi
 		bool operator<=(const xml_attribute& r) const;
 		
 		/**
-		 * Compares wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 * Compare wrapped pointer to the attribute to the pointer that is wrapped by \a r.
 		 *
 		 * \param r - value to compare to
 		 * \return comparison result
 		 */
 		bool operator>=(const xml_attribute& r) const;
-	
-    	/// Safe bool conversion
-    	operator unspecified_bool_type() const;
 
-    	/// Borland C++ workaround
-    	bool operator!() const;
-
-    	/// Get next attribute if any, else xml_attribute()
+	public:
+    	/**
+    	 * Get next attribute in attribute list of node that contains the attribute.
+    	 *
+    	 * \return next attribute, if any; empty attribute otherwise
+    	 */
     	xml_attribute next_attribute() const;
 
-    	/// Get previous attribute if any, else xml_attribute()
+    	/**
+    	 * Get previous attribute in attribute list of node that contains the attribute.
+    	 *
+    	 * \return previous attribute, if any; empty attribute otherwise
+    	 */
     	xml_attribute previous_attribute() const;
 
-		/// Cast attribute value as int. If not found, return 0.
-		/// \return Attribute value as int, or 0.
+		/**
+		 * Cast attribute value as int.
+		 *
+		 * \return attribute value as int, or 0 if conversion did not succeed or attribute is empty
+		 */
 		int as_int() const;
 
-		/// Cast attribute value as double. If not found, return 0.0.
-		/// \return Attribute value as double, or 0.0.
+		/**
+		 * Cast attribute value as double.
+		 *
+		 * \return attribute value as double, or 0.0 if conversion did not succeed or attribute is empty
+		 */
 		double as_double() const;
 	
-		/// Cast attribute value as float. If not found, return 0.0.
-		/// \return Attribute value as float, or 0.0.
+		/**
+		 * Cast attribute value as float.
+		 *
+		 * \return attribute value as float, or 0.0f if conversion did not succeed or attribute is empty
+		 */
 		float as_float() const;
 
-		/// Cast attribute value as bool. If not found, return false.
-		/// \return Attribute value as bool, or false.
+		/**
+		 * Cast attribute value as bool. Returns true for attributes with values that start with '1',
+		 * 't', 'T', 'y', 'Y', returns false for other attributes.
+		 *
+		 * \return attribute value as bool, or false if conversion did not succeed or attribute is empty
+		 */
 		bool as_bool() const;
 
-		/// Document order or 0 if not set
+		/// \internal Document order or 0 if not set
 		unsigned int document_order() const;
 
 	public:
-		/// Set string value
+		/**
+         * Set attribute value to \a rhs.
+         *
+         * \param rhs - new attribute value
+         * \return self
+         */
 		xml_attribute& operator=(const char* rhs);
 	
-		/// Set int value
+		/**
+         * Set attribute value to \a rhs.
+         *
+         * \param rhs - new attribute value
+         * \return self
+         */
 		xml_attribute& operator=(int rhs);
 	
-		/// Set double value
+		/**
+         * Set attribute value to \a rhs.
+         *
+         * \param rhs - new attribute value
+         * \return self
+         */
 		xml_attribute& operator=(double rhs);
 		
-		/// Set bool value
+		/**
+         * Set attribute value to either 'true' or 'false' (depends on whether \a rhs is true or false).
+         *
+         * \param rhs - new attribute value
+         * \return self
+         */
 		xml_attribute& operator=(bool rhs);
 
-		/// Set attribute name
+		/**
+		 * Set attribute name to \a rhs.
+		 *
+		 * \param rhs - new attribute name
+		 * \return success flag (call fails if attribute is empty or there is not enough memory)
+		 */
 		bool set_name(const char* rhs);
 		
-		/// Set attribute value
+		/**
+		 * Set attribute value to \a rhs.
+		 *
+		 * \param rhs - new attribute value
+		 * \return success flag (call fails if attribute is empty or there is not enough memory)
+		 */
 		bool set_value(const char* rhs);
 
 	public:
-		/// True if internal pointer is valid
+		/**
+		 * Check if attribute is empty.
+		 *
+		 * \return true if attribute is empty, false otherwise
+		 */
 		bool empty() const;
 
 	public:
-		/// Access the attribute name.
+		/**
+		 * Get attribute name.
+		 *
+		 * \return attribute name, or "" if attribute is empty
+		 */
 		const char* name() const;
 
-		/// Access the attribute value.
+		/**
+		 * Get attribute value.
+		 *
+		 * \return attribute value, or "" if attribute is empty
+		 */
 		const char* value() const;
 	};
 
 #ifdef __BORLANDC__
-	/// Borland C++ workaround
+	// Borland C++ workaround
 	bool operator&&(const xml_attribute& lhs, bool rhs);
 	bool operator||(const xml_attribute& lhs, bool rhs);
 #endif
 
-	/// Provides a light-weight wrapper for manipulating xml_node_struct structures.
+	/**
+	 * A light-weight wrapper for manipulating nodes in DOM tree.
+	 * Note: xml_node does not allocate any memory for the node it wraps; it only wraps a pointer to
+	 * existing node.
+	 */
 	class xml_node
 	{
 		friend class xml_node_iterator;
@@ -367,6 +470,9 @@ namespace pugi
     	/// Safe bool type
     	typedef xml_node_struct* xml_node::*unspecified_bool_type;
 
+		/// \internal Precompute document order (valid only for document node)
+		void precompute_document_order_impl();
+
 	private:
 		/// Node is tree root.
 		bool type_document() const;
@@ -375,63 +481,90 @@ namespace pugi
 		xml_allocator& get_allocator() const;
 
 	public:
-		/// Default constructor.
-		///	Node root points to a dummy 'xml_node_struct' structure. Test for this 
-		///	with 'empty'.
+		/**
+		 * Default ctor. Constructs an empty node.
+		 */
 		xml_node();
 
-		/// Construct, wrapping the given 'xml_node_struct' pointer.
+		/// \internal Initializing ctor
 		explicit xml_node(xml_node_struct* p);
 
 	public:
-		/// Base iterator type (for child nodes). Same as 'child_iterator'.
+    	/**
+    	 * Safe bool conversion.
+    	 * Allows xml_node to be used in a context where boolean variable is expected, such as 'if (node)'.
+    	 */
+		operator unspecified_bool_type() const;
+
+		/// Borland C++ workaround
+		bool operator!() const;
+	
+		/**
+		 * Compare wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 *
+		 * \param r - value to compare to
+		 * \return comparison result
+		 */
+		bool operator==(const xml_node& r) const;
+
+		/**
+		 * Compare wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 *
+		 * \param r - value to compare to
+		 * \return comparison result
+		 */
+		bool operator!=(const xml_node& r) const;
+
+		/**
+		 * Compare wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 *
+		 * \param r - value to compare to
+		 * \return comparison result
+		 */
+		bool operator<(const xml_node& r) const;
+
+		/**
+		 * Compare wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 *
+		 * \param r - value to compare to
+		 * \return comparison result
+		 */
+		bool operator>(const xml_node& r) const;
+
+		/**
+		 * Compare wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 *
+		 * \param r - value to compare to
+		 * \return comparison result
+		 */
+		bool operator<=(const xml_node& r) const;
+		
+		/**
+		 * Compare wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 *
+		 * \param r - value to compare to
+		 * \return comparison result
+		 */
+		bool operator>=(const xml_node& r) const;
+
+	public:
+		/// Node iterator type (for child nodes).
 		typedef xml_node_iterator iterator;
 
 		/// Attribute iterator type.
 		typedef xml_attribute_iterator attribute_iterator;
 
 		/// Access the begin iterator for this node's collection of child nodes.
-		/// Same as 'children_begin'.
 		iterator begin() const;
 	
 		/// Access the end iterator for this node's collection of child nodes.
-		/// Same as 'children_end'.
 		iterator end() const;
-		
-		/// Access the begin iterator for this node's collection of child nodes.
-		/// Same as 'begin'.
-		iterator children_begin() const;
-	
-		/// Access the end iterator for this node's collection of child nodes.
-		/// Same as 'end'.
-		iterator children_end() const;
 	
 		/// Access the begin iterator for this node's collection of attributes.
 		attribute_iterator attributes_begin() const;
 	
 		/// Access the end iterator for this node's collection of attributes.
 		attribute_iterator attributes_end() const;
-
-		/// Access the begin iterator for this node's collection of siblings.
-		iterator siblings_begin() const;
-	
-		/// Access the end iterator for this node's collection of siblings.
-		iterator siblings_end() const;
-	
-	public:
-    	/// Safe bool conversion
-		operator unspecified_bool_type() const;
-
-		/// Borland C++ workaround
-		bool operator!() const;
-	
-		/// Comparison operators
-		bool operator==(const xml_node& r) const;
-		bool operator!=(const xml_node& r) const;
-		bool operator<(const xml_node& r) const;
-		bool operator>(const xml_node& r) const;
-		bool operator<=(const xml_node& r) const;
-		bool operator>=(const xml_node& r) const;
 
 	public:
 		/// Node pointer is null, or type is node_null. Same as type_null.
@@ -652,11 +785,8 @@ namespace pugi
 		xpath_node_set select_nodes(xpath_query& query) const;
 	#endif
 		
-		/// Document order or 0 if not set
+		/// \internal Document order or 0 if not set
 		unsigned int document_order() const;
-
-		/// Compute document order for the whole tree (valid only for node_document)
-		void precompute_document_order();
 
 	#ifndef PUGIXML_NO_STL
 		/// Print subtree to stream
@@ -850,6 +980,9 @@ namespace pugi
 		/// \return success flag
 		bool save_file(const char* name, const char* indent = "\t", unsigned int flags = format_default);
 #endif
+
+		/// Compute document order for the whole tree
+		void precompute_document_order();
 	};
 
 	/// XPath

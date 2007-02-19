@@ -1572,16 +1572,6 @@ namespace pugi
 		return iterator(0, _root->last_child);
 	}
 	
-	xml_node::iterator xml_node::children_begin() const
-	{
-		return iterator(_root->first_child);
-	}
-
-	xml_node::iterator xml_node::children_end() const
-	{
-		return iterator(0, _root->last_child);
-	}
-	
 	xml_node::attribute_iterator xml_node::attributes_begin() const
 	{
 		return attribute_iterator(_root->first_attribute);
@@ -1590,16 +1580,6 @@ namespace pugi
 	xml_node::attribute_iterator xml_node::attributes_end() const
 	{
 		return attribute_iterator(0, _root->last_attribute);
-	}
-
-	xml_node::iterator xml_node::siblings_begin() const
-	{
-		return parent().children_begin();
-	}
-
-	xml_node::iterator xml_node::siblings_end() const
-	{
-		return parent().children_end();
 	}
 
 	bool xml_node::operator==(const xml_node& r) const
@@ -2268,9 +2248,9 @@ namespace pugi
 		return empty() ? 0 : _root->document_order;
 	}
 
-	void xml_node::precompute_document_order()
+	void xml_node::precompute_document_order_impl()
 	{
-		if (type() != node_document) return;
+		if (!type_document()) return;
 
 		unsigned int current = 1;
 		xml_node cur = *this;
@@ -2699,6 +2679,11 @@ namespace pugi
 		return true;
 	}
 #endif
+
+	void xml_document::precompute_document_order()
+	{
+		precompute_document_order_impl();
+	}
 
 #ifndef PUGIXML_NO_STL
 	std::string utf8(const wchar_t* str)
