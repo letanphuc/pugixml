@@ -57,9 +57,11 @@ namespace pugi
 	const size_t memory_block_size = 32768;
 
 	/**
-	 * Minimal parsing mode. Equivalent to turning all other flags off.
+	 * Minimal parsing mode. Equivalent to turning all other flags off. This set of flags means
+	 * that pugixml does not add pi/cdata sections or comments to DOM tree and does not perform
+	 * any conversions for input data, meaning fastest parsing.
 	 */
-	const unsigned int parse_minimal			= 0x00000000;
+	const unsigned int parse_minimal			= 0x0000;
 
 	/**
 	 * This flag determines if processing instructions (nodes with type node_pi; such nodes have the
@@ -73,7 +75,7 @@ namespace pugi
 	 *
 	 * This flag is off by default.
 	 */
-	const unsigned int parse_pi					= 0x00000001;
+	const unsigned int parse_pi					= 0x0001;
 
 	/**
 	 * This flag determines if comments (nodes with type node_comment; such nodes have the form of
@@ -84,7 +86,7 @@ namespace pugi
 	 *
 	 * This flag is off by default.
 	 */
-	const unsigned int parse_comments			= 0x00000002;
+	const unsigned int parse_comments			= 0x0002;
 
 	/**
 	 * This flag determines if CDATA sections (nodes with type node_cdata; such nodes have the form
@@ -95,7 +97,7 @@ namespace pugi
 	 *
 	 * This flag is on by default.
 	 */
-	const unsigned int parse_cdata				= 0x00000004;
+	const unsigned int parse_cdata				= 0x0004;
 
 	/**
 	 * This flag determines if nodes with PCDATA (regular text) that consist only of whitespace
@@ -108,18 +110,62 @@ namespace pugi
 	 * 
 	 * This flag is off by default.
 	 */
-	const unsigned int parse_ws_pcdata			= 0x00000008;
+	const unsigned int parse_ws_pcdata			= 0x0008;
 
+	/**
+	 * This flag determines if character and entity references are to be expanded during the parsing
+	 * process. Character references are &#...; or &#x...; (... is Unicode numeric representation of
+     * character in either decimal (&#...;) or hexadecimal (&#x...;) form), entity references are &...;
+     * Note that as pugixml does not handle DTD, the only allowed entities are predefined ones - 
+     * &lt;, &gt;, &amp;, &apos; and &quot;. If character/entity reference can not be expanded, it is
+     * leaved as is, so you can do additional processing later.
+     * Reference expansion is performed in attribute values and PCDATA content.
+     *
+     * This flag is on by default.
+     */
+	const unsigned int parse_escapes			= 0x0010;
 
-	const unsigned int parse_ext_pcdata			= 0x00000010; ///< Do not skip PCDATA that is outside all tags (i.e. root)
-	const unsigned int parse_escapes			= 0x00000020; ///< Parse &lt;, &gt;, &amp;, &quot;, &apos;, &#.. sequences
-	const unsigned int parse_eol				= 0x00000040; ///< Perform EOL handling
-	const unsigned int parse_wnorm_attribute	= 0x00000080; ///< Normalize spaces in attributes (convert space-like characters to spaces + merge adjacent spaces + trim leading/trailing spaces)
-	const unsigned int parse_wconv_attribute	= 0x00000100; ///< Convert space-like characters to spaces in attributes (only if wnorm is not set)
-	///< Set all flags, except parse_ws_pcdata, parse_trim_attribute, parse_pi and parse_comments
-	const unsigned int parse_default			= parse_cdata | parse_ext_pcdata | parse_escapes | parse_wconv_attribute | parse_eol;
+	/**
+	 * This flag determines if EOL handling (that is, replacing sequences 0x0d 0x0a by a single 0x0a
+	 * character, and replacing all standalone 0x0d characters by 0x0a) is to be performed on input
+	 * data (that is, comments contents, PCDATA/CDATA contents and attribute values).
+	 *
+	 * This flag is on by default.
+	 */
+	const unsigned int parse_eol				= 0x0020;
+	
+ 	/**
+ 	 * This flag determines if attribute value normalization should be performed for all attributes,
+ 	 * assuming that their type is not CDATA. This means, that:
+ 	 * 1. Whitespace characters (new line, tab and space) are replaced with space (' ')
+ 	 * 2. Afterwards sequences of spaces are replaced with a single space
+ 	 * 3. Leading/trailing whitespace characters are trimmed
+ 	 * 
+ 	 * This flag is off by default
+ 	 */
+ 	const unsigned int parse_wnorm_attribute	= 0x0040;
+
+ 	/**
+ 	 * This flag determines if attribute value normalization should be performed for all attributes,
+ 	 * assuming that their type is CDATA. This means, that whitespace characters (new line, tab and
+ 	 * space) are replaced with space (' '). Note, that the actions performed while this flag is on
+ 	 * are also performed if parse_wnorm_attribute is on, so this flag has no effect if
+ 	 * parse_wnorm_attribute flag is set.
+ 	 * 
+ 	 * This flag is on by default
+ 	 */
+ 	const unsigned int parse_wconv_attribute	= 0x0080;
+	
+	/**
+     * This is the default set of flags. It includes parsing CDATA sections (comments/PIs are not
+     * parsed), performing character and entity reference expansion, replacing whitespace characters
+     * with spaces in attribute values and performing EOL handling. Note, that PCDATA sections
+     * consisting only of whitespace characters are not parsed (by default) for performance reasons.
+     */
+	const unsigned int parse_default			= parse_cdata | parse_escapes | parse_wconv_attribute | parse_eol;
 
 	/// Formatting flags
+	
 	const unsigned int format_indent			= 0x01;	///< Indent elements depending on depth
 	const unsigned int format_utf8				= 0x02;	///< UTF-8 or unknown encoding
 	const unsigned int format_write_bom			= 0x04;	///< Write BOM at the beginning of file
@@ -168,9 +214,11 @@ namespace pugi
 	};
 	#endif
 	
-	/// Provides a light-weight wrapper for manipulating xml_attribute_struct structures.
-	///	Note: xml_attribute does not create any memory for the attribute it wraps; 
-	///	it only wraps a pointer to an existing xml_attribute_struct.
+	/**
+	 * A light-weight wrapper for manipulating attributes in DOM tree.
+	 * Note: xml_attribute does not create any memory for the attribute it wraps; 
+	 * it only wraps a pointer to an existing attribute.
+	 */
 	class xml_attribute
 	{
 		friend class xml_attribute_iterator;
@@ -186,16 +234,58 @@ namespace pugi
 		explicit xml_attribute(xml_attribute_struct* attr);
 
 	public:
-		/// Default ctor
+		/**
+		 * Default ctor. Constructs an empty attribute.
+		 */
 		xml_attribute();
 		
 	public:
-		/// Comparison operators
+		/**
+		 * Compares wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 *
+		 * \param r - value to compare to
+		 * \return comparison result
+		 */
 		bool operator==(const xml_attribute& r) const;
+		
+		/**
+		 * Compares wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 *
+		 * \param r - value to compare to
+		 * \return comparison result
+		 */
 		bool operator!=(const xml_attribute& r) const;
+		
+		/**
+		 * Compares wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 *
+		 * \param r - value to compare to
+		 * \return comparison result
+		 */
 		bool operator<(const xml_attribute& r) const;
+		
+		/**
+		 * Compares wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 *
+		 * \param r - value to compare to
+		 * \return comparison result
+		 */
 		bool operator>(const xml_attribute& r) const;
+		
+		/**
+		 * Compares wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 *
+		 * \param r - value to compare to
+		 * \return comparison result
+		 */
 		bool operator<=(const xml_attribute& r) const;
+		
+		/**
+		 * Compares wrapped pointer to the attribute to the pointer that is wrapped by \a r.
+		 *
+		 * \param r - value to compare to
+		 * \return comparison result
+		 */
 		bool operator>=(const xml_attribute& r) const;
 	
     	/// Safe bool conversion

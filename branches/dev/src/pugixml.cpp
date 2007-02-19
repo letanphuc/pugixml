@@ -689,9 +689,9 @@ namespace
 
 	char* strconv_pcdata(char* s, unsigned int optmask)
 	{
-		STATIC_ASSERT(parse_escapes == 0x20 && parse_eol == 0x40);
+		STATIC_ASSERT(parse_escapes == 0x10 && parse_eol == 0x20);
 
-		switch ((optmask >> 5) & 3) // get bitmask for flags (eol escapes)
+		switch ((optmask >> 4) & 3) // get bitmask for flags (eol escapes)
 		{
 		case 0: return strconv_pcdata_t<0, 0>(s);
 		case 1: return strconv_pcdata_t<0, 1>(s);
@@ -781,9 +781,9 @@ namespace
 	
 	char* strconv_attribute(char* s, char end_quote, unsigned int optmask)
 	{
-		STATIC_ASSERT(parse_escapes == 0x20 && parse_eol == 0x40 && parse_wnorm_attribute == 0x80 && parse_wconv_attribute == 0x100);
+		STATIC_ASSERT(parse_escapes == 0x10 && parse_eol == 0x20 && parse_wnorm_attribute == 0x40 && parse_wconv_attribute == 0x80);
 	
-		switch ((optmask >> 5) & 15) // get bitmask for flags (wconv wnorm eol escapes)
+		switch ((optmask >> 4) & 15) // get bitmask for flags (wconv wnorm eol escapes)
 		{
 		case 0: return strconv_attribute_t <0, 0, 0, 0>(s, end_quote);
 		case 1: return strconv_attribute_t <0, 0, 0, 1>(s, end_quote);
@@ -1185,9 +1185,7 @@ namespace
 
 					s = mark;
 							
-					bool preserve = OPTSET(parse_ext_pcdata) || static_cast<xml_node_type>(cursor->type) != node_document;
-
-					if (preserve)
+					if (static_cast<xml_node_type>(cursor->type) != node_document)
 					{
 						PUSHNODE(node_pcdata); // Append a new node on the tree.
 						cursor->value = s; // Save the offset.
