@@ -645,7 +645,7 @@ namespace pugi
 		return size() == 0;
 	}
 		
-	xpath_node_set::iterator xpath_node_set::begin()
+	xpath_node_set::iterator xpath_node_set::mut_begin()
 	{
 		return m_begin;
 	}
@@ -655,7 +655,7 @@ namespace pugi
 		return m_begin;
 	}
 		
-	xpath_node_set::iterator xpath_node_set::end()
+	xpath_node_set::iterator xpath_node_set::mut_end()
 	{
 		return m_end;
 	}
@@ -667,10 +667,10 @@ namespace pugi
 	
 	void xpath_node_set::sort(bool reverse)
 	{
-		std::sort(begin(), end(), document_order_comparator());
+		std::sort(m_begin, m_end, document_order_comparator());
 		
 		if (reverse)
-			std::reverse(begin(), end());
+			std::reverse(m_begin, m_end);
 			
 		m_type = reverse ? type_sorted_reverse : type_sorted;
 	}
@@ -723,8 +723,8 @@ namespace pugi
 	{
 		switch (m_type)
 		{
-		case type_sorted: return *begin();
-		case type_sorted_reverse: return *(end() - 1);
+		case type_sorted: return *m_begin;
+		case type_sorted_reverse: return *(m_end - 1);
 		case type_unsorted: return *std::min_element(begin(), end(), document_order_comparator());
 		default: return xpath_node();
 		}
@@ -734,10 +734,10 @@ namespace pugi
 	{
 		if (m_type == type_unsorted)
 		{
-			std::sort(begin(), end(), duplicate_comparator());
+			std::sort(m_begin, m_end, duplicate_comparator());
 		}
 		
-		truncate(std::unique(begin(), end()));
+		truncate(std::unique(m_begin, m_end));
 	}
 
 	struct xpath_context
@@ -1353,7 +1353,7 @@ namespace pugi
 			size_t i = 0;
 			size_t size = ns.size() - first;
 				
-			xpath_node_set::iterator last = ns.begin() + first;
+			xpath_node_set::iterator last = ns.mut_begin() + first;
 				
 			// remove_if... or well, sort of
 			for (xpath_node_set::iterator it = last; it != ns.end(); ++it, ++i)
@@ -1619,7 +1619,7 @@ namespace pugi
 			}
 				
 			default:
-				throw xpath_exception("Unimplemented axis");
+				assert(!"Unimplemented axis");
 			}
 		}
 		
@@ -1648,7 +1648,7 @@ namespace pugi
 			}
 			
 			default:
-				throw xpath_exception("Unimplemented axis");
+				assert(!"Unimplemented axis");
 			}
 		}
 		
@@ -1775,7 +1775,7 @@ namespace pugi
 				break;
 			
 			default:
-				throw xpath_exception("Unimplemented axis");
+				assert(!"Unimplemented axis");
 			}
 		}
 		
@@ -2242,7 +2242,7 @@ namespace pugi
 			
 				size_t i = 0;
 				
-				xpath_node_set::iterator last = set.begin();
+				xpath_node_set::iterator last = set.mut_begin();
 				
 				// remove_if... or well, sort of
 				for (xpath_node_set::const_iterator it = set.begin(); it != set.end(); ++it, ++i)
@@ -2275,7 +2275,7 @@ namespace pugi
 			
 				size_t i = 0;
 				
-				xpath_node_set::iterator last = set.begin();
+				xpath_node_set::iterator last = set.mut_begin();
 				
 				// remove_if... or well, sort of
 				for (xpath_node_set::const_iterator it = set.begin(); it != set.end(); ++it, ++i)
@@ -2357,7 +2357,8 @@ namespace pugi
 					break;
 
 				default:
-					throw xpath_exception("Not implemented");
+					assert(!"Axis not implemented");
+					return xpath_node_set();
 				}
 				
 				ns.remove_duplicates();
@@ -3442,24 +3443,15 @@ namespace pugi
 		delete m_alloc;
 	}
 
-	bool xpath_query::compile(const char* query)
+	void xpath_query::compile(const char* query)
 	{
 		delete m_alloc;
 		m_alloc = new xpath_allocator;
 
 		xpath_parser p(query, *m_alloc);
 
-		try
-		{
-			m_root = p.parse();
-			m_root->check_semantics();
-		}
-		catch (const std::exception&)
-		{
-			return false;
-		}
-
-		return !!m_root;
+		m_root = p.parse();
+		m_root->check_semantics();
 	}
 
 	bool xpath_query::evaluate_boolean(const xml_node& n)

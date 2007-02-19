@@ -1052,7 +1052,7 @@ namespace
 					}
 					else if (is_chartype(*s, ct_start_symbol)) // '<#...'
 					{
-						cursor = cursor->append_node(alloc); // Append a new node to the tree.
+						PUSHNODE(node_element); // Append a new node to the tree.
 
 						cursor->name = s;
 
@@ -1151,6 +1151,8 @@ namespace
 					else if (*s == '/')
 					{
 						++s;
+
+						if (!cursor) return false;
 
 						char* name = cursor->name;
 						if (!name) return false;
@@ -1617,11 +1619,6 @@ namespace pugi
 		return (_root == 0);
 	}
 	
-	bool xml_node::type_document() const
-	{
-		return (_root && _root == _root->parent && static_cast<xml_node_type>(_root->type) == node_document);
-	}
-	
 	xml_allocator& xml_node::get_allocator() const
 	{
 		xml_node_struct* r = root()._root;
@@ -1686,14 +1683,12 @@ namespace pugi
 
 	xml_node xml_node::sibling(const char* name) const
 	{
-		if (!empty() && !type_document()) return parent().child(name);
-		else return xml_node();
+		return parent().child(name);
 	}
 	
 	xml_node xml_node::sibling_w(const char* name) const
 	{
-		if (!empty() && !type_document()) return parent().child_w(name);
-		else return xml_node();
+		return parent().child_w(name);
 	}
 
 	xml_node xml_node::next_sibling(const char* name) const
@@ -1754,13 +1749,13 @@ namespace pugi
 
 	xml_node xml_node::parent() const
 	{
-		return (!empty() && !type_document()) ? xml_node(_root->parent) : xml_node();
+		return empty() ? xml_node() : xml_node(_root->parent);
 	}
 
 	xml_node xml_node::root() const
 	{
 		xml_node r = *this;
-		while (r && !r.type_document()) r = r.parent();
+		while (r && r.parent()) r = r.parent();
 		return r;
 	}
 
@@ -2163,7 +2158,7 @@ namespace pugi
 		
 		path = cursor.name();
 
-		while (cursor.parent() && !cursor.type_document()) // Loop to parent (stopping on actual root because it has no name).
+		while (cursor.parent())
 		{
 			cursor = cursor.parent();
 			
@@ -2250,7 +2245,7 @@ namespace pugi
 
 	void xml_node::precompute_document_order_impl()
 	{
-		if (!type_document()) return;
+		if (type() != node_document) return;
 
 		unsigned int current = 1;
 		xml_node cur = *this;
@@ -2639,7 +2634,6 @@ namespace pugi
 		xml_allocator alloc(&_memory);
 		
 		_root = alloc.allocate<xml_document_struct>(); // Allocate a new root.
-		_root->parent = _root; // Point to self.
 		xml_allocator& a = static_cast<xml_document_struct*>(_root)->allocator;
 		a = alloc;
 		
@@ -2686,7 +2680,7 @@ namespace pugi
 	}
 
 #ifndef PUGIXML_NO_STL
-	std::string utf8(const wchar_t* str)
+	std::string as_utf8(const wchar_t* str)
 	{
 		std::string result;
 		result.reserve(strutf16_utf8_size(str));
@@ -2701,7 +2695,7 @@ namespace pugi
 	  	return result;
 	}
 	
-	std::wstring utf16(const char* str)
+	std::wstring as_utf16(const char* str)
 	{
 		std::wstring result;
 		result.reserve(strutf8_utf16_size(str));
