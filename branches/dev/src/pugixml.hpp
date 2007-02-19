@@ -223,6 +223,9 @@ namespace pugi
 	class xpath_ast_node;
 	class xpath_allocator;
 	
+	/**
+	 * A class that holds compiled XPath query and allows to evaluate query result
+	 */
 	class xpath_query
 	{
 	private:
@@ -233,15 +236,63 @@ namespace pugi
 		xpath_allocator* m_alloc;
 		xpath_ast_node* m_root;
 
-		bool compile(const char* query);
+		void compile(const char* query);
 
 	public:
+		/**
+		 * Ctor from string with XPath expression.
+		 * Throws xpath_exception on compilation error, std::bad_alloc on out of memory error.
+		 *
+		 * \param query - string with XPath expression
+		 */
 		explicit xpath_query(const char* query);
+
+		/**
+		 * Dtor
+		 */
 		~xpath_query();
 		
+		/**
+		 * Evaluate expression as boolean value for the context node \r n.
+		 * If expression does not directly evaluate to boolean, the expression result is converted
+		 * as through boolean() XPath function call.
+		 * Throws std::bad_alloc on out of memory error.
+		 *
+		 * \param n - context node
+		 * \return evaluation result
+		 */
 		bool evaluate_boolean(const xml_node& n);
+		
+		/**
+		 * Evaluate expression as double value for the context node \r n.
+		 * If expression does not directly evaluate to double, the expression result is converted
+		 * as through number() XPath function call.
+		 * Throws std::bad_alloc on out of memory error.
+		 *
+		 * \param n - context node
+		 * \return evaluation result
+		 */
 		double evaluate_number(const xml_node& n);
+		
+		/**
+		 * Evaluate expression as string value for the context node \r n.
+		 * If expression does not directly evaluate to string, the expression result is converted
+		 * as through string() XPath function call.
+		 * Throws std::bad_alloc on out of memory error.
+		 *
+		 * \param n - context node
+		 * \return evaluation result
+		 */
 		std::string evaluate_string(const xml_node& n);
+		
+		/**
+		 * Evaluate expression as node set for the context node \r n.
+		 * If expression does not directly evaluate to node set, function returns empty node set.
+		 * Throws std::bad_alloc on out of memory error.
+		 *
+		 * \param n - context node
+		 * \return evaluation result
+		 */
 		xpath_node_set evaluate_node_set(const xml_node& n);
 	};
 	#endif
@@ -278,7 +329,7 @@ namespace pugi
     	 */
     	operator unspecified_bool_type() const;
 
-    	/// Borland C++ workaround
+    	// Borland C++ workaround
     	bool operator!() const;
 
 		/**
@@ -473,11 +524,7 @@ namespace pugi
 		/// \internal Precompute document order (valid only for document node)
 		void precompute_document_order_impl();
 
-	private:
-		/// Node is tree root.
-		bool type_document() const;
-
-		/// Get allocator
+		/// \internal Get allocator
 		xml_allocator& get_allocator() const;
 
 	public:
@@ -496,7 +543,7 @@ namespace pugi
     	 */
 		operator unspecified_bool_type() const;
 
-		/// Borland C++ workaround
+		// Borland C++ workaround
 		bool operator!() const;
 	
 		/**
@@ -548,26 +595,52 @@ namespace pugi
 		bool operator>=(const xml_node& r) const;
 
 	public:
-		/// Node iterator type (for child nodes).
+		/**
+		 * Node iterator type (for child nodes).
+		 * \see xml_node_iterator
+		 */
 		typedef xml_node_iterator iterator;
 
-		/// Attribute iterator type.
+		/**
+		 * Node iterator type (for child nodes).
+		 * \see xml_attribute_iterator
+		 */
 		typedef xml_attribute_iterator attribute_iterator;
 
-		/// Access the begin iterator for this node's collection of child nodes.
+		/**
+		 * Access the begin iterator for this node's collection of child nodes.
+		 *
+		 * \return iterator that points to the first child node, or past-the-end iterator if node is empty or has no children
+		 */
 		iterator begin() const;
 	
-		/// Access the end iterator for this node's collection of child nodes.
+		/**
+		 * Access the end iterator for this node's collection of child nodes.
+		 *
+		 * \return past-the-end iterator for child list
+		 */
 		iterator end() const;
 	
-		/// Access the begin iterator for this node's collection of attributes.
+		/**
+		 * Access the begin iterator for this node's collection of attributes.
+		 *
+		 * \return iterator that points to the first attribute, or past-the-end iterator if node is empty or has no attributes
+		 */
 		attribute_iterator attributes_begin() const;
 	
-		/// Access the end iterator for this node's collection of attributes.
+		/**
+		 * Access the end iterator for this node's collection of attributes.
+		 *
+		 * \return past-the-end iterator for attribute list
+		 */
 		attribute_iterator attributes_end() const;
 
 	public:
-		/// Node pointer is null, or type is node_null. Same as type_null.
+		/**
+		 * Check if node is empty.
+		 *
+		 * \return true if node is empty, false otherwise
+		 */
 		bool empty() const;
 
 	public:
@@ -795,7 +868,7 @@ namespace pugi
 	};
 
 #ifdef __BORLANDC__
-	/// Borland C++ workaround
+	// Borland C++ workaround
 	bool operator&&(const xml_node& lhs, bool rhs);
 	bool operator||(const xml_node& lhs, bool rhs);
 #endif
@@ -987,17 +1060,36 @@ namespace pugi
 
 	/// XPath
 #ifndef PUGIXML_NO_XPATH
+	/**
+	 * XPath exception class.
+	 */
 	class xpath_exception: public std::exception
 	{
 	private:
 		const char* m_message;
 
 	public:
-		xpath_exception(const char* message);
+		/**
+		 * Construct exception from static error string
+		 *
+		 * \param message - error string
+		 */
+		explicit xpath_exception(const char* message);
 
+		/**
+		 * Return error message
+		 *
+		 * \return error message
+		 */
 		virtual const char* what() const throw();
 	};
 	
+	/**
+	 * XPath node class.
+	 * 
+	 * XPath defines node to be either xml_node or xml_attribute in pugixml terminology, so xpath_node
+	 * is either xml_node or xml_attribute.
+	 */
 	class xpath_node
 	{
 	private:
@@ -1008,33 +1100,87 @@ namespace pugi
     	typedef xml_node xpath_node::*unspecified_bool_type;
 
 	public:
+		/**
+		 * Construct empty XPath node
+		 */
 		xpath_node();
+		
+		/**
+		 * Construct XPath node from XML node
+		 *
+		 * \param node - XML node
+		 */
 		xpath_node(const xml_node& node);
+
+		/**
+		 * Construct XPath node from XML attribute
+		 *
+		 * \param attribute - XML attribute
+		 * \param parent - attribute's parent node
+		 */
 		xpath_node(const xml_attribute& attribute, const xml_node& parent);
 
+		/**
+		 * Get XML node, if any
+		 *
+		 * \return contained XML node, empty node otherwise
+		 */
 		xml_node node() const;
+		
+		/**
+		 * Get XML attribute, if any
+		 *
+		 * \return contained XML attribute, if any, empty attribute otherwise
+		 */
 		xml_attribute attribute() const;
+		
+		/**
+		 * Get parent of contained XML attribute, if any
+		 *
+		 * \return parent of contained XML attribute, if any, empty node otherwise
+		 */
 		xml_node parent() const;
 
+    	/**
+    	 * Safe bool conversion.
+    	 * Allows xpath_node to be used in a context where boolean variable is expected, such as 'if (node)'.
+    	 */
 		operator unspecified_bool_type() const;
 		
+		/**
+		 * Compares two XPath nodes
+		 *
+		 * \param n - XPath node to compare to
+		 * \return comparison result
+		 */
 		bool operator==(const xpath_node& n) const;
+		
+		/**
+		 * Compares two XPath nodes
+		 *
+		 * \param n - XPath node to compare to
+		 * \return comparison result
+		 */
 		bool operator!=(const xpath_node& n) const;
 	};
 
+	/**
+	 * Not necessarily ordered constant collection of XPath nodes
+	 */
 	class xpath_node_set
 	{
 		friend class xpath_ast_node;
 		
 	public:
+		/// Collection type
 		enum type_t
 		{
-			type_unsorted,
-			type_sorted,
-			type_sorted_reverse
+			type_unsorted,			///< Not ordered
+			type_sorted,			///< Sorted with respect to document order (ascending)
+			type_sorted_reverse		///< Sorted with respect to document order (descending)
 		};
 		
-		typedef xpath_node* iterator;
+		/// Constant iterator type
 		typedef const xpath_node* const_iterator;
 	
 	private:
@@ -1048,35 +1194,94 @@ namespace pugi
 		
 		bool m_using_storage;
 		
-	public:
-		xpath_node_set();
-		~xpath_node_set();
-		
-		xpath_node_set(const xpath_node_set& ns);
-		xpath_node_set& operator=(const xpath_node_set& ns);
-		
-		type_t type() const;
-		
-		size_t size() const;
-		
-		iterator begin();
-		const_iterator begin() const;
-		
-		iterator end();
-		const_iterator end() const;
-		
-		void sort(bool reverse = false);
-		void remove_duplicates();
-		
-		xpath_node first() const;
-		
-		bool empty() const;
+		typedef xpath_node* iterator;
+
+		iterator mut_begin();
+		iterator mut_end();
 		
 		void push_back(const xpath_node& n);
 		
 		template <typename Iterator> void append(Iterator begin, Iterator end);
 		
 		void truncate(iterator it);
+
+		void remove_duplicates();
+
+	public:
+		/**
+		 * Default ctor
+		 * Constructs empty set
+		 */
+		xpath_node_set();
+
+		/**
+         * Dtor
+         */
+		~xpath_node_set();
+		
+		/**
+		 * Copy ctor
+		 *
+		 * \param ns - set to copy
+		 */
+		xpath_node_set(const xpath_node_set& ns);
+
+		/**
+		 * Assignment operator
+		 *
+		 * \param ns - set to assign
+		 * \return self
+		 */
+		xpath_node_set& operator=(const xpath_node_set& ns);
+		
+		/**
+		 * Get collection type
+		 *
+		 * \return collection type
+		 */
+		type_t type() const;
+		
+		/**
+		 * Get collection size
+		 *
+		 * \return collection size
+		 */
+		size_t size() const;
+		
+		/**
+		 * Get begin constant iterator for collection
+		 *
+		 * \return begin constant iterator
+		 */
+		const_iterator begin() const;
+		
+		/**
+		 * Get end iterator for collection
+		 *
+		 * \return end iterator
+		 */
+		const_iterator end() const;
+		
+		/**
+		 * Sort the collection in ascending/descending order with respect to document order
+		 *
+		 * \param reverse - whether to sort in ascending (false) or descending (true) order
+		 */
+		void sort(bool reverse = false);
+		
+		/**
+		 * Get first node in the collection with respect to document order
+		 *
+		 * \return first node with respect to document order
+		 */
+		xpath_node first() const;
+		
+		/**
+		 * Return true if collection is empty
+		 *
+		 * \return true if collection is empty, false otherwise
+		 */
+		bool empty() const;
 	};
 #endif
 
@@ -1084,14 +1289,14 @@ namespace pugi
 	
 #ifndef PUGIXML_NO_STL
 	/// Convert utf16 to utf8
-	std::string utf8(const wchar_t* str);
+	std::string as_utf8(const wchar_t* str);
 	
 	/// Convert utf8 to utf16
-	std::wstring utf16(const char* str);
+	std::wstring as_utf16(const char* str);
 #endif
 }
 
-/// Inline implementation
+// Inline implementation
 
 namespace pugi
 {
