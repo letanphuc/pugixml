@@ -47,8 +47,8 @@ namespace pugi
 		node_pi				///< E.g. '<?...?>'
 	};
 
-	/// Parsing options
-	
+	// Parsing options
+
 	/**
 	 * Memory block size, used for fast allocator. Memory for DOM tree is allocated in blocks of
 	 * memory_block_size + 4.
@@ -164,7 +164,7 @@ namespace pugi
      */
 	const unsigned int parse_default			= parse_cdata | parse_escapes | parse_wconv_attribute | parse_eol;
 
-	/// Formatting flags
+	// Formatting flags
 	
 	/**
 	 * Indent the nodes that are written to output stream with as many indentation strings as deep
@@ -204,7 +204,7 @@ namespace pugi
 	 */
 	const unsigned int format_default	= format_indent | format_utf8;
 		
-	/// Forward declarations
+	// Forward declarations
 	struct xml_attribute_struct;
 	struct xml_node_struct;
 
@@ -308,12 +308,12 @@ namespace pugi
 		friend class xml_node;
 
 	private:
-		xml_attribute_struct* _attr; ///< The internal attribute pointer.
+		xml_attribute_struct* _attr;
 	
-    	/// Safe bool type
+    	/// \internal Safe bool type
     	typedef xml_attribute_struct* xml_attribute::*unspecified_bool_type;
 
-		/// Initializing ctor
+		/// \internal Initializing ctor
 		explicit xml_attribute(xml_attribute_struct* attr);
 
 	public:
@@ -516,9 +516,9 @@ namespace pugi
 		friend class xml_node_iterator;
 
 	protected:
-		xml_node_struct* _root; ///< Pointer to node root.
+		xml_node_struct* _root;
 
-    	/// Safe bool type
+    	/// \internal Safe bool type
     	typedef xml_node_struct* xml_node::*unspecified_bool_type;
 
 		/// \internal Initializing ctor
@@ -1049,7 +1049,7 @@ namespace pugi
 		xml_node _prev;
 		xml_node _wrap;
 
-		/// Initializing ctor
+		/// \internal Initializing ctor
 		explicit xml_node_iterator(xml_node_struct* ref);
 
 	public:
@@ -1147,7 +1147,7 @@ namespace pugi
 		xml_attribute _prev;
 		xml_attribute _wrap;
 
-		/// Initializing ctor
+		/// \internal Initializing ctor
 		explicit xml_attribute_iterator(xml_attribute_struct* ref);
 
 	public:
@@ -1300,73 +1300,106 @@ namespace pugi
 	 */
 	struct transfer_ownership_tag {};
 
-	/// Document (DOM tree root)
+	/**
+	 * Document class (DOM tree root).
+	 * This class has noncopyable semantics (private copy ctor/assignment operator).
+	 */
 	class xml_document: public xml_node
 	{
 	private:
-		char*				_buffer; ///< character buffer
+		char*				_buffer;
 
-		xml_memory_block	_memory; ///< Memory block
+		xml_memory_block	_memory;
 		
 		xml_document(const xml_document&);
 		const xml_document& operator=(const xml_document&);
 
-		void free();	///< free memory
+		void free();
 
 	public:
-		/// Ctor
+		/**
+		 * Default ctor, makes empty document
+		 */
 		xml_document();
 
-		/// Dtor
+		/**
+		 * Dtor
+		 */
 		~xml_document();
 
 	public:
 #ifndef PUGIXML_NO_STL
-		/// Load document from stream
-		/// \param stream - stream with xml data
-		/// \param options - options
-		/// \return success flag
+		/**
+		 * Load document from stream.
+		 *
+		 * \param stream - stream with xml data
+		 * \param options - parsing options
+		 * \return success flag
+		 */
 		bool load(std::istream& stream, unsigned int options = parse_default);
 #endif
 
-		/// Load document from (const) string
-		/// \param name - string
-		/// \param options - options
-		/// \return success flag
+		/**
+		 * Load document from string.
+		 *
+		 * \param contents - input string
+		 * \param options - parsing options
+		 * \return success flag
+		 */
 		bool load(const char* contents, unsigned int options = parse_default);
 
-		/// Load document from file
-		/// \param name - file name
-		/// \param options - options
-		/// \return success flag
+		/**
+		 * Load document from file
+		 *
+		 * \param name - file name
+		 * \param options - parsing options
+		 * \return success flag
+		 */
 		bool load_file(const char* name, unsigned int options = parse_default);
 
-		/// Parse the given XML string in-situ.
-		/// \param xmlstr - readwrite string with xml data
-		/// \param options - options
-		/// \return success flag
-		/// \rem input string is zero-segmented
+		/**
+		 * Parse the given XML string in-situ.
+		 * The string is modified; you should ensure that string data will persist throughout the
+		 * document's lifetime. Although, document does not gain ownership over the string, so you
+		 * should free the memory occupied by it manually.
+		 *
+		 * \param xmlstr - readwrite string with xml data
+		 * \param options - parsing options
+		 * \return success flag
+		 */
 		bool parse(char* xmlstr, unsigned int options = parse_default);
 		
-		/// Parse the given XML string in-situ (gains ownership).
-		/// \param xmlstr - readwrite string with xml data
-		/// \param options - options
-		/// \return success flag
-		/// \rem input string is zero-segmented
+		/**
+		 * Parse the given XML string in-situ (gains ownership).
+		 * The string is modified; document gains ownership over the string, so you don't have to worry
+		 * about it's lifetime.
+		 * Call example: doc.parse(transfer_ownership_tag(), string, options);
+		 *
+		 * \param xmlstr - readwrite string with xml data
+		 * \param options - parsing options
+		 * \return success flag
+		 */
 		bool parse(const transfer_ownership_tag&, char* xmlstr, unsigned int options = parse_default);
 		
 #ifndef PUGIXML_NO_STL
-		/// Save XML to file
-		/// \param name - file name
-		/// \return success flag
+		/**
+		 * Save XML to file
+		 *
+		 * \param name - file name
+		 * \param indent - indentation string
+		 * \param flags - formatting flags
+		 * \return success flag
+		 */
 		bool save_file(const char* name, const char* indent = "\t", unsigned int flags = format_default);
 #endif
 
-		/// Compute document order for the whole tree
+		/**
+		 * Compute document order for the whole tree
+		 * Sometimes this makes evaluation of XPath queries faster.
+		 */
 		void precompute_document_order();
 	};
 
-	/// XPath
 #ifndef PUGIXML_NO_XPATH
 	/**
 	 * XPath exception class.
@@ -1404,7 +1437,7 @@ namespace pugi
 		xml_node m_node;
 		xml_attribute m_attribute;
 	
-    	/// Safe bool type
+    	/// \internal Safe bool type
     	typedef xml_node xpath_node::*unspecified_bool_type;
 
 	public:
@@ -1593,13 +1626,21 @@ namespace pugi
 	};
 #endif
 
-	/// Utility functions for xml
-	
 #ifndef PUGIXML_NO_STL
-	/// Convert utf16 to utf8
+	/**
+	 * Convert utf16 to utf8
+	 *
+	 * \param str - input UTF16 string
+	 * \return output UTF8 string
+	 */
 	std::string as_utf8(const wchar_t* str);
 	
-	/// Convert utf8 to utf16
+	/**
+	 * Convert utf8 to utf16
+	 *
+	 * \param str - input UTF8 string
+	 * \return output UTF16 string
+	 */
 	std::wstring as_utf16(const char* str);
 #endif
 }
