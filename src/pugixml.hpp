@@ -970,12 +970,13 @@ namespace pugi
 		/**
 		 * Recursively traverse subtree with xml_tree_walker
 		 * \see xml_tree_walker::begin
+		 * \see xml_tree_walker::for_each
 		 * \see xml_tree_walker::end
 		 *
 		 * \param walker - tree walker to traverse subtree with
 		 * \return traversal result
 		 */
-		bool traverse(xml_tree_walker& walker) const;
+		bool traverse(xml_tree_walker& walker);
 	
 	#ifndef PUGIXML_NO_XPATH
 		/**
@@ -1033,10 +1034,13 @@ namespace pugi
 	bool operator||(const xml_node& lhs, bool rhs);
 #endif
 
-	/// Child node iterator.
+	/**
+	 * Child node iterator.
+	 * It's a bidirectional iterator with value type 'xml_node'.
+	 */
 	class xml_node_iterator
 #ifndef PUGIXML_NO_STL
-	: public std::iterator<std::bidirectional_iterator_tag, const xml_node>
+	: public std::iterator<std::bidirectional_iterator_tag, xml_node>
 #endif
 	{
 		friend class xml_node;
@@ -1047,33 +1051,94 @@ namespace pugi
 
 		/// Initializing ctor
 		explicit xml_node_iterator(xml_node_struct* ref);
+
 	public:
-		/// Default ctor
+		/**
+		 * Default ctor
+		 */
 		xml_node_iterator();
 
-		/// Initializing ctor
+		/**
+		 * Initializing ctor
+		 *
+		 * \param node - node that iterator will point at
+		 */
 		xml_node_iterator(const xml_node& node);
 
-		/// Initializing ctor (for past-the-end)
+		/**
+		 * Initializing ctor (for past-the-end)
+		 *
+		 * \param ref - should be 0
+		 * \param prev - previous node
+		 */
 		xml_node_iterator(xml_node_struct* ref, xml_node_struct* prev);
 
+		/**
+		 * Check if this iterator is equal to \a rhs
+		 *
+		 * \param rhs - other iterator
+		 * \return comparison result
+		 */
 		bool operator==(const xml_node_iterator& rhs) const;
+		
+		/**
+		 * Check if this iterator is not equal to \a rhs
+		 *
+		 * \param rhs - other iterator
+		 * \return comparison result
+		 */
 		bool operator!=(const xml_node_iterator& rhs) const;
 
-		const xml_node& operator*() const;
-		const xml_node* operator->() const;
+		/**
+		 * Dereferencing operator
+		 *
+		 * \return reference to the node iterator points at
+		 */
+		xml_node& operator*();
 
+		/**
+		 * Member access operator
+		 *
+		 * \return poitner to the node iterator points at
+		 */
+		xml_node* operator->();
+
+		/**
+		 * Pre-increment operator
+		 *
+		 * \return self
+		 */
 		const xml_node_iterator& operator++();
+
+		/**
+		 * Post-increment operator
+		 *
+		 * \return old value
+		 */
 		xml_node_iterator operator++(int);
 		
+		/**
+		 * Pre-decrement operator
+		 *
+		 * \return self
+		 */
 		const xml_node_iterator& operator--();
+		
+		/**
+		 * Post-decrement operator
+		 *
+		 * \return old value
+		 */
 		xml_node_iterator operator--(int);
 	};
 
-	/// Attribute iterator.
+	/**
+	 * Attribute iterator.
+	 * It's a bidirectional iterator with value type 'xml_attribute'.
+	 */
 	class xml_attribute_iterator
 #ifndef PUGIXML_NO_STL
-	: public std::iterator<std::bidirectional_iterator_tag, const xml_attribute>
+	: public std::iterator<std::bidirectional_iterator_tag, xml_attribute>
 #endif
 	{
 		friend class xml_node;
@@ -1084,62 +1149,141 @@ namespace pugi
 
 		/// Initializing ctor
 		explicit xml_attribute_iterator(xml_attribute_struct* ref);
+
 	public:
-		/// Default ctor
+		/**
+		 * Default ctor
+		 */
 		xml_attribute_iterator();
 
-		/// Initializing ctor
-		xml_attribute_iterator(const xml_attribute& attr);
+		/**
+		 * Initializing ctor
+		 *
+		 * \param node - node that iterator will point at
+		 */
+		xml_attribute_iterator(const xml_attribute& node);
 
-		/// Initializing ctor (for past-the-end)
+		/**
+		 * Initializing ctor (for past-the-end)
+		 *
+		 * \param ref - should be 0
+		 * \param prev - previous node
+		 */
 		xml_attribute_iterator(xml_attribute_struct* ref, xml_attribute_struct* prev);
 
+		/**
+		 * Check if this iterator is equal to \a rhs
+		 *
+		 * \param rhs - other iterator
+		 * \return comparison result
+		 */
 		bool operator==(const xml_attribute_iterator& rhs) const;
+		
+		/**
+		 * Check if this iterator is not equal to \a rhs
+		 *
+		 * \param rhs - other iterator
+		 * \return comparison result
+		 */
 		bool operator!=(const xml_attribute_iterator& rhs) const;
 
-		const xml_attribute& operator*() const;
-		const xml_attribute* operator->() const;
+		/**
+		 * Dereferencing operator
+		 *
+		 * \return reference to the node iterator points at
+		 */
+		xml_attribute& operator*();
 
+		/**
+		 * Member access operator
+		 *
+		 * \return poitner to the node iterator points at
+		 */
+		xml_attribute* operator->();
+
+		/**
+		 * Pre-increment operator
+		 *
+		 * \return self
+		 */
 		const xml_attribute_iterator& operator++();
+
+		/**
+		 * Post-increment operator
+		 *
+		 * \return old value
+		 */
 		xml_attribute_iterator operator++(int);
 		
+		/**
+		 * Pre-decrement operator
+		 *
+		 * \return self
+		 */
 		const xml_attribute_iterator& operator--();
+		
+		/**
+		 * Post-decrement operator
+		 *
+		 * \return old value
+		 */
 		xml_attribute_iterator operator--(int);
 	};
 
-	/// Abstract tree walker class for xml_node::traverse().
+	/**
+	 * Abstract tree walker class
+	 * \see xml_node::traverse
+	 */
 	class xml_tree_walker
 	{
+		friend class xml_node;
+
 	private:
-		int _deep; ///< Current node depth.
+		int _depth;
+	
+	protected:
+		/**
+		 * Get node depth
+		 * 
+		 * \return node depth
+		 */
+		int depth() const;
+	
 	public:
-		/// Default ctor
+		/**
+		 * Default ctor
+		 */
 		xml_tree_walker();
 
-		/// Virtual dtor
+		/**
+		 * Virtual dtor
+		 */
 		virtual ~xml_tree_walker();
 
 	public:
-		/// Increment node depth.
-		virtual void push();
+		/**
+		 * Callback that is called when traversal of node begins.
+		 *
+		 * \return returning false will abort the traversal
+		 */
+		virtual bool begin(xml_node&);
 
-		/// Decrement node depth
-		virtual void pop();
+		/**
+		 * Callback that is called for each node traversed
+		 *
+		 * \return returning false will abort the traversal
+		 */
+		virtual bool for_each(xml_node&) = 0;
 
-		/// Access node depth
-		virtual int depth() const;
-	
-	public:
-		/// Callback when traverse on a node begins.
-		/// \return returning false will abort the traversal.
-		virtual bool begin(const xml_node&);
-
-		/// Callback when traverse on a node ends.
-		/// \return Returning false will abort the traversal.
-		virtual bool end(const xml_node&);
+		/**
+		 * Callback that is called when traversal of node ends.
+		 *
+		 * \return returning false will abort the traversal
+		 */
+		virtual bool end(xml_node&);
 	};
 
-	/// Memory block (internal)
+	/// \internal Memory block
 	struct xml_memory_block
 	{
 		xml_memory_block();
@@ -1150,6 +1294,10 @@ namespace pugi
 		char data[memory_block_size];
 	};
 
+	/**
+	 * Struct used to distinguish parsing with ownership transfer from parsing without it.
+	 * \see xml_document::parse
+	 */
 	struct transfer_ownership_tag {};
 
 	/// Document (DOM tree root)

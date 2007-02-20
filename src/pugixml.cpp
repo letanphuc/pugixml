@@ -1325,7 +1325,7 @@ namespace pugi
 		}
 	}
 
-	xml_tree_walker::xml_tree_walker() : _deep(0)
+	xml_tree_walker::xml_tree_walker(): _depth(0)
 	{
 	}
 	
@@ -1333,27 +1333,17 @@ namespace pugi
 	{
 	}
 
-	void xml_tree_walker::push()
-	{
-		++_deep;
-	}
-
-	void xml_tree_walker::pop()
-	{
-		--_deep;
-	}
-
 	int xml_tree_walker::depth() const
 	{
-		return (_deep > 0) ? _deep : 0;
+		return _depth;
 	}
 
-	bool xml_tree_walker::begin(const xml_node&)
+	bool xml_tree_walker::begin(xml_node&)
 	{
 		return true;
 	}
 
-	bool xml_tree_walker::end(const xml_node&)
+	bool xml_tree_walker::end(xml_node&)
 	{
 		return true;
 	}
@@ -2040,21 +2030,45 @@ namespace pugi
 		}
 	}
 
-	bool xml_node::traverse(xml_tree_walker& walker) const
+	bool xml_node::traverse(xml_tree_walker& walker)
 	{
-		if (!walker.begin(*this)) return false; // Send the callback for begin traverse if depth is zero.
-		if(!empty()) // Don't traverse if this is a null node.
-		{
-			walker.push(); // Increment the walker depth counter.
+		walker._depth = 0;
+		
+		if (!walker.begin(*this)) return false;
 
-			for (xml_node_struct* i = _root->first_child; i; i = i->next_sibling)
+		xml_node cur = first_child();
+				
+		if (cur)
+		{
+			do 
 			{
-				xml_node subsearch(i);
-				if (!subsearch.traverse(walker)) return false;
+				if (!walker.for_each(cur))
+					return false;
+						
+				if (cur.first_child())
+				{
+					++walker._depth;
+					cur = cur.first_child();
+				}
+				else if (cur.next_sibling())
+					cur = cur.next_sibling();
+				else
+				{
+					// Borland C++ workaround
+					while (!cur.next_sibling() && cur != *this && (bool)cur.parent())
+					{
+						--walker._depth;
+						cur = cur.parent();
+					}
+						
+					if (cur != *this)
+						cur = cur.next_sibling();
+				}
 			}
-			walker.pop(); // Decrement the walker depth counter.
+			while (cur && cur != *this);
 		}
-		if (!walker.end(*this)) return false; // Send the callback for end traverse if depth is zero.
+
+		if (!walker.end(*this)) return false;
 		
 		return true;
 	}
@@ -2228,12 +2242,12 @@ namespace pugi
 		return (_wrap != rhs._wrap);
 	}
 
-	const xml_node& xml_node_iterator::operator*() const
+	xml_node& xml_node_iterator::operator*()
 	{
 		return _wrap;
 	}
 
-	const xml_node* xml_node_iterator::operator->() const
+	xml_node* xml_node_iterator::operator->()
 	{
 		return &_wrap;
 	}
@@ -2292,12 +2306,12 @@ namespace pugi
 		return (_wrap != rhs._wrap);
 	}
 
-	const xml_attribute& xml_attribute_iterator::operator*() const
+	xml_attribute& xml_attribute_iterator::operator*()
 	{
 		return _wrap;
 	}
 
-	const xml_attribute* xml_attribute_iterator::operator->() const
+	xml_attribute* xml_attribute_iterator::operator->()
 	{
 		return &_wrap;
 	}
