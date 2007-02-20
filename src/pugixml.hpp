@@ -114,10 +114,10 @@ namespace pugi
 
 	/**
 	 * This flag determines if character and entity references are to be expanded during the parsing
-	 * process. Character references are &#...; or &#x...; (... is Unicode numeric representation of
-     * character in either decimal (&#...;) or hexadecimal (&#x...;) form), entity references are &...;
+	 * process. Character references are &amp;#...; or &amp;#x...; (... is Unicode numeric representation of
+     * character in either decimal (&amp;#...;) or hexadecimal (&amp;#x...;) form), entity references are &amp;...;
      * Note that as pugixml does not handle DTD, the only allowed entities are predefined ones - 
-     * &lt;, &gt;, &amp;, &apos; and &quot;. If character/entity reference can not be expanded, it is
+     * &amp;lt;, &amp;gt;, &amp;amp;, &amp;apos; and &amp;quot;. If character/entity reference can not be expanded, it is
      * leaved as is, so you can do additional processing later.
      * Reference expansion is performed in attribute values and PCDATA content.
      *
@@ -253,7 +253,7 @@ namespace pugi
 		~xpath_query();
 		
 		/**
-		 * Evaluate expression as boolean value for the context node \r n.
+		 * Evaluate expression as boolean value for the context node \a n.
 		 * If expression does not directly evaluate to boolean, the expression result is converted
 		 * as through boolean() XPath function call.
 		 * Throws std::bad_alloc on out of memory error.
@@ -264,7 +264,7 @@ namespace pugi
 		bool evaluate_boolean(const xml_node& n);
 		
 		/**
-		 * Evaluate expression as double value for the context node \r n.
+		 * Evaluate expression as double value for the context node \a n.
 		 * If expression does not directly evaluate to double, the expression result is converted
 		 * as through number() XPath function call.
 		 * Throws std::bad_alloc on out of memory error.
@@ -275,7 +275,7 @@ namespace pugi
 		double evaluate_number(const xml_node& n);
 		
 		/**
-		 * Evaluate expression as string value for the context node \r n.
+		 * Evaluate expression as string value for the context node \a n.
 		 * If expression does not directly evaluate to string, the expression result is converted
 		 * as through string() XPath function call.
 		 * Throws std::bad_alloc on out of memory error.
@@ -286,7 +286,7 @@ namespace pugi
 		std::string evaluate_string(const xml_node& n);
 		
 		/**
-		 * Evaluate expression as node set for the context node \r n.
+		 * Evaluate expression as node set for the context node \a n.
 		 * If expression does not directly evaluate to node set, function returns empty node set.
 		 * Throws std::bad_alloc on out of memory error.
 		 *
@@ -779,46 +779,6 @@ namespace pugi
 		/// Predicate should take xml_node and return bool.
 		template <typename Predicate> xml_node find_element(Predicate pred) const;
 
-		/// Recursively-implemented depth-first find the first matching element. 
-		/// Use for shallow drill-downs.
-		xml_node first_element(const char* name) const;
-
-		/// Recursively-implemented depth-first find the first matching element. 
-		/// Use for shallow drill-downs.
-		/// Enable wildcard matching.
-		xml_node first_element_w(const char* name) const;
-
-		/// Recursively-implemented depth-first find the first matching element 
-		/// also having matching PCDATA.
-		xml_node first_element_by_value(const char* name, const char* value) const;
-
-		/// Recursively-implemented depth-first find the first matching element 
-		/// also having matching PCDATA.
-		/// Enable wildcard matching.
-		xml_node first_element_by_value_w(const char* name, const char* value) const;
-
-		/// Recursively-implemented depth-first find the first matching element 
-		/// also having matching attribute.
-		xml_node first_element_by_attribute(const char* name, const char* attr_name, const char* attr_value) const;
-
-		/// Recursively-implemented depth-first find the first matching element 
-		/// also having matching attribute.
-		/// Enable wildcard matching.
-		xml_node first_element_by_attribute_w(const char* name, const char* attr_name, const char* attr_value) const;
-
-		/// Recursively-implemented depth-first find the first element 
-		/// having matching attribute.
-		xml_node first_element_by_attribute(const char* attr_name, const char* attr_value) const;
-
-		/// Recursively-implemented depth-first find the first element 
-		/// having matching attribute.
-		/// Enable wildcard matching.
-		xml_node first_element_by_attribute_w(const char* attr_name, const char* attr_value) const;
-
-		/// Recursively-implemented depth-first find the first matching entity. 
-		/// Use for shallow drill-downs.
-		xml_node first_node(xml_node_type type) const;
-
 #ifndef PUGIXML_NO_STL
 		/// Compile the absolute node path from root as a text string.
 		/// \param delimiter - Delimiter character to insert between element names.
@@ -1176,8 +1136,8 @@ namespace pugi
 		enum type_t
 		{
 			type_unsorted,			///< Not ordered
-			type_sorted,			///< Sorted with respect to document order (ascending)
-			type_sorted_reverse		///< Sorted with respect to document order (descending)
+			type_sorted,			///< Sorted by document order (ascending)
+			type_sorted_reverse		///< Sorted by document order (descending)
 		};
 		
 		/// Constant iterator type
@@ -1263,16 +1223,16 @@ namespace pugi
 		const_iterator end() const;
 		
 		/**
-		 * Sort the collection in ascending/descending order with respect to document order
+		 * Sort the collection in ascending/descending order by document order
 		 *
 		 * \param reverse - whether to sort in ascending (false) or descending (true) order
 		 */
 		void sort(bool reverse = false);
 		
 		/**
-		 * Get first node in the collection with respect to document order
+		 * Get first node in the collection by document order
 		 *
-		 * \return first node with respect to document order
+		 * \return first node by document order
 		 */
 		xpath_node first() const;
 		
