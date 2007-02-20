@@ -1669,16 +1669,6 @@ namespace pugi
 		return xml_attribute();
 	}
 
-	xml_node xml_node::sibling(const char* name) const
-	{
-		return parent().child(name);
-	}
-	
-	xml_node xml_node::sibling_w(const char* name) const
-	{
-		return parent().child_w(name);
-	}
-
 	xml_node xml_node::next_sibling(const char* name) const
 	{
 		if(empty()) return xml_node();
