@@ -521,6 +521,9 @@ namespace pugi
     	/// Safe bool type
     	typedef xml_node_struct* xml_node::*unspecified_bool_type;
 
+		/// \internal Initializing ctor
+		explicit xml_node(xml_node_struct* p);
+
 		/// \internal Precompute document order (valid only for document node)
 		void precompute_document_order_impl();
 
@@ -532,9 +535,6 @@ namespace pugi
 		 * Default ctor. Constructs an empty node.
 		 */
 		xml_node();
-
-		/// \internal Initializing ctor
-		explicit xml_node(xml_node_struct* p);
 
 	public:
     	/**
@@ -644,177 +644,370 @@ namespace pugi
 		bool empty() const;
 
 	public:
-		/// Access node entity type.
+		/**
+		 * Get node type
+		 *
+		 * \return node type; node_null for empty nodes
+		 */
 		xml_node_type type() const;
 
-		/// Access pointer to node name if any, else empty string.
+		/**
+		 * Get node name (element name for element nodes, PI target for PI)
+		 *
+		 * \return node name, if any; "" otherwise
+		 */
 		const char* name() const;
 
-		/// Access pointer to data if any, else empty string.
+		/**
+		 * Get node value (comment/PI/PCDATA/CDATA contents, depending on node type)
+		 *
+		 * \return node value, if any; "" otherwise
+		 */
 		const char* value() const;
 	
-		/// Access child node at name as xml_node or xml_node(NULL) if bad name.
+		/**
+		 * Get child with the specified name
+		 *
+		 * \param name - child name
+		 * \return child with the specified name, if any; empty node otherwise
+		 */
 		xml_node child(const char* name) const;
 
-		/// Access child node at name as xml_node or xml_node(NULL) if bad name.
-		/// Enable wildcard matching.
+		/**
+		 * Get child with the name that matches specified pattern
+		 *
+		 * \param name - child name pattern
+		 * \return child with the name that matches pattern, if any; empty node otherwise
+		 */
 		xml_node child_w(const char* name) const;
 
-		/// Access the attribute having 'name'.
+		/**
+		 * Get attribute with the specified name
+		 *
+		 * \param name - attribute name
+		 * \return attribute with the specified name, if any; empty attribute otherwise
+		 */
 		xml_attribute attribute(const char* name) const;
 
-		/// Access the attribute having 'name'.
-		/// Enable wildcard matching.
+		/**
+		 * Get attribute with the name that matches specified pattern
+		 *
+		 * \param name - attribute name pattern
+		 * \return attribute with the name that matches pattern, if any; empty attribute otherwise
+		 */
 		xml_attribute attribute_w(const char* name) const;
 
-		/// Access sibling node at name as xml_node or xml_node(NULL) if bad name.
-		xml_node sibling(const char* name) const;
-
-		/// Access sibling node at name as xml_node or xml_node(NULL) if bad name.
-		/// Enable wildcard matching.
-		xml_node sibling_w(const char* name) const;
-
-		/// Access current node's next sibling by position and name.
+		/**
+		 * Get first of following sibling nodes with the specified name
+		 *
+		 * \param name - sibling name
+		 * \return node with the specified name, if any; empty node otherwise
+		 */
 		xml_node next_sibling(const char* name) const;
 
-		/// Access current node's next sibling by position and name.
-		/// Enable wildcard matching.
+		/**
+		 * Get first of the following sibling nodes with the name that matches specified pattern
+		 *
+		 * \param name - sibling name pattern
+		 * \return node with the name that matches pattern, if any; empty node otherwise
+		 */
 		xml_node next_sibling_w(const char* name) const;
 
-		/// Access current node's next sibling by position.
+		/**
+		 * Get following sibling
+		 *
+		 * \return following sibling node, if any; empty node otherwise
+		 */
 		xml_node next_sibling() const;
 
-		/// Access current node's previous sibling by position and name.
+		/**
+		 * Get first of preceding sibling nodes with the specified name
+		 *
+		 * \param name - sibling name
+		 * \return node with the specified name, if any; empty node otherwise
+		 */
 		xml_node previous_sibling(const char* name) const;
 
-		/// Access current node's previous sibling by position and name.
-		/// Enable wildcard matching.
+		/**
+		 * Get first of the preceding sibling nodes with the name that matches specified pattern
+		 *
+		 * \param name - sibling name pattern
+		 * \return node with the name that matches pattern, if any; empty node otherwise
+		 */
 		xml_node previous_sibling_w(const char* name) const;
 
-		/// Access current node's previous sibling by position.
+		/**
+		 * Get preceding sibling
+		 *
+		 * \return preceding sibling node, if any; empty node otherwise
+		 */
 		xml_node previous_sibling() const;
 
-		/// Access node's parent if any, else xml_node(NULL)
+		/**
+		 * Get parent node
+		 *
+		 * \return parent node if any; empty node otherwise
+		 */
 		xml_node parent() const;
 
-		/// Access root of the tree this node belongs to.
+		/**
+		 * Get root of DOM tree this node belongs to.
+		 *
+		 * \return tree root
+		 */
 		xml_node root() const;
 
-		/// Return PCDATA/CDATA that is child of current node. If none, return empty string.
+		/**
+		 * Get child value of current node; that is, value of the first child node of type PCDATA/CDATA
+		 *
+		 * \return child value of current node, if any; "" otherwise
+		 */
 		const char* child_value() const;
 
-		/// Return PCDATA/CDATA that is child of specified child node. If none, return empty string.
+		/**
+		 * Get child value of child with specified name. \see child_value
+		 * node.child_value(name) is equivalent to node.child(name).child_value()
+		 *
+		 * \param name - child name
+		 * \return child value of specified child node, if any; "" otherwise
+		 */
 		const char* child_value(const char* name) const;
 
-		/// Return PCDATA/CDATA that is child of specified child node. If none, return empty string.
-		/// Enable wildcard matching.
+		/**
+		 * Get child value of child with name that matches the specified pattern. \see child_value
+		 * node.child_value_w(name) is equivalent to node.child_w(name).child_value()
+		 *
+		 * \param name - child name pattern
+		 * \return child value of specified child node, if any; "" otherwise
+		 */
 		const char* child_value_w(const char* name) const;
 
 	public:	
-		/// Set node name (for PI/element nodes)
+		/**
+		 * Set node name to \a rhs (for PI/element nodes). \see name
+		 *
+		 * \param rhs - new node name
+		 * \return success flag (call fails if node is of the wrong type or there is not enough memory)
+		 */
 		bool set_name(const char* rhs);
 		
-		/// Set node value (for PI/PCDATA/CDATA/comment nodes)
+		/**
+		 * Set node value to \a rhs (for PI/PCDATA/CDATA/comment nodes). \see value
+		 *
+		 * \param rhs - new node value
+		 * \return success flag (call fails if node is of the wrong type or there is not enough memory)
+		 */
 		bool set_value(const char* rhs);
 
-		/// Add attribute with specified name (for element nodes)
+		/**
+		 * Add attribute with specified name (for element nodes)
+		 *
+		 * \param name - attribute name
+		 * \return added attribute, or empty attribute if there was an error (wrong node type)
+		 */
 		xml_attribute append_attribute(const char* name);
 
-		/// Insert attribute with specified name (for element nodes)
+		/**
+		 * Insert attribute with specified name after \a attr (for element nodes)
+		 *
+		 * \param name - attribute name
+		 * \param attr - attribute to insert a new one after
+		 * \return inserted attribute, or empty attribute if there was an error (wrong node type, or attr does not belong to node)
+		 */
 		xml_attribute insert_attribute_after(const char* name, const xml_attribute& attr);
 
-		/// Insert attribute with specified name (for element nodes)
+		/**
+		 * Insert attribute with specified name before \a attr (for element nodes)
+		 *
+		 * \param name - attribute name
+		 * \param attr - attribute to insert a new one before
+		 * \return inserted attribute, or empty attribute if there was an error (wrong node type, or attr does not belong to node)
+		 */
 		xml_attribute insert_attribute_before(const char* name, const xml_attribute& attr);
 
-		/// Add node with specified type (for element nodes)
+		/**
+		 * Add child node with specified type (for element nodes)
+		 *
+		 * \param type - node type
+		 * \return added node, or empty node if there was an error (wrong node type)
+		 */
 		xml_node append_child(xml_node_type type = node_element);
 
-		/// Insert node with specified type (for element nodes)
+		/**
+		 * Insert child node with specified type after \a node (for element nodes)
+		 *
+		 * \param type - node type
+		 * \param node - node to insert a new one after
+		 * \return inserted node, or empty node if there was an error (wrong node type, or \a node is not a child of this node)
+		 */
 		xml_node insert_child_after(xml_node_type type, const xml_node& node);
 
-		/// Insert node with specified type (for element nodes)
+		/**
+		 * Insert child node with specified type before \a node (for element nodes)
+		 *
+		 * \param type - node type
+		 * \param node - node to insert a new one before
+		 * \return inserted node, or empty node if there was an error (wrong node type, or \a node is not a child of this node)
+		 */
 		xml_node insert_child_before(xml_node_type type, const xml_node& node);
 
-		/// Remove specified attribute
+		/**
+		 * Remove specified attribute
+		 *
+		 * \param a - attribute to be removed
+		 */
 		void remove_attribute(const xml_attribute& a);
 
-		/// Remove specified attribute
+		/**
+		 * Remove attribute with the specified name, if any
+		 *
+		 * \param name - attribute name
+		 */
 		void remove_attribute(const char* name);
 
-		/// Remove specified child
+		/**
+		 * Remove specified child
+		 *
+		 * \param n - child node to be removed
+		 */
 		void remove_child(const xml_node& n);
 
-		/// Remove specified child
+		/**
+		 * Remove child with the specified name, if any
+		 *
+		 * \param name - child name
+		 */
 		void remove_child(const char* name);
 
 	public:
-		/// Access node's first attribute if any, else xml_attribute()
+		/**
+		 * Get first attribute
+		 *
+		 * \return first attribute, if any; empty attribute otherwise
+		 */
 		xml_attribute first_attribute() const;
 
-		/// Access node's last attribute if any, else xml_attribute()
+		/**
+		 * Get last attribute
+		 *
+		 * \return last attribute, if any; empty attribute otherwise
+		 */
         xml_attribute last_attribute() const;
 
-		/// Find all elements having the given name.
+		/**
+		 * Get all elements from subtree with given name
+		 *
+		 * \param name - node name
+		 * \param it - output iterator (for example, std::back_insert_iterator (result of std::back_inserter))
+		 */
 		template <typename OutputIterator> void all_elements_by_name(const char* name, OutputIterator it) const;
 
-		/// Find all elements having the given name.
-		/// Enable wildcard matching.
+		/**
+		 * Get all elements from subtree with name that matches given pattern
+		 *
+		 * \param name - node name pattern
+		 * \param it - output iterator (for example, std::back_insert_iterator (result of std::back_inserter))
+		 */
 		template <typename OutputIterator> void all_elements_by_name_w(const char* name, OutputIterator it) const;
 
-		/// Access node's first child if any, else xml_node()
+		/**
+		 * Get first child
+		 *
+		 * \return first child, if any; empty node otherwise
+		 */
 		xml_node first_child() const;
 
-		/// Access node's last child if any, else xml_node()
+		/**
+		 * Get last child
+		 *
+		 * \return last child, if any; empty node otherwise
+		 */
         xml_node last_child() const;
 		
-		/// Find attribute using the predicate
-		/// Predicate should take xml_attribute and return bool.
+		/**
+		 * Find attribute using predicate
+		 *
+		 * \param pred - predicate, that takes xml_attribute and returns bool
+		 * \return first attribute for which predicate returned true, or empty attribute
+		 */
 		template <typename Predicate> xml_attribute find_attribute(Predicate pred) const;
 
-		/// Find child using the predicate
-		/// Predicate should take xml_node and return bool.
+		/**
+		 * Find child node using predicate
+		 *
+		 * \param pred - predicate, that takes xml_node and returns bool
+		 * \return first child node for which predicate returned true, or empty node
+		 */
 		template <typename Predicate> xml_node find_child(Predicate pred) const;
 
-		/// Recursively-implemented depth-first find element using the predicate
-		/// Predicate should take xml_node and return bool.
-		template <typename Predicate> xml_node find_element(Predicate pred) const;
+		/**
+		 * Find node from subtree using predicate
+		 *
+		 * \param pred - predicate, that takes xml_node and returns bool
+		 * \return first node from subtree for which predicate returned true, or empty node
+		 */
+		template <typename Predicate> xml_node find_node(Predicate pred) const;
 
 #ifndef PUGIXML_NO_STL
-		/// Compile the absolute node path from root as a text string.
-		/// \param delimiter - Delimiter character to insert between element names.
-		/// \return path string (e.g. with '/' as delimiter, '/document/.../this'.
+		/**
+		 * Get the absolute node path from root as a text string.
+		 *
+		 * \param delimiter - delimiter character to insert between element names
+		 * \return path string (e.g. '/bookstore/book/author').
+		 */
 		std::string path(char delimiter = '/') const;
 #endif
 
-		/// Search for a node by path.
-		/// \param path - Path string; e.g. './foo/bar' (relative to node), '/foo/bar' (relative 
-		/// to root), '../foo/bar' (pop relative position).
-		/// \param delimiter - Delimiter character to use in tokenizing path.
-		/// \return Matching node, or xml_node() if not found.
+		/**
+		 * Search for a node by path.
+		 * \param path - path string; e.g. './foo/bar' (relative to node), '/foo/bar' (relative 
+		 * to root), '../foo/bar'.
+		 * \param delimiter - delimiter character to use while tokenizing path
+		 * \return matching node, if any; empty node otherwise
+		 */
 		xml_node first_element_by_path(const char* path, char delimiter = '/') const;
 
-		/// Recursively traverse the tree.
+		/**
+		 * Recursively traverse subtree with xml_tree_walker
+		 * \see xml_tree_walker::begin
+		 * \see xml_tree_walker::end
+		 *
+		 * \param walker - tree walker to traverse subtree with
+		 * \return traversal result
+		 */
 		bool traverse(xml_tree_walker& walker) const;
 	
 	#ifndef PUGIXML_NO_XPATH
-		/// Select single node by query
-		/// \param query - query string
-		/// \return Matching XPath node, or xpath_node() if not found
+		/**
+		 * Select single node by evaluating XPath query
+		 * 
+		 * \param query - query string
+		 * \return first node from the resulting node set by document order, or empty node if none found
+		 */
 		xpath_node select_single_node(const char* query) const;
 
-		/// Select single node by query
-		/// \param query - compiled query
-		/// \return Matching XPath node, or xpath_node() if not found
+		/**
+		 * Select single node by evaluating XPath query
+		 *
+		 * \param query - compiled query
+		 * \return first node from the resulting node set by document order, or empty node if none found
+		 */
 		xpath_node select_single_node(xpath_query& query) const;
 
-		/// Select nodes by query
-		/// \param query - query string
-		/// \return Matching XPath nodes, or empty set if not found
+		/**
+		 * Select node set by evaluating XPath query
+		 *
+		 * \param query - query string
+		 * \return resulting node set
+		 */
 		xpath_node_set select_nodes(const char* query) const;
 
-		/// Select nodes by query
-		/// \param query - compiled query
-		/// \return Matching XPath nodes, or empty set if not found
+		/**
+		 * Select node set by evaluating XPath query
+		 *
+		 * \param query - compiled query
+		 * \return resulting node set
+		 */
 		xpath_node_set select_nodes(xpath_query& query) const;
 	#endif
 		
@@ -822,7 +1015,14 @@ namespace pugi
 		unsigned int document_order() const;
 
 	#ifndef PUGIXML_NO_STL
-		/// Print subtree to stream
+		/**
+		 * Print subtree to stream
+		 *
+		 * \param os - output stream
+		 * \param indent - indentation string
+		 * \param flags - formatting flags
+		 * \param depth - starting depth (used for indentation)
+		 */
 		void print(std::ostream& os, const char* indent = "\t", unsigned int flags = format_default, unsigned int depth = 0);
 	#endif
 	};
@@ -1271,29 +1471,35 @@ namespace pugi
 		
 		for (xml_node node = first_child(); node; node = node.next_sibling())
 		{
-			if (!strcmp(name, node.name()))
+			if (node.type() == node_element)
 			{
-				*it = node;
-				++it;
-			}
+				if (!strcmp(name, node.name()))
+				{
+					*it = node;
+					++it;
+				}
 			
-			if (node.first_child()) node.all_elements_by_name(name, it);
+				if (node.first_child()) node.all_elements_by_name(name, it);
+			}
 		}
 	}
 
-	template <typename OutputIterator> void xml_node::all_elements_by_name_w(const char* name, OutputIterator it) const
+	template <typename OutputIterator> void xml_node::all_nodes_by_name_w(const char* name, OutputIterator it) const
 	{
 		if (empty()) return;
 		
 		for (xml_node node = first_child(); node; node = node.next_sibling())
 		{
-			if (!impl::strcmpwild(name, node.name()))
+			if (node.type() == node_element)
 			{
-				*it = node;
-				++it;
+				if (!impl::strcmpwild(name, node.name()))
+				{
+					*it = node;
+					++it;
+				}
+					
+				if (node.first_child()) node.all_elements_by_name_w(name, it);
 			}
-			
-			if (node.first_child()) node.all_elements_by_name_w(name, it);
 		}
 	}
 	
@@ -1317,7 +1523,7 @@ namespace pugi
 		return xml_node();
 	}
 
-	template <typename Predicate> inline xml_node xml_node::find_element(Predicate pred) const
+	template <typename Predicate> inline xml_node xml_node::find_node(Predicate pred) const
 	{
 		if (!empty())
 			for (xml_node node = first_child(); node; node = node.next_sibling())
