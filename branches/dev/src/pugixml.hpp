@@ -1484,7 +1484,7 @@ namespace pugi
 		}
 	}
 
-	template <typename OutputIterator> void xml_node::all_nodes_by_name_w(const char* name, OutputIterator it) const
+	template <typename OutputIterator> void xml_node::all_elements_by_name_w(const char* name, OutputIterator it) const
 	{
 		if (empty()) return;
 		
