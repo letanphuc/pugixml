@@ -2118,7 +2118,7 @@ namespace pugi
 		{
 		case node_document:
 			for (xml_node n = first_child(); n; n = n.next_sibling())
-				n.print(os, indent, flags, depth + 1);
+				n.print(os, indent, flags, depth);
 			break;
 			
 		case node_element:
@@ -2186,16 +2186,19 @@ namespace pugi
 
 		case node_cdata:
 			os << "<![CDATA[" << value() << "]]>";
+			if ((flags & format_raw) == 0) os << "\n";
 			break;
 
 		case node_comment:
 			os << "<!--" << value() << "-->";
+			if ((flags & format_raw) == 0) os << "\n";
 			break;
 
 		case node_pi:
 			os << "<?" << name();
 			if (value()[0]) os << ' ' << value();
 			os << "?>";
+			if ((flags & format_raw) == 0) os << "\n";
 			break;
 		
 		default:
@@ -2350,6 +2353,7 @@ namespace pugi
 
 	xml_document::xml_document(): _buffer(0)
 	{
+		create();
 	}
 
 	xml_document::~xml_document()
@@ -2357,9 +2361,18 @@ namespace pugi
 		free();
 	}
 
+	void xml_document::create()
+	{
+		xml_allocator alloc(&_memory);
+		
+		_root = alloc.allocate<xml_document_struct>(); // Allocate a new root.
+		xml_allocator& a = static_cast<xml_document_struct*>(_root)->allocator;
+		a = alloc;
+	}
+
 	void xml_document::free()
 	{
-		delete _buffer;
+		delete[] _buffer;
 		_buffer = 0;
 
 		if (_root) _root->free();
@@ -2375,15 +2388,21 @@ namespace pugi
 		
 		_memory.next = 0;
 		_memory.size = 0;
+
+		create();
 	}
 
 #ifndef PUGIXML_NO_STL
 	bool xml_document::load(std::istream& stream, unsigned int options)
 	{
+		if (!stream.good()) return false;
+
 		std::streamoff length, pos = stream.tellg();
 		stream.seekg(0, std::ios_base::end);
 		length = stream.tellg();
 		stream.seekg(pos, std::ios_base::beg);
+
+		if (!stream.good()) return false;
 
 		char* s;
 
@@ -2398,6 +2417,12 @@ namespace pugi
 
 		stream.read(s, length);
 		s[length] = 0;
+
+		if (!stream.good())
+		{
+			delete[] s;
+			return false;
+		}
 
 		return parse(transfer_ownership_tag(), s, options); // Parse the input string.
 	}
@@ -2466,13 +2491,9 @@ namespace pugi
 	{
 		free();
 
-		xml_allocator alloc(&_memory);
+		xml_allocator& alloc = static_cast<xml_document_struct*>(_root)->allocator;
 		
-		_root = alloc.allocate<xml_document_struct>(); // Allocate a new root.
-		xml_allocator& a = static_cast<xml_document_struct*>(_root)->allocator;
-		a = alloc;
-		
-		xml_parser parser(a);
+		xml_parser parser(alloc);
 		
 		return parser.parse(xmlstr, _root, options); // Parse the input string.
 	}
