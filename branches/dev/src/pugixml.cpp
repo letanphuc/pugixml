@@ -117,11 +117,11 @@ namespace pugi
 			if (!name_insitu) delete[] name;
 			if (!value_insitu) delete[] value;
 
-			for (xml_node_struct* cur = first_child; cur; cur = cur->next_sibling)
-				cur->free();
-			
-			for (xml_attribute_struct* cur = first_attribute; cur; cur = cur->next_attribute)
-				cur->free();
+			for (xml_attribute_struct* attr = first_attribute; attr; attr = attr->next_attribute)
+				attr->free();
+
+			for (xml_node_struct* node = first_child; node; node = node->next_sibling)
+				node->free();
 		}
 
 		xml_node_struct* append_node(xml_allocator& alloc, xml_node_type type = node_element)
@@ -2117,9 +2117,11 @@ namespace pugi
 		switch (type())
 		{
 		case node_document:
+		{
 			for (xml_node n = first_child(); n; n = n.next_sibling())
 				n.print(os, indent, flags, depth);
 			break;
+		}
 			
 		case node_element:
 		{
@@ -2177,6 +2179,7 @@ namespace pugi
 
 			break;
 		}
+		
 		case node_pcdata:
 			if (flags & format_utf8)
 				text_output_escaped<false, true>(os, value());
