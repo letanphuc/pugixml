@@ -32,10 +32,20 @@
 #	pragma warn -8066 // unreachable code
 #endif
 
+#if defined(_MSC_VER) && _MSC_VER == 1200
+// MSVC6 workaround
+namespace std
+{
+	using ::memmove;
+}
+#endif
+
 #define STATIC_ASSERT(cond) { static const char condition_failed[(cond) ? 1 : -1] = {0}; (void)condition_failed; }
 
 namespace pugi
 {
+	struct xml_document_struct;
+
 	class xml_allocator
 	{
 	public:
@@ -43,17 +53,9 @@ namespace pugi
 		{
 		}
 
-		template <typename T> T* allocate()
-		{
-			void* buf = memalloc(sizeof(T));
-			return new (buf) T();
-		}
-		
-		template <typename T, typename U> T* allocate(U val)
-		{
-			void* buf = memalloc(sizeof(T));
-			return new (buf) T(val);
-		}
+		xml_document_struct* allocate_document();
+		xml_node_struct* allocate_node(xml_node_type type);
+		xml_attribute_struct* allocate_attribute();
 
 	private:
 		xml_memory_block* _root;
@@ -126,7 +128,7 @@ namespace pugi
 
 		xml_node_struct* append_node(xml_allocator& alloc, xml_node_type type = node_element)
 		{
-			xml_node_struct* child = alloc.allocate<xml_node_struct>(type);
+			xml_node_struct* child = alloc.allocate_node(type);
 			child->parent = this;
 			
 			if (last_child)
@@ -142,7 +144,7 @@ namespace pugi
 
 		xml_attribute_struct* append_attribute(xml_allocator& alloc)
 		{
-			xml_attribute_struct* a = alloc.allocate<xml_attribute_struct>();
+			xml_attribute_struct* a = alloc.allocate_attribute();
 
 			if (last_attribute)
 			{
@@ -183,6 +185,21 @@ namespace pugi
 
 		xml_allocator allocator;
 	};
+
+	xml_document_struct* xml_allocator::allocate_document()
+	{
+		return new(memalloc(sizeof(xml_document_struct))) xml_document_struct;
+	}
+
+	xml_node_struct* xml_allocator::allocate_node(xml_node_type type)
+	{
+		return new(memalloc(sizeof(xml_node_struct))) xml_node_struct(type);
+	}
+
+	xml_attribute_struct* xml_allocator::allocate_attribute()
+	{
+		return new(memalloc(sizeof(xml_attribute_struct))) xml_attribute_struct;
+	}
 }
 
 namespace
@@ -1829,7 +1846,7 @@ namespace pugi
 
 		if (cur != _root->first_attribute) return xml_attribute();
 
-		xml_attribute a(get_allocator().allocate<xml_attribute_struct>());
+		xml_attribute a(get_allocator().allocate_attribute());
 		a.set_name(name);
 
 		if (attr._attr->prev_attribute)
@@ -1855,7 +1872,7 @@ namespace pugi
 
 		if (cur != _root->first_attribute) return xml_attribute();
 
-		xml_attribute a(get_allocator().allocate<xml_attribute_struct>());
+		xml_attribute a(get_allocator().allocate_attribute());
 		a.set_name(name);
 
 		if (attr._attr->next_attribute)
@@ -1882,7 +1899,7 @@ namespace pugi
 		if ((this->type() != node_element && this->type() != node_document) || type == node_document || type == node_null) return xml_node();
 		if (node.parent() != *this) return xml_node();
 	
-		xml_node n(get_allocator().allocate<xml_node_struct>(type));
+		xml_node n(get_allocator().allocate_node(type));
 		n._root->parent = _root;
 		
 		if (node._root->prev_sibling)
@@ -1902,7 +1919,7 @@ namespace pugi
 		if ((this->type() != node_element && this->type() != node_document) || type == node_document || type == node_null) return xml_node();
 		if (node.parent() != *this) return xml_node();
 	
-		xml_node n(get_allocator().allocate<xml_node_struct>(type));
+		xml_node n(get_allocator().allocate_node(type));
 		n._root->parent = _root;
 	
 		if (node._root->next_sibling)
@@ -2368,7 +2385,7 @@ namespace pugi
 	{
 		xml_allocator alloc(&_memory);
 		
-		_root = alloc.allocate<xml_document_struct>(); // Allocate a new root.
+		_root = alloc.allocate_document(); // Allocate a new root.
 		xml_allocator& a = static_cast<xml_document_struct*>(_root)->allocator;
 		a = alloc;
 	}
