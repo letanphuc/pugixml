@@ -267,7 +267,7 @@ namespace
 	{
 #if defined(__USE_ISOC99)
 		return isnan(value);
-#elif defined(_MSC_VER) || defined(__BORLANDC__)
+#elif (defined(_MSC_VER) || defined(__BORLANDC__)) && !defined(__COMO__)
 		return !!_isnan(value);
 #elif FLT_RADIX == 2 && DBL_MAX_EXP == 1024 && DBL_MANT_DIG == 53
 		// IEEE 754
@@ -286,7 +286,7 @@ namespace
 	{
 #if defined(__USE_ISOC99)
 		return !isfinite(value);
-#elif defined(_MSC_VER) || defined(__BORLANDC__)
+#elif (defined(_MSC_VER) || defined(__BORLANDC__)) && !defined(__COMO__)
 		return !_finite(value);
 #elif FLT_RADIX == 2 && DBL_MAX_EXP == 1024 && DBL_MANT_DIG == 53
 		// IEEE 754
@@ -2517,8 +2517,9 @@ namespace pugi
 			
 			default:
 				throw xpath_exception("Unknown semantics error");
-				
+#ifdef __DMC__				
 				return false; // Digital Mars C++
+#endif
 			}
 		}
 
@@ -2975,8 +2976,9 @@ namespace pugi
 
 	    	default:
 	    		throw xpath_exception("unrecognizable primary expression");
-	    	
+#ifdef __DMC__	    	
 	    		return 0; // Digital Mars C++
+#endif
 	    	}
 	    }
 	    
