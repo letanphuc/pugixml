@@ -30,6 +30,17 @@
 #	pragma warning(disable: 4996) // this function or variable may be unsafe
 #endif
 
+#if defined(_MSC_VER) && _MSC_VER == 1200
+// MSVC6 workaround
+namespace std
+{
+	template <typename T> const T& min(const T& a, const T& b)
+	{
+		return _cpp_min(a, b);
+	}
+}
+#endif
+
 namespace
 {
 	using namespace pugi;
@@ -1157,6 +1168,13 @@ namespace pugi
 		nodetest_all,
 		nodetest_all_in_namespace
 	};
+
+	template <axis_t N> struct axis_to_type
+	{
+		static const axis_t axis;
+	};
+
+	template <axis_t N> const axis_t axis_to_type<N>::axis = N;
 		
 	class xpath_ast_node
 	{
@@ -1183,45 +1201,147 @@ namespace pugi
 		xpath_ast_node(const xpath_ast_node&);
 		xpath_ast_node& operator=(const xpath_ast_node&);
 
-		template <class Cbool, class Cdouble, class Cstring> bool compare_eq(xpath_ast_node* lhs, xpath_ast_node* rhs, xpath_context& c)
+		template <class Cbool, class Cdouble, class Cstring> struct compare_eq
 		{
-			if (lhs->rettype() != ast_type_node_set && rhs->rettype() != ast_type_node_set)
+			static bool run(xpath_ast_node* lhs, xpath_ast_node* rhs, xpath_context& c)
 			{
-				if (lhs->rettype() == ast_type_boolean || rhs->rettype() == ast_type_boolean)
-					return Cbool()(lhs->eval_boolean(c), rhs->eval_boolean(c));
-				else if (lhs->rettype() == ast_type_number || rhs->rettype() == ast_type_number)
-					return Cdouble()(lhs->eval_number(c), rhs->eval_number(c));
-				else if (lhs->rettype() == ast_type_string || rhs->rettype() == ast_type_string)
-					return Cstring()(lhs->eval_string(c), rhs->eval_string(c));
+				if (lhs->rettype() != ast_type_node_set && rhs->rettype() != ast_type_node_set)
+				{
+					if (lhs->rettype() == ast_type_boolean || rhs->rettype() == ast_type_boolean)
+						return Cbool()(lhs->eval_boolean(c), rhs->eval_boolean(c));
+					else if (lhs->rettype() == ast_type_number || rhs->rettype() == ast_type_number)
+						return Cdouble()(lhs->eval_number(c), rhs->eval_number(c));
+					else if (lhs->rettype() == ast_type_string || rhs->rettype() == ast_type_string)
+						return Cstring()(lhs->eval_string(c), rhs->eval_string(c));
+					else
+					{
+						assert(!"Wrong types");
+						return false;
+					}
+				}
+				else if (lhs->rettype() == ast_type_node_set && rhs->rettype() == ast_type_node_set)
+				{
+					xpath_node_set ls = lhs->eval_node_set(c);
+					xpath_node_set rs = rhs->eval_node_set(c);
+					
+					for (xpath_node_set::const_iterator li = ls.begin(); li != ls.end(); ++li)
+					for (xpath_node_set::const_iterator ri = rs.begin(); ri != rs.end(); ++ri)
+					{
+						if (Cstring()(string_value(*li), string_value(*ri)))
+							return true;
+					}
+					
+					return false;
+				}
+				else if (lhs->rettype() != ast_type_node_set && rhs->rettype() == ast_type_node_set)
+				{
+					if (lhs->rettype() == ast_type_boolean)
+						return Cbool()(lhs->eval_boolean(c), rhs->eval_boolean(c));
+					else if (lhs->rettype() == ast_type_number)
+					{
+						double l = lhs->eval_number(c);
+						xpath_node_set rs = rhs->eval_node_set(c);
+						
+						for (xpath_node_set::const_iterator ri = rs.begin(); ri != rs.end(); ++ri)
+						{
+							if (Cdouble()(l, convert_string_to_number(string_value(*ri).c_str())) == true)
+								return true;
+						}
+						
+						return false;
+					}
+					else if (lhs->rettype() == ast_type_string)
+					{
+						std::string l = lhs->eval_string(c);
+						xpath_node_set rs = rhs->eval_node_set(c);
+
+						for (xpath_node_set::const_iterator ri = rs.begin(); ri != rs.end(); ++ri)
+						{
+							if (Cstring()(l, string_value(*ri)) == true)
+								return true;
+						}
+						
+						return false;
+					}
+					else
+					{
+						assert(!"Wrong types");
+						return false;
+					}
+				}
+				else if (lhs->rettype() == ast_type_node_set && rhs->rettype() != ast_type_node_set)
+				{
+					if (rhs->rettype() == ast_type_boolean)
+						return Cbool()(lhs->eval_boolean(c), rhs->eval_boolean(c));
+					else if (rhs->rettype() == ast_type_number)
+					{
+						xpath_node_set ls = lhs->eval_node_set(c);
+						double r = rhs->eval_number(c);
+
+						for (xpath_node_set::const_iterator li = ls.begin(); li != ls.end(); ++li)
+						{
+							if (Cdouble()(convert_string_to_number(string_value(*li).c_str()), r) == true)
+								return true;
+						}
+						
+						return false;
+					}
+					else if (rhs->rettype() == ast_type_string)
+					{
+						xpath_node_set ls = lhs->eval_node_set(c);
+						std::string r = rhs->eval_string(c);
+
+						for (xpath_node_set::const_iterator li = ls.begin(); li != ls.end(); ++li)
+						{
+							if (Cstring()(string_value(*li), r) == true)
+								return true;
+						}
+						
+						return false;
+					}
+					else
+					{
+						assert(!"Wrong types");
+						return false;
+					}
+				}
 				else
 				{
 					assert(!"Wrong types");
 					return false;
 				}
 			}
-			else if (lhs->rettype() == ast_type_node_set && rhs->rettype() == ast_type_node_set)
+		};
+
+		template <class Cdouble> struct compare_rel
+		{
+			static bool run(xpath_ast_node* lhs, xpath_ast_node* rhs, xpath_context& c)
 			{
-				xpath_node_set ls = lhs->eval_node_set(c);
-				xpath_node_set rs = rhs->eval_node_set(c);
-				
-				for (xpath_node_set::const_iterator li = ls.begin(); li != ls.end(); ++li)
-				for (xpath_node_set::const_iterator ri = rs.begin(); ri != rs.end(); ++ri)
+				if (lhs->rettype() != ast_type_node_set && rhs->rettype() != ast_type_node_set)
+					return Cdouble()(lhs->eval_number(c), rhs->eval_number(c));
+				else if (lhs->rettype() == ast_type_node_set && rhs->rettype() == ast_type_node_set)
 				{
-					if (Cstring()(string_value(*li), string_value(*ri)))
-						return true;
+					xpath_node_set ls = lhs->eval_node_set(c);
+					xpath_node_set rs = rhs->eval_node_set(c);
+					
+					for (xpath_node_set::const_iterator li = ls.begin(); li != ls.end(); ++li)
+					{
+						double l = convert_string_to_number(string_value(*li).c_str());
+						
+						for (xpath_node_set::const_iterator ri = rs.begin(); ri != rs.end(); ++ri)
+						{
+							if (Cdouble()(l, convert_string_to_number(string_value(*ri).c_str())) == true)
+								return true;
+						}
+					}
+					
+					return false;
 				}
-				
-				return false;
-			}
-			else if (lhs->rettype() != ast_type_node_set && rhs->rettype() == ast_type_node_set)
-			{
-				if (lhs->rettype() == ast_type_boolean)
-					return Cbool()(lhs->eval_boolean(c), rhs->eval_boolean(c));
-				else if (lhs->rettype() == ast_type_number)
+				else if (lhs->rettype() != ast_type_node_set && rhs->rettype() == ast_type_node_set)
 				{
 					double l = lhs->eval_number(c);
 					xpath_node_set rs = rhs->eval_node_set(c);
-					
+						
 					for (xpath_node_set::const_iterator ri = rs.begin(); ri != rs.end(); ++ri)
 					{
 						if (Cdouble()(l, convert_string_to_number(string_value(*ri).c_str())) == true)
@@ -1230,30 +1350,7 @@ namespace pugi
 					
 					return false;
 				}
-				else if (lhs->rettype() == ast_type_string)
-				{
-					std::string l = lhs->eval_string(c);
-					xpath_node_set rs = rhs->eval_node_set(c);
-
-					for (xpath_node_set::const_iterator ri = rs.begin(); ri != rs.end(); ++ri)
-					{
-						if (Cstring()(l, string_value(*ri)) == true)
-							return true;
-					}
-					
-					return false;
-				}
-				else
-				{
-					assert(!"Wrong types");
-					return false;
-				}
-			}
-			else if (lhs->rettype() == ast_type_node_set && rhs->rettype() != ast_type_node_set)
-			{
-				if (rhs->rettype() == ast_type_boolean)
-					return Cbool()(lhs->eval_boolean(c), rhs->eval_boolean(c));
-				else if (rhs->rettype() == ast_type_number)
+				else if (lhs->rettype() == ast_type_node_set && rhs->rettype() != ast_type_node_set)
 				{
 					xpath_node_set ls = lhs->eval_node_set(c);
 					double r = rhs->eval_number(c);
@@ -1266,87 +1363,14 @@ namespace pugi
 					
 					return false;
 				}
-				else if (rhs->rettype() == ast_type_string)
-				{
-					xpath_node_set ls = lhs->eval_node_set(c);
-					std::string r = rhs->eval_string(c);
-
-					for (xpath_node_set::const_iterator li = ls.begin(); li != ls.end(); ++li)
-					{
-						if (Cstring()(string_value(*li), r) == true)
-							return true;
-					}
-					
-					return false;
-				}
 				else
 				{
 					assert(!"Wrong types");
 					return false;
 				}
 			}
-			else
-			{
-				assert(!"Wrong types");
-				return false;
-			}
-		}
+		};
 
-		template <class Cdouble> bool compare_rel(xpath_ast_node* lhs, xpath_ast_node* rhs, xpath_context& c)
-		{
-			if (lhs->rettype() != ast_type_node_set && rhs->rettype() != ast_type_node_set)
-				return Cdouble()(lhs->eval_number(c), rhs->eval_number(c));
-			else if (lhs->rettype() == ast_type_node_set && rhs->rettype() == ast_type_node_set)
-			{
-				xpath_node_set ls = lhs->eval_node_set(c);
-				xpath_node_set rs = rhs->eval_node_set(c);
-				
-				for (xpath_node_set::const_iterator li = ls.begin(); li != ls.end(); ++li)
-				{
-					double l = convert_string_to_number(string_value(*li).c_str());
-					
-					for (xpath_node_set::const_iterator ri = rs.begin(); ri != rs.end(); ++ri)
-					{
-						if (Cdouble()(l, convert_string_to_number(string_value(*ri).c_str())) == true)
-							return true;
-					}
-				}
-				
-				return false;
-			}
-			else if (lhs->rettype() != ast_type_node_set && rhs->rettype() == ast_type_node_set)
-			{
-				double l = lhs->eval_number(c);
-				xpath_node_set rs = rhs->eval_node_set(c);
-					
-				for (xpath_node_set::const_iterator ri = rs.begin(); ri != rs.end(); ++ri)
-				{
-					if (Cdouble()(l, convert_string_to_number(string_value(*ri).c_str())) == true)
-						return true;
-				}
-				
-				return false;
-			}
-			else if (lhs->rettype() == ast_type_node_set && rhs->rettype() != ast_type_node_set)
-			{
-				xpath_node_set ls = lhs->eval_node_set(c);
-				double r = rhs->eval_number(c);
-
-				for (xpath_node_set::const_iterator li = ls.begin(); li != ls.end(); ++li)
-				{
-					if (Cdouble()(convert_string_to_number(string_value(*li).c_str()), r) == true)
-						return true;
-				}
-				
-				return false;
-			}
-			else
-			{
-				assert(!"Wrong types");
-				return false;
-			}
-		}
-		
 		void apply_predicate(xpath_node_set& ns, size_t first, xpath_ast_node* expr, const xpath_context& context)
 		{
 			xpath_context c;
@@ -1458,8 +1482,10 @@ namespace pugi
 			} 
 		}
 
-		template <axis_t axis> void step_fill(xpath_node_set& ns, const xml_node& n)
+		template <class T> void step_fill(xpath_node_set& ns, const xml_node& n, T v)
 		{
+			const axis_t axis = T::axis;
+
 			switch (axis)
 			{
 			case axis_attribute:
@@ -1633,8 +1659,10 @@ namespace pugi
 			}
 		}
 		
-		template <axis_t axis> void step_fill(xpath_node_set& ns, const xml_attribute& a, const xml_node& p)
+		template <class T> void step_fill(xpath_node_set& ns, const xml_attribute& a, const xml_node& p, T v)
 		{
+			const axis_t axis = T::axis;
+
 			switch (axis)
 			{
 			case axis_ancestor:
@@ -1662,8 +1690,10 @@ namespace pugi
 			}
 		}
 		
-		template <axis_t axis> void step_do(xpath_node_set& ns, xpath_context& c)
+		template <class T> void step_do(xpath_node_set& ns, xpath_context& c, T v)
 		{
+			const axis_t axis = T::axis;
+
 			switch (axis)
 			{
 			case axis_parent:
@@ -1736,17 +1766,17 @@ namespace pugi
 						size_t s = ns.size();
 						
 						if (it->node())
-							step_fill<axis>(ns, it->node());
+							step_fill(ns, it->node(), v);
 						else
-							step_fill<axis>(ns, it->attribute(), it->parent());
+							step_fill(ns, it->attribute(), it->parent(), v);
 							
 						apply_predicates(ns, s, c);
 					}
 				}
 				else
 				{
-					if (c.n.node()) step_fill<axis>(ns, c.n.node());
-					else step_fill<axis>(ns, c.n.attribute(), c.n.parent());
+					if (c.n.node()) step_fill(ns, c.n.node(), v);
+					else step_fill(ns, c.n.attribute(), c.n.parent(), v);
 					
 					apply_predicates(ns, 0, c);
 				}
@@ -1770,14 +1800,14 @@ namespace pugi
 						size_t s = ns.size();
 						
 						if (it->node())
-							step_fill<axis>(ns, it->node());
+							step_fill(ns, it->node(), v);
 						
 						apply_predicates(ns, s, c);
 					}
 				}
 				else if (c.n.node())
 				{
-					step_fill<axis>(ns, c.n.node());
+					step_fill(ns, c.n.node(), v);
 					
 					apply_predicates(ns, 0, c);
 				}
@@ -1846,22 +1876,22 @@ namespace pugi
 				else return m_right->eval_boolean(c);
 				
 			case ast_op_equal:
-				return compare_eq<equal_to<bool>, equal_to<double>, equal_to<std::string> >(m_left, m_right, c);
+				return compare_eq<equal_to<bool>, equal_to<double>, equal_to<std::string> >::run(m_left, m_right, c);
 
 			case ast_op_not_equal:
-				return compare_eq<not_equal_to<bool>, not_equal_to<double>, not_equal_to<std::string> >(m_left, m_right, c);
+				return compare_eq<not_equal_to<bool>, not_equal_to<double>, not_equal_to<std::string> >::run(m_left, m_right, c);
 	
 			case ast_op_less:
-				return compare_rel<less<double> >(m_left, m_right, c);
+				return compare_rel<less<double> >::run(m_left, m_right, c);
 			
 			case ast_op_greater:
-				return compare_rel<greater<double> >(m_left, m_right, c);
+				return compare_rel<greater<double> >::run(m_left, m_right, c);
 
 			case ast_op_less_or_equal:
-				return compare_rel<less_equal<double> >(m_left, m_right, c);
+				return compare_rel<less_equal<double> >::run(m_left, m_right, c);
 			
 			case ast_op_greater_or_equal:
-				return compare_rel<greater_equal<double> >(m_left, m_right, c);
+				return compare_rel<greater_equal<double> >::run(m_left, m_right, c);
 
 			case ast_func_starts_with:
 				return starts_with(m_left->eval_string(c), m_right->eval_string(c).c_str());
@@ -2315,55 +2345,55 @@ namespace pugi
 				switch (m_axis)
 				{
 				case axis_ancestor:
-					step_do<axis_ancestor>(ns, c);
+					step_do(ns, c, axis_to_type<axis_ancestor>());
 					break;
 					
 				case axis_ancestor_or_self:
-					step_do<axis_ancestor_or_self>(ns, c);
+					step_do(ns, c, axis_to_type<axis_ancestor_or_self>());
 					break;
 
 				case axis_attribute:
-					step_do<axis_attribute>(ns, c);
+					step_do(ns, c, axis_to_type<axis_attribute>());
 					break;
 
 				case axis_child:
-					step_do<axis_child>(ns, c);
+					step_do(ns, c, axis_to_type<axis_child>());
 					break;
 				
 				case axis_descendant:
-					step_do<axis_descendant>(ns, c);
+					step_do(ns, c, axis_to_type<axis_descendant>());
 					break;
 
 				case axis_descendant_or_self:
-					step_do<axis_descendant_or_self>(ns, c);
+					step_do(ns, c, axis_to_type<axis_descendant_or_self>());
 					break;
 
 				case axis_following:
-					step_do<axis_following>(ns, c);
+					step_do(ns, c, axis_to_type<axis_following>());
 					break;
 				
 				case axis_following_sibling:
-					step_do<axis_following_sibling>(ns, c);
+					step_do(ns, c, axis_to_type<axis_following_sibling>());
 					break;
 				
 				case axis_namespace:
-					step_do<axis_namespace>(ns, c);
+					step_do(ns, c, axis_to_type<axis_namespace>());
 					break;
 				
 				case axis_parent:
-					step_do<axis_parent>(ns, c);
+					step_do(ns, c, axis_to_type<axis_parent>());
 					break;
 				
 				case axis_preceding:
-					step_do<axis_preceding>(ns, c);
+					step_do(ns, c, axis_to_type<axis_preceding>());
 					break;
 
 				case axis_preceding_sibling:
-					step_do<axis_preceding_sibling>(ns, c);
+					step_do(ns, c, axis_to_type<axis_preceding_sibling>());
 					break;
 				
 				case axis_self:
-					step_do<axis_self>(ns, c);
+					step_do(ns, c, axis_to_type<axis_self>());
 					break;
 
 				default:
@@ -3120,7 +3150,7 @@ namespace pugi
 						else
 							throw xpath_exception("Unrecognized node type");
 						
-						nt_name.clear();
+						nt_name.erase(nt_name.begin(), nt_name.end());
 					}
 					else if (nt_name == "processing-instruction")
 					{
