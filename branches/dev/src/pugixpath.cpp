@@ -382,7 +382,7 @@ namespace
 	
 	double ieee754_round(double value)
 	{
-		return value == value ? floor(value + 0.5) : value;
+		return is_nan(value) ? value : floor(value + 0.5);
 	}
 	
 	const char* local_name(const char* name)
@@ -2165,7 +2165,7 @@ namespace pugi
 				std::string s = m_left->eval_string(c);
 				double first = ieee754_round(m_right->eval_number(c));
 				
-				if (first != first) return ""; // NaN
+				if (is_nan(first)) return ""; // NaN
 				else if (first >= s.length() + 1) return "";
 				
 				size_t pos = first < 1 ? 1 : (size_t)first;
@@ -2179,7 +2179,7 @@ namespace pugi
 				double first = ieee754_round(m_right->eval_number(c));
 				double last = first + ieee754_round(m_third->eval_number(c));
 				
-				if (first != first || last != last) return "";
+				if (is_nan(first) || is_nan(last)) return "";
 				else if (first >= s.length() + 1) return "";
 				else if (first >= last) return "";
 				
