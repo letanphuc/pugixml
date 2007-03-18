@@ -32,12 +32,9 @@
 #	pragma warn -8066 // unreachable code
 #endif
 
-#if defined(_MSC_VER) && _MSC_VER == 1200
-// MSVC6 workaround
-namespace std
-{
-	using ::memmove;
-}
+#ifdef __BORLANDC__
+// BC workaround
+using std::memmove;
 #endif
 
 #define STATIC_ASSERT(cond) { static const char condition_failed[(cond) ? 1 : -1] = {0}; (void)condition_failed; }
@@ -493,7 +490,7 @@ namespace
 			if (end) // there was a gap already; collapse it
 			{
 				// Move [old_gap_end, new_gap_start) to [old_gap_start, ...)
-				std::memmove(end - size, end, s - end);
+				memmove(end - size, end, s - end);
 			}
 				
 			s += count; // end of current gap
@@ -509,7 +506,7 @@ namespace
 			if (end)
 			{
 				// Move [old_gap_end, current_pos) to [old_gap_start, ...)
-				std::memmove(end - size, end, s - end);
+				memmove(end - size, end, s - end);
 
 				return s - size;
 			}
@@ -1406,10 +1403,17 @@ namespace pugi
 	{
 	}
 
+#ifdef __MWERKS__
+	xml_attribute::operator xml_attribute::unspecified_bool_type() const
+	{
+      	return empty() ? 0 : &xml_attribute::empty;
+   	}
+#else
 	xml_attribute::operator xml_attribute::unspecified_bool_type() const
 	{
       	return empty() ? 0 : &xml_attribute::_attr;
    	}
+#endif
 
    	bool xml_attribute::operator!() const
    	{
@@ -1582,10 +1586,17 @@ namespace pugi
 	{
 	}
 	
+#ifdef __MWERKS__
+	xml_node::operator xml_node::unspecified_bool_type() const
+	{
+      	return empty() ? 0 : &xml_node::empty;
+   	}
+#else
 	xml_node::operator xml_node::unspecified_bool_type() const
 	{
       	return empty() ? 0 : &xml_node::_root;
    	}
+#endif
 
    	bool xml_node::operator!() const
    	{
