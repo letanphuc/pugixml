@@ -187,7 +187,7 @@ namespace
 				return false;
 			else // lp is parent, ln & rn are distinct siblings
 			{
-				for (; ln; ln = ln.next_sibling());
+				for (; ln; ln = ln.next_sibling())
 					if (ln == rn)
 						return true;
 			
@@ -1482,7 +1482,7 @@ namespace pugi
 			} 
 		}
 
-		template <class T> void step_fill(xpath_node_set& ns, const xml_node& n, T v)
+		template <class T> void step_fill(xpath_node_set& ns, const xml_node& n, T)
 		{
 			const axis_t axis = T::axis;
 
@@ -1659,7 +1659,7 @@ namespace pugi
 			}
 		}
 		
-		template <class T> void step_fill(xpath_node_set& ns, const xml_attribute& a, const xml_node& p, T v)
+		template <class T> void step_fill(xpath_node_set& ns, const xml_attribute& a, const xml_node& p, T)
 		{
 			const axis_t axis = T::axis;
 
