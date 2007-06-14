@@ -2480,13 +2480,14 @@ namespace pugi
 		}
 
 		stream.read(s, length);
-		s[length] = 0;
 
-		if (!stream.good())
+		if (stream.gcount() > length || stream.gcount() == 0)
 		{
 			delete[] s;
 			return false;
 		}
+
+		s[stream.gcount()] = 0;
 
 		return parse(transfer_ownership_tag(), s, options); // Parse the input string.
 	}
