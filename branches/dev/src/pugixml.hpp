@@ -1323,7 +1323,7 @@ namespace pugi
 		const xml_document& operator=(const xml_document&);
 
 		void create();
-		void free();
+		void destroy();
 
 	public:
 		/**
