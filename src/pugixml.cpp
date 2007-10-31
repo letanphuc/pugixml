@@ -18,6 +18,10 @@
 
 #include <new>
 
+#if !defined(PUGIXML_NO_XPATH) && defined(PUGIXML_NO_EXCEPTIONS)
+#error No exception mode can't be used with XPath support
+#endif
+
 #ifndef PUGIXML_NO_STL
 # include <fstream>
 #endif
@@ -85,7 +89,7 @@ namespace pugi
 		{
 		}
 
-		void free()
+		void destroy()
 		{
 			if (!name_insitu) delete[] name;
 			if (!value_insitu) delete[] value;
@@ -111,16 +115,16 @@ namespace pugi
 		{
 		}
 
-		void free()
+		void destroy()
 		{
 			if (!name_insitu) delete[] name;
 			if (!value_insitu) delete[] value;
 
 			for (xml_attribute_struct* attr = first_attribute; attr; attr = attr->next_attribute)
-				attr->free();
+				attr->destroy();
 
 			for (xml_node_struct* node = first_child; node; node = node->next_sibling)
-				node->free();
+				node->destroy();
 		}
 
 		xml_node_struct* append_node(xml_allocator& alloc, xml_node_type type = node_element)
@@ -260,14 +264,19 @@ namespace
 		{
 			char* buf;
 
+		#ifndef PUGIXML_NO_EXCEPTIONS
 			try
 			{
+		#endif
 				buf = new char[source_size + 1];
+				if (!buf) return false;
+		#ifndef PUGIXML_NO_EXCEPTIONS
 			}
 			catch (const std::bad_alloc&)
 			{
 				return false;
 			}
+		#endif
 
 			strcpy(buf, source);
 
@@ -421,7 +430,7 @@ namespace
 #ifndef PUGIXML_NO_STL
 	template <typename opt2> void text_output_escaped(std::ostream& os, const char* s, opt2)
 	{
-		const bool quotes = opt2::o1;
+		const bool attribute = opt2::o1;
 		const bool utf8 = opt2::o2;
 
 		while (*s)
@@ -429,8 +438,8 @@ namespace
 			const char* prev = s;
 			
 			// While *s is a usual symbol
-			while (*s && *s != '&' && *s != '<' && *s != '>' && ((*s != '"' && *s != '\'') || !quotes)
-					&& (*s >= 32 || *s == '\r' || *s == '\n' || *s == '\t'))
+			while (*s && *s != '&' && *s != '<' && *s != '>' && ((*s != '"' && *s != '\'') || !attribute)
+					&& (*s >= 32 || (*s == '\r' && !attribute) || (*s == '\n' && !attribute) || *s == '\t'))
 				++s;
 		
 			if (prev != s) os.write(prev, static_cast<std::streamsize>(s - prev));
@@ -456,6 +465,14 @@ namespace
 					break;
 				case '\'':
 					os << "&apos;";
+					++s;
+					break;
+				case '\r':
+					os << "&#13;";
+					++s;
+					break;
+				case '\n':
+					os << "&#10;";
 					++s;
 					break;
 				default: // s is not a usual symbol
@@ -2000,7 +2017,7 @@ namespace pugi
 		if (a._attr->prev_attribute) a._attr->prev_attribute->next_attribute = a._attr->next_attribute;
 		else _root->first_attribute = a._attr->next_attribute;
 
-		a._attr->free();
+		a._attr->destroy();
 	}
 
 	void xml_node::remove_child(const char* name)
@@ -2018,7 +2035,7 @@ namespace pugi
 		if (n._root->prev_sibling) n._root->prev_sibling->next_sibling = n._root->next_sibling;
 		else _root->first_child = n._root->next_sibling;
         
-        n._root->free();
+        n._root->destroy();
 	}
 
 #ifndef PUGIXML_NO_STL
@@ -2422,7 +2439,7 @@ namespace pugi
 
 	xml_document::~xml_document()
 	{
-		free();
+		destroy();
 	}
 
 	void xml_document::create()
@@ -2434,12 +2451,12 @@ namespace pugi
 		a = alloc;
 	}
 
-	void xml_document::free()
+	void xml_document::destroy()
 	{
 		delete[] _buffer;
 		_buffer = 0;
 
-		if (_root) _root->free();
+		if (_root) _root->destroy();
 
 		xml_memory_block* current = _memory.next;
 
@@ -2459,6 +2476,8 @@ namespace pugi
 #ifndef PUGIXML_NO_STL
 	bool xml_document::load(std::istream& stream, unsigned int options)
 	{
+		destroy();
+
 		if (!stream.good()) return false;
 
 		std::streamoff length, pos = stream.tellg();
@@ -2470,14 +2489,19 @@ namespace pugi
 
 		char* s;
 
+	#ifndef PUGIXML_NO_EXCEPTIONS
 		try
 		{
+	#endif
 			s = new char[length + 1];
+			if (!s) return false;
+	#ifndef PUGIXML_NO_EXCEPTIONS
 		}
 		catch (const std::bad_alloc&)
 		{
 			return false;
 		}
+	#endif
 
 		stream.read(s, length);
 
@@ -2495,16 +2519,23 @@ namespace pugi
 
 	bool xml_document::load(const char* contents, unsigned int options)
 	{
+		destroy();
+
 		char* s;
 
+	#ifndef PUGIXML_NO_EXCEPTIONS
 		try
 		{
+	#endif
 			s = new char[strlen(contents) + 1];
+			if (!s) return false;
+	#ifndef PUGIXML_NO_EXCEPTIONS
 		}
 		catch (const std::bad_alloc&)
 		{
 			return false;
 		}
+	#endif
 
 		strcpy(s, contents);
 
@@ -2513,6 +2544,8 @@ namespace pugi
 
 	bool xml_document::load_file(const char* name, unsigned int options)
 	{
+		destroy();
+
 		FILE* file = fopen(name, "rb");
 		if (!file) return false;
 
@@ -2528,15 +2561,20 @@ namespace pugi
 		
 		char* s;
 
+	#ifndef PUGIXML_NO_EXCEPTIONS
 		try
 		{
+	#endif
 			s = new char[length + 1];
+			if (!s) return false;
+	#ifndef PUGIXML_NO_EXCEPTIONS
 		}
 		catch (const std::bad_alloc&)
 		{
 			fclose(file);
 			return false;
 		}
+	#endif
 
 		size_t read = fread(s, (size_t)length, 1, file);
 		fclose(file);
@@ -2554,7 +2592,7 @@ namespace pugi
 
 	bool xml_document::parse(char* xmlstr, unsigned int options)
 	{
-		free();
+		destroy();
 
 		xml_allocator& alloc = static_cast<xml_document_struct*>(_root)->allocator;
 		
@@ -2568,6 +2606,7 @@ namespace pugi
 		bool res = parse(xmlstr, options);
 
 		if (res) _buffer = xmlstr;
+		else delete[] xmlstr;
 
 		return res;
 	}

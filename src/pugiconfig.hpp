@@ -20,4 +20,8 @@
 // Uncomment this to disable XPath
 // #define PUGIXML_NO_XPATH
 
+// Uncomment this to disable exceptions
+// Note: you can't use XPath with PUGIXML_NO_EXCEPTIONS
+// #define PUGIXML_NO_EXCEPTIONS
+
 #endif
