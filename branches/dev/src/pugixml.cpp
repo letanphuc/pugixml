@@ -281,8 +281,11 @@ namespace
 	
 	bool is_chartype(char_t c, chartype ct)
 	{
-		if ((unsigned int)c > 127) return !!(ct & 192);
-		else return !!(chartype_table[static_cast<unsigned char>(c)] & ct);
+	#ifdef PUGIXML_WCHAR_MODE
+		return c > 127 ? (192 & ct) : !!(chartype_table[static_cast<unsigned char>(c)] & ct);
+	#else
+		return !!(chartype_table[static_cast<unsigned char>(c)] & ct);
+	#endif
 	}
 
 	bool strcpy_insitu(char_t*& dest, bool& insitu, const char_t* source)
@@ -805,7 +808,7 @@ namespace
 		}
 	}
 
-	template <typename opt4> char_t* strconv_attribute_t(char_t* s, char end_quote, opt4)
+	template <typename opt4> char_t* strconv_attribute_t(char_t* s, char_t end_quote, opt4)
 	{
 		const bool opt_wconv = opt4::o1;
 		const bool opt_wnorm = opt4::o2;
