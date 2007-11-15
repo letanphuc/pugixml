@@ -463,18 +463,20 @@ namespace
 	template <bool _1, bool _2, bool _3, bool _4> const bool opt4_to_type<_1, _2, _3, _4>::o4 = _4;
 
 #ifndef PUGIXML_NO_STL
-	template <typename opt2> void text_output_escaped(std::ostream& os, const char* s, opt2)
+	template <typename opt2> void text_output_escaped(std::basic_ostream<char_t>& os, const char_t* s, opt2)
 	{
 		const bool attribute = opt2::o1;
 		const bool utf8 = opt2::o2;
 
 		while (*s)
 		{
-			const char* prev = s;
+			const char_t* prev = s;
 			
 			// While *s is a usual symbol
-			while (*s && *s != '&' && *s != '<' && *s != '>' && ((*s != '"' && *s != '\'') || !attribute)
-					&& (*s >= 32 || (*s == '\r' && !attribute) || (*s == '\n' && !attribute) || *s == '\t'))
+			while (*s && *s != char_t('&') && *s != char_t('<') && *s != char_t('>') &&
+				   ((*s != char_t('"') && *s != char_t('\'')) || !attribute) &&
+				   ((unsigned int)*s >= 32 || (*s == char_t('\r') && !attribute) ||
+				   (*s == char_t('\n') && !attribute) || *s == char_t('\t')))
 				++s;
 		
 			if (prev != s) os.write(prev, static_cast<std::streamsize>(s - prev));
@@ -482,44 +484,48 @@ namespace
 			switch (*s)
 			{
 				case 0: break;
-				case '&':
-					os << "&amp;";
+				case char_t('&'):
+					os << PUGIXML_TEXT("&amp;");
 					++s;
 					break;
-				case '<':
-					os << "&lt;";
+				case char_t('<'):
+					os << PUGIXML_TEXT("&lt;");
 					++s;
 					break;
-				case '>':
-					os << "&gt;";
+				case char_t('>'):
+					os << PUGIXML_TEXT("&gt;");
 					++s;
 					break;
-				case '"':
-					os << "&quot;";
+				case char_t('"'):
+					os << PUGIXML_TEXT("&quot;");
 					++s;
 					break;
-				case '\'':
-					os << "&apos;";
+				case char_t('\''):
+					os << PUGIXML_TEXT("&apos;");
 					++s;
 					break;
-				case '\r':
-					os << "&#13;";
+				case char_t('\r'):
+					os << PUGIXML_TEXT("&#13;");
 					++s;
 					break;
-				case '\n':
-					os << "&#10;";
+				case char_t('\n'):
+					os << PUGIXML_TEXT("&#10;");
 					++s;
 					break;
 				default: // s is not a usual symbol
 				{
 					unsigned int ch;
-					
+
+				#ifdef PUGIXML_WCHAR_MODE
+					ch = (unsigned char)*s++;
+				#else
 					if (utf8)
 						s = strutf8_utf16(s, ch);
 					else
-						ch = (unsigned char)*s++;
+						ch = *s++;
+				#endif
 
-					os << "&#" << ch << ";";
+					os << PUGIXML_TEXT("&#") << ch << PUGIXML_TEXT(";");
 				}
 			}
 		}
@@ -2111,10 +2117,9 @@ namespace pugi
         n._root->destroy();
 	}
 
-#ifndef PUGIXML_NO_STL
-	std::string xml_node::path(char delimiter) const
+	std::basic_string<char_t> xml_node::path(char_t delimiter) const
 	{
-		std::string path;
+		std::basic_string<char_t> path;
 
 		xml_node cursor = *this; // Make a copy.
 		
@@ -2124,7 +2129,7 @@ namespace pugi
 		{
 			cursor = cursor.parent();
 			
-			std::string temp = cursor.name();
+			std::basic_string<char_t> temp = cursor.name();
 			temp += delimiter;
 			temp += path;
 			path.swap(temp);
@@ -2132,7 +2137,6 @@ namespace pugi
 
 		return path;
 	}
-#endif
 
 	xml_node xml_node::first_element_by_path(const char_t* path, char_t delimiter) const
 	{
@@ -2258,7 +2262,7 @@ namespace pugi
 	}
 
 #ifndef PUGIXML_NO_STL
-	void xml_node::print(std::ostream& os, const char* indent, unsigned int flags, unsigned int depth)
+	void xml_node::print(std::basic_ostream<char_t>& os, const char_t* indent, unsigned int flags, unsigned int depth)
 	{
 		if (empty()) return;
 
@@ -2276,48 +2280,48 @@ namespace pugi
 			
 		case node_element:
 		{
-			os << '<' << name();
+			os << PUGIXML_TEXT("<") << name();
 
 			for (xml_attribute a = first_attribute(); a; a = a.next_attribute())
 			{
-				os << ' ' << a.name() << "=\"";
+				os << PUGIXML_TEXT(" ") << a.name() << PUGIXML_TEXT("=\"");
 
 				if (flags & format_utf8)
 					text_output_escaped(os, a.value(), opt2_to_type<1, 1>());
 				else
 					text_output_escaped(os, a.value(), opt2_to_type<1, 0>());
 
-				os << "\"";
+				os << PUGIXML_TEXT("\"");
 			}
 
 			if (flags & format_raw)
 			{
 				if (!_root->first_child) // 0 children
-					os << " />";
+					os << PUGIXML_TEXT(" />");
 				else
 				{
-					os << ">";
+					os << PUGIXML_TEXT(">");
 					for (xml_node n = first_child(); n; n = n.next_sibling())
 						n.print(os, indent, flags, depth + 1);
-					os << "</" << name() << ">";
+					os << PUGIXML_TEXT("</") << name() << PUGIXML_TEXT(">");
 				}
 			}
 			else if (!_root->first_child) // 0 children
-				os << " />\n";
+				os << PUGIXML_TEXT(" />\n");
 			else if (_root->first_child == _root->last_child && first_child().type() == node_pcdata)
 			{
-				os << ">";
+				os << PUGIXML_TEXT(">");
 				
 				if (flags & format_utf8)
 					text_output_escaped(os, first_child().value(), opt2_to_type<0, 1>());
 				else
 					text_output_escaped(os, first_child().value(), opt2_to_type<0, 0>());
 					
-				os << "</" << name() << ">\n";
+				os << PUGIXML_TEXT("</") << name() << PUGIXML_TEXT(">\n");
 			}
 			else
 			{
-				os << ">\n";
+				os << PUGIXML_TEXT(">\n");
 				
 				for (xml_node n = first_child(); n; n = n.next_sibling())
 					n.print(os, indent, flags, depth + 1);
@@ -2325,7 +2329,7 @@ namespace pugi
 				if ((flags & format_indent) != 0 && (flags & format_raw) == 0)
 					for (unsigned int i = 0; i < depth; ++i) os << indent;
 				
-				os << "</" << name() << ">\n";
+				os << PUGIXML_TEXT("</") << name() << PUGIXML_TEXT(">\n");
 			}
 
 			break;
@@ -2339,20 +2343,20 @@ namespace pugi
 			break;
 
 		case node_cdata:
-			os << "<![CDATA[" << value() << "]]>";
+			os << PUGIXML_TEXT("<![CDATA[") << value() << PUGIXML_TEXT("]]>");
 			if ((flags & format_raw) == 0) os << "\n";
 			break;
 
 		case node_comment:
-			os << "<!--" << value() << "-->";
-			if ((flags & format_raw) == 0) os << "\n";
+			os << PUGIXML_TEXT("<!--") << value() << PUGIXML_TEXT("-->");
+			if ((flags & format_raw) == 0) os << PUGIXML_TEXT("\n");
 			break;
 
 		case node_pi:
-			os << "<?" << name();
-			if (value()[0]) os << ' ' << value();
-			os << "?>";
-			if ((flags & format_raw) == 0) os << "\n";
+			os << PUGIXML_TEXT("<?") << name();
+			if (value()[0]) os << PUGIXML_TEXT(" ") << value();
+			os << PUGIXML_TEXT("?>");
+			if ((flags & format_raw) == 0) os << PUGIXML_TEXT("\n");
 			break;
 		
 		default:
@@ -2547,7 +2551,7 @@ namespace pugi
 	}
 
 #ifndef PUGIXML_NO_STL
-	bool xml_document::load(std::istream& stream, unsigned int options)
+	bool xml_document::load(std::basic_istream<char_t>& stream, unsigned int options)
 	{
 		destroy();
 
@@ -2560,13 +2564,13 @@ namespace pugi
 
 		if (!stream.good()) return false;
 
-		char* s;
+		char_t* s;
 
 	#ifndef PUGIXML_NO_EXCEPTIONS
 		try
 		{
 	#endif
-			s = new char[length + 1];
+			s = new char_t[length + 1];
 			if (!s) return false;
 	#ifndef PUGIXML_NO_EXCEPTIONS
 		}
@@ -2685,22 +2689,26 @@ namespace pugi
 	}
 
 #ifndef PUGIXML_NO_STL
-	bool xml_document::save_file(const char* name, const char* indent, unsigned int flags)
+	bool xml_document::save_file(const char* name, const char_t* indent, unsigned int flags)
 	{
-		std::ofstream out(name, std::ios::out);
+		std::basic_ofstream<char_t> out(name, std::ios::out);
 		if (!out) return false;
 
 		if (flags & format_write_bom)
 		{
 			if (flags & format_utf8)
 			{
+			#ifdef PUGIXML_WCHAR_MODE
+				return false; // can't save BOM in wchar mode
+			#else
 				static const unsigned char utf8_bom[] = {0xEF, 0xBB, 0xBF};
 				out.write(reinterpret_cast<const char*>(utf8_bom), 3);
+			#endif
 			}
 		}
 
-		out << "<?xml version=\"1.0\"?>";
-		if (!(flags & format_raw)) out << "\n";
+		out << PUGIXML_TEXT("<?xml version=\"1.0\"?>");
+		if (!(flags & format_raw)) out << PUGIXML_TEXT("\n");
 		print(out, indent, flags);
 		
 		return true;

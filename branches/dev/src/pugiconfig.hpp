@@ -15,7 +15,7 @@
 #define HEADER_PUGICONFIG_HPP
 
 // Uncomment this to disable STL
-#define PUGIXML_NO_STL
+// #define PUGIXML_NO_STL
 
 // Uncomment this to disable XPath
 #define PUGIXML_NO_XPATH
