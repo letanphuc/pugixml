@@ -977,7 +977,7 @@ namespace pugi
 		 * \param delimiter - delimiter character to insert between element names
 		 * \return path string (e.g. '/bookstore/book/author').
 		 */
-		std::string path(char delimiter = '/') const;
+		std::basic_string<char_t> path(char_t delimiter = char_t('/')) const;
 #endif
 
 		/**
@@ -1046,7 +1046,7 @@ namespace pugi
 		 * \param flags - formatting flags
 		 * \param depth - starting depth (used for indentation)
 		 */
-		void print(std::ostream& os, const char* indent = "\t", unsigned int flags = format_default, unsigned int depth = 0);
+		void print(std::basic_ostream<char_t>& os, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, unsigned int depth = 0);
 	#endif
 	};
 
@@ -1359,7 +1359,7 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return success flag
 		 */
-		bool load(std::istream& stream, unsigned int options = parse_default);
+		bool load(std::basic_istream<char_t>& stream, unsigned int options = parse_default);
 #endif
 
 		/**
@@ -1413,7 +1413,7 @@ namespace pugi
 		 * \param flags - formatting flags
 		 * \return success flag
 		 */
-		bool save_file(const char* name, const char* indent = "\t", unsigned int flags = format_default);
+		bool save_file(const char* name, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default);
 #endif
 
 		/**
