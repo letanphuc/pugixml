@@ -15,13 +15,16 @@
 #define HEADER_PUGICONFIG_HPP
 
 // Uncomment this to disable STL
-// #define PUGIXML_NO_STL
+#define PUGIXML_NO_STL
 
 // Uncomment this to disable XPath
-// #define PUGIXML_NO_XPATH
+#define PUGIXML_NO_XPATH
 
 // Uncomment this to disable exceptions
 // Note: you can't use XPath with PUGIXML_NO_EXCEPTIONS
 // #define PUGIXML_NO_EXCEPTIONS
+
+// Uncomment this to switch pugixml to wchar_t mode
+#define PUGIXML_WCHAR_MODE
 
 #endif

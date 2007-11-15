@@ -32,6 +32,20 @@
 #include <stddef.h>
 #include <string.h>
 
+#ifdef PUGIXML_WCHAR_MODE
+
+#define PUGIXML_TEXT(t) L ## t
+
+namespace pugi { typedef wchar_t char_t; }
+
+#else
+
+#define PUGIXML_TEXT(t) t
+
+namespace pugi { typedef char char_t; }
+
+#endif
+
 /// The PugiXML Parser namespace.
 namespace pugi
 {
@@ -438,7 +452,7 @@ namespace pugi
          * \param rhs - new attribute value
          * \return self
          */
-		xml_attribute& operator=(const char* rhs);
+		xml_attribute& operator=(const char_t* rhs);
 	
 		/**
          * Set attribute value to \a rhs.
@@ -470,7 +484,7 @@ namespace pugi
 		 * \param rhs - new attribute name
 		 * \return success flag (call fails if attribute is empty or there is not enough memory)
 		 */
-		bool set_name(const char* rhs);
+		bool set_name(const char_t* rhs);
 		
 		/**
 		 * Set attribute value to \a rhs.
@@ -478,7 +492,7 @@ namespace pugi
 		 * \param rhs - new attribute value
 		 * \return success flag (call fails if attribute is empty or there is not enough memory)
 		 */
-		bool set_value(const char* rhs);
+		bool set_value(const char_t* rhs);
 
 	public:
 		/**
@@ -494,14 +508,14 @@ namespace pugi
 		 *
 		 * \return attribute name, or "" if attribute is empty
 		 */
-		const char* name() const;
+		const char_t* name() const;
 
 		/**
 		 * Get attribute value.
 		 *
 		 * \return attribute value, or "" if attribute is empty
 		 */
-		const char* value() const;
+		const char_t* value() const;
 	};
 
 #ifdef __BORLANDC__
@@ -664,14 +678,14 @@ namespace pugi
 		 *
 		 * \return node name, if any; "" otherwise
 		 */
-		const char* name() const;
+		const char_t* name() const;
 
 		/**
 		 * Get node value (comment/PI/PCDATA/CDATA contents, depending on node type)
 		 *
 		 * \return node value, if any; "" otherwise
 		 */
-		const char* value() const;
+		const char_t* value() const;
 	
 		/**
 		 * Get child with the specified name
@@ -679,7 +693,7 @@ namespace pugi
 		 * \param name - child name
 		 * \return child with the specified name, if any; empty node otherwise
 		 */
-		xml_node child(const char* name) const;
+		xml_node child(const char_t* name) const;
 
 		/**
 		 * Get child with the name that matches specified pattern
@@ -687,7 +701,7 @@ namespace pugi
 		 * \param name - child name pattern
 		 * \return child with the name that matches pattern, if any; empty node otherwise
 		 */
-		xml_node child_w(const char* name) const;
+		xml_node child_w(const char_t* name) const;
 
 		/**
 		 * Get attribute with the specified name
@@ -695,7 +709,7 @@ namespace pugi
 		 * \param name - attribute name
 		 * \return attribute with the specified name, if any; empty attribute otherwise
 		 */
-		xml_attribute attribute(const char* name) const;
+		xml_attribute attribute(const char_t* name) const;
 
 		/**
 		 * Get attribute with the name that matches specified pattern
@@ -703,7 +717,7 @@ namespace pugi
 		 * \param name - attribute name pattern
 		 * \return attribute with the name that matches pattern, if any; empty attribute otherwise
 		 */
-		xml_attribute attribute_w(const char* name) const;
+		xml_attribute attribute_w(const char_t* name) const;
 
 		/**
 		 * Get first of following sibling nodes with the specified name
@@ -711,7 +725,7 @@ namespace pugi
 		 * \param name - sibling name
 		 * \return node with the specified name, if any; empty node otherwise
 		 */
-		xml_node next_sibling(const char* name) const;
+		xml_node next_sibling(const char_t* name) const;
 
 		/**
 		 * Get first of the following sibling nodes with the name that matches specified pattern
@@ -719,7 +733,7 @@ namespace pugi
 		 * \param name - sibling name pattern
 		 * \return node with the name that matches pattern, if any; empty node otherwise
 		 */
-		xml_node next_sibling_w(const char* name) const;
+		xml_node next_sibling_w(const char_t* name) const;
 
 		/**
 		 * Get following sibling
@@ -734,7 +748,7 @@ namespace pugi
 		 * \param name - sibling name
 		 * \return node with the specified name, if any; empty node otherwise
 		 */
-		xml_node previous_sibling(const char* name) const;
+		xml_node previous_sibling(const char_t* name) const;
 
 		/**
 		 * Get first of the preceding sibling nodes with the name that matches specified pattern
@@ -742,7 +756,7 @@ namespace pugi
 		 * \param name - sibling name pattern
 		 * \return node with the name that matches pattern, if any; empty node otherwise
 		 */
-		xml_node previous_sibling_w(const char* name) const;
+		xml_node previous_sibling_w(const char_t* name) const;
 
 		/**
 		 * Get preceding sibling
@@ -770,7 +784,7 @@ namespace pugi
 		 *
 		 * \return child value of current node, if any; "" otherwise
 		 */
-		const char* child_value() const;
+		const char_t* child_value() const;
 
 		/**
 		 * Get child value of child with specified name. \see child_value
@@ -779,7 +793,7 @@ namespace pugi
 		 * \param name - child name
 		 * \return child value of specified child node, if any; "" otherwise
 		 */
-		const char* child_value(const char* name) const;
+		const char_t* child_value(const char_t* name) const;
 
 		/**
 		 * Get child value of child with name that matches the specified pattern. \see child_value
@@ -788,7 +802,7 @@ namespace pugi
 		 * \param name - child name pattern
 		 * \return child value of specified child node, if any; "" otherwise
 		 */
-		const char* child_value_w(const char* name) const;
+		const char_t* child_value_w(const char_t* name) const;
 
 	public:	
 		/**
@@ -797,7 +811,7 @@ namespace pugi
 		 * \param rhs - new node name
 		 * \return success flag (call fails if node is of the wrong type or there is not enough memory)
 		 */
-		bool set_name(const char* rhs);
+		bool set_name(const char_t* rhs);
 		
 		/**
 		 * Set node value to \a rhs (for PI/PCDATA/CDATA/comment nodes). \see value
@@ -805,7 +819,7 @@ namespace pugi
 		 * \param rhs - new node value
 		 * \return success flag (call fails if node is of the wrong type or there is not enough memory)
 		 */
-		bool set_value(const char* rhs);
+		bool set_value(const char_t* rhs);
 
 		/**
 		 * Add attribute with specified name (for element nodes)
@@ -813,7 +827,7 @@ namespace pugi
 		 * \param name - attribute name
 		 * \return added attribute, or empty attribute if there was an error (wrong node type)
 		 */
-		xml_attribute append_attribute(const char* name);
+		xml_attribute append_attribute(const char_t* name);
 
 		/**
 		 * Insert attribute with specified name after \a attr (for element nodes)
@@ -822,7 +836,7 @@ namespace pugi
 		 * \param attr - attribute to insert a new one after
 		 * \return inserted attribute, or empty attribute if there was an error (wrong node type, or attr does not belong to node)
 		 */
-		xml_attribute insert_attribute_after(const char* name, const xml_attribute& attr);
+		xml_attribute insert_attribute_after(const char_t* name, const xml_attribute& attr);
 
 		/**
 		 * Insert attribute with specified name before \a attr (for element nodes)
@@ -831,7 +845,7 @@ namespace pugi
 		 * \param attr - attribute to insert a new one before
 		 * \return inserted attribute, or empty attribute if there was an error (wrong node type, or attr does not belong to node)
 		 */
-		xml_attribute insert_attribute_before(const char* name, const xml_attribute& attr);
+		xml_attribute insert_attribute_before(const char_t* name, const xml_attribute& attr);
 
 		/**
 		 * Add child node with specified type (for element nodes)
@@ -871,7 +885,7 @@ namespace pugi
 		 *
 		 * \param name - attribute name
 		 */
-		void remove_attribute(const char* name);
+		void remove_attribute(const char_t* name);
 
 		/**
 		 * Remove specified child
@@ -885,7 +899,7 @@ namespace pugi
 		 *
 		 * \param name - child name
 		 */
-		void remove_child(const char* name);
+		void remove_child(const char_t* name);
 
 	public:
 		/**
@@ -908,7 +922,7 @@ namespace pugi
 		 * \param name - node name
 		 * \param it - output iterator (for example, std::back_insert_iterator (result of std::back_inserter))
 		 */
-		template <typename OutputIterator> void all_elements_by_name(const char* name, OutputIterator it) const;
+		template <typename OutputIterator> void all_elements_by_name(const char_t* name, OutputIterator it) const;
 
 		/**
 		 * Get all elements from subtree with name that matches given pattern
@@ -916,7 +930,7 @@ namespace pugi
 		 * \param name - node name pattern
 		 * \param it - output iterator (for example, std::back_insert_iterator (result of std::back_inserter))
 		 */
-		template <typename OutputIterator> void all_elements_by_name_w(const char* name, OutputIterator it) const;
+		template <typename OutputIterator> void all_elements_by_name_w(const char_t* name, OutputIterator it) const;
 
 		/**
 		 * Get first child
@@ -973,7 +987,7 @@ namespace pugi
 		 * \param delimiter - delimiter character to use while tokenizing path
 		 * \return matching node, if any; empty node otherwise
 		 */
-		xml_node first_element_by_path(const char* path, char delimiter = '/') const;
+		xml_node first_element_by_path(const char_t* path, char_t delimiter = char_t('/')) const;
 
 		/**
 		 * Recursively traverse subtree with xml_tree_walker
@@ -1315,7 +1329,7 @@ namespace pugi
 	class xml_document: public xml_node
 	{
 	private:
-		char*				_buffer;
+		char_t*				_buffer;
 
 		xml_memory_block	_memory;
 		
@@ -1355,7 +1369,7 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return success flag
 		 */
-		bool load(const char* contents, unsigned int options = parse_default);
+		bool load(const char_t* contents, unsigned int options = parse_default);
 
 		/**
 		 * Load document from file
@@ -1376,7 +1390,7 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return success flag
 		 */
-		bool parse(char* xmlstr, unsigned int options = parse_default);
+		bool parse(char_t* xmlstr, unsigned int options = parse_default);
 		
 		/**
 		 * Parse the given XML string in-situ (gains ownership).
@@ -1388,7 +1402,7 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return success flag
 		 */
-		bool parse(const transfer_ownership_tag&, char* xmlstr, unsigned int options = parse_default);
+		bool parse(const transfer_ownership_tag&, char_t* xmlstr, unsigned int options = parse_default);
 		
 #ifndef PUGIXML_NO_STL
 		/**
@@ -1660,10 +1674,11 @@ namespace pugi
 {
 	namespace impl
 	{
-		int strcmpwild(const char*, const char*);
+		int strcmpwild(const char_t*, const char_t*);
+		int strcmp(const char_t*, const char_t*);
 	}
 
-	template <typename OutputIterator> void xml_node::all_elements_by_name(const char* name, OutputIterator it) const
+	template <typename OutputIterator> void xml_node::all_elements_by_name(const char_t* name, OutputIterator it) const
 	{
 		if (empty()) return;
 		
@@ -1671,7 +1686,7 @@ namespace pugi
 		{
 			if (node.type() == node_element)
 			{
-				if (!strcmp(name, node.name()))
+				if (!impl::strcmp(name, node.name()))
 				{
 					*it = node;
 					++it;
@@ -1682,7 +1697,7 @@ namespace pugi
 		}
 	}
 
-	template <typename OutputIterator> void xml_node::all_elements_by_name_w(const char* name, OutputIterator it) const
+	template <typename OutputIterator> void xml_node::all_elements_by_name_w(const char_t* name, OutputIterator it) const
 	{
 		if (empty()) return;
 		
