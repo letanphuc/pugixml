@@ -106,7 +106,7 @@ namespace
 	bool is_chartype(char_t c, chartype ct)
 	{
 	#ifdef PUGIXML_WCHAR_MODE
-		return c > 127 ? (10 & ct) : !!(chartype_table[static_cast<unsigned char>(c)] & ct);
+		return c > 127 ? !!(10 & ct) : !!(chartype_table[static_cast<unsigned char>(c)] & ct);
 	#else
 		return !!(chartype_table[static_cast<unsigned char>(c)] & ct);
 	#endif

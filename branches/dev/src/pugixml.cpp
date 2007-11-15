@@ -282,7 +282,7 @@ namespace
 	bool is_chartype(char_t c, chartype ct)
 	{
 	#ifdef PUGIXML_WCHAR_MODE
-		return c > 127 ? (192 & ct) : !!(chartype_table[static_cast<unsigned char>(c)] & ct);
+		return c > 127 ? !!(192 & ct) : !!(chartype_table[static_cast<unsigned char>(c)] & ct);
 	#else
 		return !!(chartype_table[static_cast<unsigned char>(c)] & ct);
 	#endif
@@ -521,6 +521,7 @@ namespace
 
 				#ifdef PUGIXML_WCHAR_MODE
 					ch = (unsigned char)*s++;
+					(void)utf8;
 				#else
 					if (utf8)
 						s = strutf8_utf16(s, ch);
