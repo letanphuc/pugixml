@@ -250,7 +250,7 @@ namespace pugi
 		xpath_allocator* m_alloc;
 		xpath_ast_node* m_root;
 
-		void compile(const char* query);
+		void compile(const char_t* query);
 
 	public:
 		/**
@@ -259,7 +259,7 @@ namespace pugi
 		 *
 		 * \param query - string with XPath expression
 		 */
-		explicit xpath_query(const char* query);
+		explicit xpath_query(const char_t* query);
 
 		/**
 		 * Dtor
@@ -297,7 +297,7 @@ namespace pugi
 		 * \param n - context node
 		 * \return evaluation result
 		 */
-		std::string evaluate_string(const xml_node& n);
+		std::basic_string<char_t> evaluate_string(const xml_node& n);
 		
 		/**
 		 * Evaluate expression as node set for the context node \a n.
@@ -1007,7 +1007,7 @@ namespace pugi
 		 * \param query - query string
 		 * \return first node from the resulting node set by document order, or empty node if none found
 		 */
-		xpath_node select_single_node(const char* query) const;
+		xpath_node select_single_node(const char_t* query) const;
 
 		/**
 		 * Select single node by evaluating XPath query
@@ -1023,7 +1023,7 @@ namespace pugi
 		 * \param query - query string
 		 * \return resulting node set
 		 */
-		xpath_node_set select_nodes(const char* query) const;
+		xpath_node_set select_nodes(const char_t* query) const;
 
 		/**
 		 * Select node set by evaluating XPath query
