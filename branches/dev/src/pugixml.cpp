@@ -542,7 +542,7 @@ namespace
 			if (end) // there was a gap already; collapse it
 			{
 				// Move [old_gap_end, new_gap_start) to [old_gap_start, ...)
-				memmove(end - size, end, s - end);
+				memmove(end - size, end, (char*)s - (char*)end);
 			}
 				
 			s += count; // end of current gap
@@ -558,7 +558,7 @@ namespace
 			if (end)
 			{
 				// Move [old_gap_end, current_pos) to [old_gap_start, ...)
-				memmove(end - size, end, s - end);
+				memmove(end - size, end, (char*)s - (char*)end);
 
 				return s - size;
 			}
