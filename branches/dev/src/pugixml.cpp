@@ -1518,27 +1518,31 @@ namespace pugi
     	return _attr ? xml_attribute(_attr->prev_attribute) : xml_attribute();
     }
 
-#ifndef PUGIXML_WCHAR_MODE
 
 	int xml_attribute::as_int() const
 	{
 		if(empty() || !_attr->value) return 0;
+	#ifdef PUGIXML_WCHAR_MODE
+		return _wtoi(_attr->value);
+	#else
 		return atoi(_attr->value);
+	#endif
 	}
 
 	double xml_attribute::as_double() const
 	{
 		if(empty() || !_attr->value) return 0.0;
+	#ifdef PUGIXML_WCHAR_MODE
+		return _wtof(_attr->value);
+	#else
 		return atof(_attr->value);
+	#endif
 	}
 
 	float xml_attribute::as_float() const
 	{
-		if(empty() || !_attr->value) return 0.0f;
-		return (float)atof(_attr->value);
+		return (float)as_double();
 	}
-
-#endif
 
 	bool xml_attribute::as_bool() const
 	{
@@ -1584,12 +1588,23 @@ namespace pugi
 		return *this;
 	}
 	
-#ifndef PUGIXML_WCHAR_MODE
 	xml_attribute& xml_attribute::operator=(int rhs)
 	{
 		char buf[128];
 		sprintf(buf, "%d", rhs);
+	
+	#ifdef PUGIXML_WCHAR_MODE
+		wchar_t wbuf[128];
+		int i = 0;
+
+		do wbuf[i] = buf[i];
+		while (buf[i++]);
+		
+		set_value(wbuf);
+	#else
 		set_value(buf);
+	#endif
+
 		return *this;
 	}
 
@@ -1597,10 +1612,21 @@ namespace pugi
 	{
 		char buf[128];
 		sprintf(buf, "%g", rhs);
+	
+	#ifdef PUGIXML_WCHAR_MODE
+		wchar_t wbuf[128];
+		int i = 0;
+
+		do wbuf[i] = buf[i];
+		while (buf[i++]);
+		
+		set_value(wbuf);
+	#else
 		set_value(buf);
+	#endif
+
 		return *this;
 	}
-#endif
 	
 	xml_attribute& xml_attribute::operator=(bool rhs)
 	{
