@@ -25,6 +25,6 @@
 // #define PUGIXML_NO_EXCEPTIONS
 
 // Uncomment this to switch pugixml to wchar_t mode
-#define PUGIXML_WCHAR_MODE
+// #define PUGIXML_WCHAR_MODE
 
 #endif
