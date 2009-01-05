@@ -49,6 +49,8 @@ namespace pugi
 		size_t strlen(const char_t* s);
 		void strcpy(char_t* dest, const char_t* source);
 		int strcmp(const char_t* lhs, const char_t* rhs);
+		int strncmp(const char_t* lhs, const char_t* rhs, size_t count);
+		const char_t* strchr(const char_t* s, char_t ch);
 		
 		int strncmp(const char_t* lhs, const char_t* rhs, size_t count)
 		{
