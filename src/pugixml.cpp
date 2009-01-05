@@ -48,6 +48,9 @@ namespace pugi
 {
 	namespace impl
 	{
+		size_t strlen(const char_t* s);
+		void strcpy(char_t* dest, const char_t* source);
+
 		size_t strlen(const char_t* s)
 		{
 		#ifdef PUGIXML_WCHAR_MODE
@@ -766,6 +769,23 @@ namespace
 		if (!*s) return 0;
 
 		gap g;
+
+		if (!opt_eol && !opt_escape)
+		{
+			// fast path
+			while (*s != char_t('<') && *s != 0) ++s;
+
+			if (*s == char_t('<')) // PCDATA ends here
+			{
+				*g.flush(s) = 0;
+				
+				return s + 1;
+			}
+			else if (*s == 0)
+			{
+				return s;
+			}
+		}
 		
 		while (true)
 		{
