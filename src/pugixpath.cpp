@@ -534,10 +534,6 @@ namespace pugi
 
 	class xpath_allocator
 	{
-		// disable copy ctor and assignment
-		xpath_allocator(const xpath_allocator&);
-		xpath_allocator& operator=(const xpath_allocator&);
-
 		struct memory_block
 		{	
 			memory_block(): next(0), size(0)
@@ -845,10 +841,6 @@ namespace pugi
 
 	class xpath_lexer
 	{
-		// disable copy ctor and assignment
-		xpath_lexer(const xpath_lexer&);
-		xpath_lexer& operator=(const xpath_lexer&);
-
 	private:
 		const char* m_cur;
 
@@ -1785,11 +1777,11 @@ namespace pugi
 						xml_node p = it->parent();
 						if (p)
 						{
-							size_t size = ns.size();
+							size_t s = ns.size();
 							
 							step_push(ns, p);
 							
-							apply_predicates(ns, size, c);
+							apply_predicates(ns, s, c);
 						}
 					}
 				}
@@ -1813,12 +1805,12 @@ namespace pugi
 					
 					for (xpath_node_set::const_iterator it = s.begin(); it != s.end(); ++it)
 					{
-						size_t size = ns.size();
+						size_t s = ns.size();
 						
 						if (it->attribute()) step_push(ns, it->attribute(), it->parent());
 						else step_push(ns, it->node());
 						
-						apply_predicates(ns, size, c);
+						apply_predicates(ns, s, c);
 					}
 				}
 				else
@@ -1842,14 +1834,14 @@ namespace pugi
 							
 					for (xpath_node_set::const_iterator it = s.begin(); it != s.end(); ++it)
 					{
-						size_t size = ns.size();
+						size_t s = ns.size();
 						
 						if (it->node())
 							step_fill(ns, it->node(), v);
 						else
 							step_fill(ns, it->attribute(), it->parent(), v);
 							
-						apply_predicates(ns, size, c);
+						apply_predicates(ns, s, c);
 					}
 				}
 				else
@@ -1876,12 +1868,12 @@ namespace pugi
 					
 					for (xpath_node_set::const_iterator it = s.begin(); it != s.end(); ++it)
 					{
-						size_t size = ns.size();
+						size_t s = ns.size();
 						
 						if (it->node())
 							step_fill(ns, it->node(), v);
 						
-						apply_predicates(ns, size, c);
+						apply_predicates(ns, s, c);
 					}
 				}
 				else if (c.n.node())
