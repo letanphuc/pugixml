@@ -1,0 +1,56 @@
+# Latest jamplus is needed to use this
+
+# Targets:
+# pugixml - build pugixml library
+# tests - build pugixml test suite
+# run_tests - run pugixml test suite
+# coverage - get test suite coverage
+
+# Options:
+# toolset=name - select toolset
+# 	supported toolsets: mingw*, msvc*
+
+# default toolset/configuration
+if ( ! $(toolset) )
+{
+	exit You should specify a toolset ;
+}
+
+if ( ! $(configuration) )
+{
+	configuration = "debug" ;
+}
+
+# remove empty define
+defines -= "" ;
+
+# options
+if ( $(defines) )
+{
+	BUILD = build/$(toolset)/$(defines:J=_)/$(configuration) ;
+}
+else
+{
+	BUILD = build/$(toolset)/standard/$(configuration) ;
+}
+
+if ( $(toolset:I=^mingw) )
+{
+	CCFLAGS = -fprofile-arcs -ftest-coverage ;
+	LDFLAGS = -fprofile-arcs ;
+	GCOVFLAGS = -n ;
+
+	if ( $(toolset) = mingw44 )
+	{
+		GCOVFLAGS += -o $(BUILD)/src ; # because stupid gcov can't find files via relative paths any more
+	}
+}
+
+# rules
+include "Jamrules.jam" ;
+
+# targets
+Library pugixml : src/pugixml.cpp src/pugixpath.cpp ;
+Application tests : tests/main.cpp [ Glob tests : test_*.cpp ] : pugixml ;
+Test run_tests : tests ;
+Coverage coverage : run_tests ;

@@ -1,17 +1,15 @@
-///////////////////////////////////////////////////////////////////////////////
-//
-// Pug Improved XML Parser - Version 0.42
-// --------------------------------------------------------
-// Copyright (C) 2006-2009, by Arseny Kapoulkine (arseny.kapoulkine@gmail.com)
-// Report bugs and download new versions at http://code.google.com/p/pugixml/
-//
-// This work is based on the pugxml parser, which is:
-// Copyright (C) 2003, by Kristen Wegner (kristen@tima.net)
-// Released into the Public Domain. Use at your own risk.
-// See pugxml.xml for further information, history, etc.
-// Contributions by Neville Franks (readonly@getsoft.com).
-//
-///////////////////////////////////////////////////////////////////////////////
+/**
+ * pugixml parser - version 0.5
+ * --------------------------------------------------------
+ * Copyright (C) 2006-2009, by Arseny Kapoulkine (arseny.kapoulkine@gmail.com)
+ * Report bugs and download new versions at http://code.google.com/p/pugixml/
+ *
+ * This library is distributed under the MIT License. See notice at the end
+ * of this file.
+ *
+ * This work is based on the pugxml parser, which is:
+ * Copyright (C) 2003, by Kristen Wegner (kristen@tima.net)
+ */
 
 #ifndef HEADER_PUGIXML_HPP
 #define HEADER_PUGIXML_HPP
@@ -46,6 +44,16 @@
 #endif
 
 #include <stddef.h>
+
+// Helpers for inline implementation
+namespace pugi
+{
+	namespace impl
+	{
+		int PUGIXML_FUNCTION strcmp(const char*, const char*);
+		int PUGIXML_FUNCTION strcmpwild(const char*, const char*);
+	}
+}
 
 /// The PugiXML Parser namespace.
 namespace pugi
@@ -151,8 +159,8 @@ namespace pugi
 	const unsigned int parse_eol				= 0x0020;
 	
  	/**
- 	 * This flag determines if attribute value normalization should be performed for all attributes,
- 	 * assuming that their type is not CDATA. This means, that:
+ 	 * This flag determines if attribute value normalization should be performed for all attributes.
+ 	 * This means, that:
  	 * 1. Whitespace characters (new line, tab and space) are replaced with space (' ')
  	 * 2. Afterwards sequences of spaces are replaced with a single space
  	 * 3. Leading/trailing whitespace characters are trimmed
@@ -162,11 +170,10 @@ namespace pugi
  	const unsigned int parse_wnorm_attribute	= 0x0040;
 
  	/**
- 	 * This flag determines if attribute value normalization should be performed for all attributes,
- 	 * assuming that their type is CDATA. This means, that whitespace characters (new line, tab and
- 	 * space) are replaced with space (' '). Note, that the actions performed while this flag is on
- 	 * are also performed if parse_wnorm_attribute is on, so this flag has no effect if
- 	 * parse_wnorm_attribute flag is set.
+ 	 * This flag determines if attribute value normalization should be performed for all attributes.
+ 	 * This means, that whitespace characters (new line, tab and space) are replaced with space (' ').
+ 	 * Note, that the actions performed while this flag is on are also performed if parse_wnorm_attribute
+ 	 * is on, so this flag has no effect if parse_wnorm_attribute flag is set.
  	 * 
  	 * This flag is on by default.
  	 */
@@ -251,6 +258,16 @@ namespace pugi
 	class xpath_ast_node;
 	class xpath_allocator;
 	
+	/// XPath query return type classification
+	enum xpath_type_t
+	{
+		xpath_type_none,      ///< Unknown type (query failed to compile)
+		xpath_type_node_set,  ///< Node set (xpath_node_set)
+		xpath_type_number,    ///< Number
+		xpath_type_string,    ///< String
+		xpath_type_boolean    ///< Boolean
+	};
+
 	/**
 	 * A class that holds compiled XPath query and allows to evaluate query result
 	 */
@@ -279,6 +296,13 @@ namespace pugi
 		 * Dtor
 		 */
 		~xpath_query();
+
+		/**
+		 * Get query expression return type
+		 *
+		 * \return expression return type
+		 **/
+		xpath_type_t return_type() const;
 		
 		/**
 		 * Evaluate expression as boolean value for the context node \a n.
@@ -289,7 +313,7 @@ namespace pugi
 		 * \param n - context node
 		 * \return evaluation result
 		 */
-		bool evaluate_boolean(const xml_node& n);
+		bool evaluate_boolean(const xml_node& n) const;
 		
 		/**
 		 * Evaluate expression as double value for the context node \a n.
@@ -300,7 +324,7 @@ namespace pugi
 		 * \param n - context node
 		 * \return evaluation result
 		 */
-		double evaluate_number(const xml_node& n);
+		double evaluate_number(const xml_node& n) const;
 		
 		/**
 		 * Evaluate expression as string value for the context node \a n.
@@ -311,17 +335,17 @@ namespace pugi
 		 * \param n - context node
 		 * \return evaluation result
 		 */
-		std::string evaluate_string(const xml_node& n);
+		std::string evaluate_string(const xml_node& n) const;
 		
 		/**
 		 * Evaluate expression as node set for the context node \a n.
-		 * If expression does not directly evaluate to node set, function returns empty node set.
+		 * If expression does not directly evaluate to node set, throws xpath_exception.
 		 * Throws std::bad_alloc on out of memory error.
 		 *
 		 * \param n - context node
 		 * \return evaluation result
 		 */
-		xpath_node_set evaluate_node_set(const xml_node& n);
+		xpath_node_set evaluate_node_set(const xml_node& n) const;
 	};
 	#endif
 	
@@ -1097,7 +1121,24 @@ namespace pugi
 		 * \param name - node name
 		 * \param it - output iterator (for example, std::back_insert_iterator (result of std::back_inserter))
 		 */
-		template <typename OutputIterator> void all_elements_by_name(const char* name, OutputIterator it) const;
+		template <typename OutputIterator> void all_elements_by_name(const char* name, OutputIterator it) const
+		{
+			if (!_root) return;
+			
+			for (xml_node node = first_child(); node; node = node.next_sibling())
+			{
+				if (node.type() == node_element)
+				{
+					if (!impl::strcmp(name, node.name()))
+					{
+						*it = node;
+						++it;
+					}
+				
+					if (node.first_child()) node.all_elements_by_name(name, it);
+				}
+			}
+		}
 
 		/**
 		 * Get all elements from subtree with name that matches given pattern
@@ -1105,7 +1146,24 @@ namespace pugi
 		 * \param name - node name pattern
 		 * \param it - output iterator (for example, std::back_insert_iterator (result of std::back_inserter))
 		 */
-		template <typename OutputIterator> void all_elements_by_name_w(const char* name, OutputIterator it) const;
+		template <typename OutputIterator> void all_elements_by_name_w(const char* name, OutputIterator it) const
+		{
+			if (!_root) return;
+			
+			for (xml_node node = first_child(); node; node = node.next_sibling())
+			{
+				if (node.type() == node_element)
+				{
+					if (!impl::strcmpwild(name, node.name()))
+					{
+						*it = node;
+						++it;
+					}
+					
+					if (node.first_child()) node.all_elements_by_name_w(name, it);
+				}
+			}
+		}
 
 		/**
 		 * Get first child
@@ -1127,7 +1185,16 @@ namespace pugi
 		 * \param pred - predicate, that takes xml_attribute and returns bool
 		 * \return first attribute for which predicate returned true, or empty attribute
 		 */
-		template <typename Predicate> xml_attribute find_attribute(Predicate pred) const;
+		template <typename Predicate> xml_attribute find_attribute(Predicate pred) const
+		{
+			if (!_root) return xml_attribute();
+			
+			for (xml_attribute attrib = first_attribute(); attrib; attrib = attrib.next_attribute())
+				if (pred(attrib))
+					return attrib;
+		
+			return xml_attribute();
+		}
 
 		/**
 		 * Find child node using predicate
@@ -1135,7 +1202,16 @@ namespace pugi
 		 * \param pred - predicate, that takes xml_node and returns bool
 		 * \return first child node for which predicate returned true, or empty node
 		 */
-		template <typename Predicate> xml_node find_child(Predicate pred) const;
+		template <typename Predicate> xml_node find_child(Predicate pred) const
+		{
+			if (!_root) return xml_node();
+	
+			for (xml_node node = first_child(); node; node = node.next_sibling())
+				if (pred(node))
+					return node;
+        
+	        return xml_node();
+		}
 
 		/**
 		 * Find node from subtree using predicate
@@ -1143,7 +1219,24 @@ namespace pugi
 		 * \param pred - predicate, that takes xml_node and returns bool
 		 * \return first node from subtree for which predicate returned true, or empty node
 		 */
-		template <typename Predicate> xml_node find_node(Predicate pred) const;
+		template <typename Predicate> xml_node find_node(Predicate pred) const
+		{
+			if (!_root) return xml_node();
+
+			for (xml_node node = first_child(); node; node = node.next_sibling())
+			{
+				if (pred(node))
+					return node;
+				
+				if (node.first_child())
+				{
+					xml_node found = node.find_node(pred);
+					if (found) return found;
+				}
+			}
+
+			return xml_node();
+		}
 
 		/**
 		 * Find child node with the specified name that has specified attribute
@@ -1228,7 +1321,7 @@ namespace pugi
 		 * \param query - compiled query
 		 * \return first node from the resulting node set by document order, or empty node if none found
 		 */
-		xpath_node select_single_node(xpath_query& query) const;
+		xpath_node select_single_node(const xpath_query& query) const;
 
 		/**
 		 * Select node set by evaluating XPath query
@@ -1244,7 +1337,7 @@ namespace pugi
 		 * \param query - compiled query
 		 * \return resulting node set
 		 */
-		xpath_node_set select_nodes(xpath_query& query) const;
+		xpath_node_set select_nodes(const xpath_query& query) const;
 	#endif
 		
 		/// \internal Document order or 0 if not set
@@ -1258,7 +1351,7 @@ namespace pugi
 		 * \param flags - formatting flags
 		 * \param depth - starting depth (used for indentation)
 		 */
-		void print(xml_writer& writer, const char* indent = "\t", unsigned int flags = format_default, unsigned int depth = 0);
+		void print(xml_writer& writer, const char* indent = "\t", unsigned int flags = format_default, unsigned int depth = 0) const;
 
 	#ifndef PUGIXML_NO_STL
 		/**
@@ -1270,7 +1363,7 @@ namespace pugi
 		 * \param depth - starting depth (used for indentation)
 		 * \deprecated Use print() with xml_writer_stream instead
 		 */
-		void print(std::ostream& os, const char* indent = "\t", unsigned int flags = format_default, unsigned int depth = 0);
+		void print(std::ostream& os, const char* indent = "\t", unsigned int flags = format_default, unsigned int depth = 0) const;
 	#endif
 
 		/**
@@ -1281,7 +1374,7 @@ namespace pugi
 		 * if element node name has significantly changed; this is guaranteed to return correct offset only for nodes that have not changed
 		 * since parsing.
 		 */
-		int offset_debug() const;
+		ptrdiff_t offset_debug() const;
 	};
 
 #ifdef __BORLANDC__
@@ -1604,7 +1697,7 @@ namespace pugi
 		xml_parse_status status;
 
 		/// Last parsed offset (in bytes from file/string start)
-		unsigned int offset;
+		ptrdiff_t offset;
 
 		/// Line in parser source which reported this
 		unsigned int line;
@@ -1708,7 +1801,7 @@ namespace pugi
 		 * \param indent - indentation string
 		 * \param flags - formatting flags
 		 */
-		void save(xml_writer& writer, const char* indent = "\t", unsigned int flags = format_default);
+		void save(xml_writer& writer, const char* indent = "\t", unsigned int flags = format_default) const;
 
 		/**
 		 * Save XML to file
@@ -1718,7 +1811,7 @@ namespace pugi
 		 * \param flags - formatting flags
 		 * \return success flag
 		 */
-		bool save_file(const char* name, const char* indent = "\t", unsigned int flags = format_default);
+		bool save_file(const char* name, const char* indent = "\t", unsigned int flags = format_default) const;
 
 		/**
 		 * Compute document order for the whole tree
@@ -1815,6 +1908,9 @@ namespace pugi
     	 */
 		operator unspecified_bool_type() const;
 		
+    	// Borland C++ workaround
+    	bool operator!() const;
+
 		/**
 		 * Compares two XPath nodes
 		 *
@@ -1831,6 +1927,12 @@ namespace pugi
 		 */
 		bool operator!=(const xpath_node& n) const;
 	};
+
+#ifdef __BORLANDC__
+	// Borland C++ workaround
+	bool PUGIXML_FUNCTION operator&&(const xpath_node& lhs, bool rhs);
+	bool PUGIXML_FUNCTION operator||(const xpath_node& lhs, bool rhs);
+#endif
 
 	/**
 	 * Not necessarily ordered constant collection of XPath nodes
@@ -1860,12 +1962,9 @@ namespace pugi
 		xpath_node* m_end;
 		xpath_node* m_eos;
 		
-		bool m_using_storage;
-		
 		typedef xpath_node* iterator;
 
 		iterator mut_begin();
-		iterator mut_end();
 		
 		void push_back(const xpath_node& n);
 		
@@ -1915,6 +2014,14 @@ namespace pugi
 		 * \return collection size
 		 */
 		size_t size() const;
+
+		/**
+		 * Get element with the specified index
+		 *
+		 * \param index - requested index
+		 * \return element
+		 */
+		xpath_node operator[](size_t index) const;
 		
 		/**
 		 * Get begin constant iterator for collection
@@ -1941,6 +2048,7 @@ namespace pugi
 		 * Get first node in the collection by document order
 		 *
 		 * \return first node by document order
+		 * \note set.first() is not equal to set[0], since operator[] does not take document order into account
 		 */
 		xpath_node first() const;
 		
@@ -2002,96 +2110,47 @@ namespace pugi
      * function you set via this function.
      */
     void PUGIXML_FUNCTION set_memory_management_functions(allocation_function allocate, deallocation_function deallocate);
-}
+    
+    /**
+     * Get current memory allocation function
+     *
+     * \return memory allocation function
+     * \see set_memory_management_functions
+     */
+    allocation_function PUGIXML_FUNCTION get_memory_allocation_function();
 
-// Inline implementation
-
-namespace pugi
-{
-	namespace impl
-	{
-		int PUGIXML_FUNCTION strcmp(const char*, const char*);
-		int PUGIXML_FUNCTION strcmpwild(const char*, const char*);
-	}
-
-	template <typename OutputIterator> void xml_node::all_elements_by_name(const char* name, OutputIterator it) const
-	{
-		if (!_root) return;
-		
-		for (xml_node node = first_child(); node; node = node.next_sibling())
-		{
-			if (node.type() == node_element)
-			{
-				if (!impl::strcmp(name, node.name()))
-				{
-					*it = node;
-					++it;
-				}
-			
-				if (node.first_child()) node.all_elements_by_name(name, it);
-			}
-		}
-	}
-
-	template <typename OutputIterator> void xml_node::all_elements_by_name_w(const char* name, OutputIterator it) const
-	{
-		if (!_root) return;
-		
-		for (xml_node node = first_child(); node; node = node.next_sibling())
-		{
-			if (node.type() == node_element)
-			{
-				if (!impl::strcmpwild(name, node.name()))
-				{
-					*it = node;
-					++it;
-				}
-					
-				if (node.first_child()) node.all_elements_by_name_w(name, it);
-			}
-		}
-	}
-	
-	template <typename Predicate> inline xml_attribute xml_node::find_attribute(Predicate pred) const
-	{
-		if (!_root) return xml_attribute();
-		
-		for (xml_attribute attrib = first_attribute(); attrib; attrib = attrib.next_attribute())
-			if (pred(attrib))
-				return attrib;
-		
-		return xml_attribute();
-	}
-
-	template <typename Predicate> inline xml_node xml_node::find_child(Predicate pred) const
-	{
-		if (!_root) return xml_node();
-
-		for (xml_node node = first_child(); node; node = node.next_sibling())
-			if (pred(node))
-				return node;
-        
-        return xml_node();
-	}
-
-	template <typename Predicate> inline xml_node xml_node::find_node(Predicate pred) const
-	{
-		if (!_root) return xml_node();
-
-		for (xml_node node = first_child(); node; node = node.next_sibling())
-		{
-			if (pred(node))
-				return node;
-				
-			if (node.first_child())
-			{
-				xml_node found = node.find_node(pred);
-				if (found) return found;
-			}
-		}
-
-		return xml_node();
-	}
+    /**
+     * Get current memory deallocation function
+     *
+     * \return memory deallocation function
+     * \see set_memory_management_functions
+     */
+    deallocation_function PUGIXML_FUNCTION get_memory_deallocation_function();
 }
 
 #endif
+
+/**
+ * Copyright (c) 2006-2009 Arseny Kapoulkine
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ */
