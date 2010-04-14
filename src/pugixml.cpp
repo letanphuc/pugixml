@@ -619,7 +619,10 @@ namespace
 		return stre;
 	}
 
-	char* strconv_comment(char* s)
+	// Utility macro for last character handling
+	#define ENDSWITH(c, e) ((c) == (e) || ((c) == 0 && endch == (e)))
+
+	char* strconv_comment(char* s, char endch)
 	{
 		if (!*s) return 0;
 		
@@ -635,11 +638,11 @@ namespace
 				
 				if (*s == '\n') g.push(s, 1);
 			}
-			else if (*s == '-' && *(s+1) == '-' && *(s+2) == '>') // comment ends here
+			else if (s[0] == '-' && s[1] == '-' && ENDSWITH(s[2], '>')) // comment ends here
 			{
 				*g.flush(s) = 0;
 				
-				return s + 3;
+				return s + (s[2] == '>' ? 3 : 2);
 			}
 			else if (*s == 0)
 			{
@@ -649,7 +652,7 @@ namespace
 		}
 	}
 
-	char* strconv_cdata(char* s)
+	char* strconv_cdata(char* s, char endch)
 	{
 		if (!*s) return 0;
 			
@@ -665,7 +668,7 @@ namespace
 				
 				if (*s == '\n') g.push(s, 1);
 			}
-			else if (*s == ']' && *(s+1) == ']' && *(s+2) == '>') // CDATA ends here
+			else if (s[0] == ']' && s[1] == ']' && ENDSWITH(s[2], '>')) // CDATA ends here
 			{
 				*g.flush(s) = 0;
 				
@@ -866,7 +869,7 @@ namespace
 		{
 		}
 
-		xml_parse_result parse_exclamation(char*& ref_s, xml_node_struct* cursor, unsigned int optmsk, char* buffer_start)
+		xml_parse_result parse_exclamation(char*& ref_s, xml_node_struct* cursor, unsigned int optmsk, char* buffer_start, char endch)
 		{
 			// load into registers
 			char* s = ref_s;
@@ -891,20 +894,20 @@ namespace
 
 					if (OPTSET(parse_eol) && OPTSET(parse_comments))
 					{
-						s = strconv_comment(s);
+						s = strconv_comment(s, endch);
 
 						if (!s) THROW_ERROR(status_bad_comment, cursor->value);
 					}
 					else
 					{
 						// Scan for terminating '-->'.
-						SCANFOR(*s == '-' && *(s+1) == '-' && *(s+2) == '>');
+						SCANFOR(s[0] == '-' && s[1] == '-' && ENDSWITH(s[2], '>'));
 						CHECK_ERROR(status_bad_comment, s);
 
 						if (OPTSET(parse_comments))
 							*s = 0; // Zero-terminate this segment at the first terminating '-'.
 
-						s += 3; // Step over the '\0->'.
+						s += (s[2] == '>' ? 3 : 2); // Step over the '\0->'.
 					}
 
 					if (OPTSET(parse_comments))
@@ -928,14 +931,14 @@ namespace
 
 						if (OPTSET(parse_eol))
 						{
-							s = strconv_cdata(s);
+							s = strconv_cdata(s, endch);
 
 							if (!s) THROW_ERROR(status_bad_cdata, cursor->value);
 						}
 						else
 						{
 							// Scan for terminating ']]>'.
-							SCANFOR(*s == ']' && *(s+1) == ']' && *(s+2) == '>');
+							SCANFOR(s[0] == ']' && s[1] == ']' && ENDSWITH(s[2], '>'));
 							CHECK_ERROR(status_bad_cdata, s);
 
 							ENDSEG(); // Zero-terminate this segment.
@@ -947,34 +950,31 @@ namespace
 					else // Flagged for discard, but we still have to scan for the terminator.
 					{
 						// Scan for terminating ']]>'.
-						SCANFOR(*s == ']' && *(s+1) == ']' && *(s+2) == '>');
+						SCANFOR(s[0] == ']' && s[1] == ']' && ENDSWITH(s[2], '>'));
 						CHECK_ERROR(status_bad_cdata, s);
 
 						++s;
 					}
 
-					s += 2; // Step over the last ']>'.
+					s += (s[1] == '>' ? 2 : 1); // Step over the last ']>'.
 				}
 				else THROW_ERROR(status_bad_cdata, s);
 			}
-			else if (*s=='D' && *++s=='O' && *++s=='C' && *++s=='T' && *++s=='Y' && *++s=='P' && *++s=='E')
+			else if (s[0] == 'D' && s[1] == 'O' && s[2] == 'C' && s[3] == 'T' && s[4] == 'Y' && s[5] == 'P' && ENDSWITH(s[6], 'E'))
 			{
-				++s;
-
-				SKIPWS(); // Eat any whitespace.
-				CHECK_ERROR(status_bad_doctype, s);
+				if (s[6] != 'E') THROW_ERROR(status_bad_doctype, s); 
 
 			LOC_DOCTYPE:
 				SCANFOR(*s == '\'' || *s == '"' || *s == '[' || *s == '>');
-				CHECK_ERROR(status_bad_doctype, s);
+				if (*s == 0 && endch != '>') THROW_ERROR(status_bad_doctype, s);
 
 				if (*s == '\'' || *s == '"') // '...SYSTEM "..."
 				{
 					ch = *s++;
 					SCANFOR(*s == ch);
-					CHECK_ERROR(status_bad_doctype, s);
+					if (*s == 0 && endch != '>') THROW_ERROR(status_bad_doctype, s);
 
-					++s;
+					s += (*s != 0);
 					goto LOC_DOCTYPE;
 				}
 
@@ -989,13 +989,23 @@ namespace
 						if (bd == 0) break;
 						++s;
 					}
+
+					if (bd != 0) THROW_ERROR(status_bad_doctype, s);
 				}
 
-				SCANFOR(*s == '>');
-				CHECK_ERROR(status_bad_doctype, s);
+				SCANFOR(ENDSWITH(*s, '>'));
 
-				++s;
+				if (*s == 0)
+				{
+					if (endch != '>') THROW_ERROR(status_bad_doctype, s);
+				}
+				else
+				{
+					++s;
+				}
 			}
+			else if (*s == 0 && endch == '-') THROW_ERROR(status_bad_comment, s);
+			else if (*s == 0 && endch == '[') THROW_ERROR(status_bad_cdata, s);
 			else THROW_ERROR(status_unrecognized_tag, s);
 
 			// store from registers
@@ -1004,7 +1014,7 @@ namespace
 			THROW_ERROR(status_ok, s);
 		}
 
-		xml_parse_result parse_question(char*& ref_s, xml_node_struct*& ref_cursor, unsigned int optmsk, char* buffer_start)
+		xml_parse_result parse_question(char*& ref_s, xml_node_struct*& ref_cursor, unsigned int optmsk, char* buffer_start, char endch)
 		{
 			// load into registers
 			char* s = ref_s;
@@ -1030,8 +1040,8 @@ namespace
 
 				if (ch == '?') // nothing except target present
 				{
-					if (*s != '>') THROW_ERROR(status_bad_pi, s);
-					++s;
+					if (!ENDSWITH(*s, '>')) THROW_ERROR(status_bad_pi, s);
+					s += (*s == '>');
 
 					// stricmp / strcasecmp is not portable
 					if ((mark[0] == 'x' || mark[0] == 'X') && (mark[1] == 'm' || mark[1] == 'M')
@@ -1068,7 +1078,7 @@ namespace
 						// scan for tag end
 						mark = s;
 
-						SCANFOR(*s == '?' && *(s+1) == '>'); // Look for '?>'.
+						SCANFOR(s[0] == '?' && ENDSWITH(s[1], '>')); // Look for '?>'.
 						CHECK_ERROR(status_bad_pi, s);
 
 						// replace ending ? with / to terminate properly
@@ -1095,13 +1105,13 @@ namespace
 
 					mark = s;
 
-					SCANFOR(*s == '?' && *(s+1) == '>'); // Look for '?>'.
+					SCANFOR(s[0] == '?' && ENDSWITH(s[1], '>')); // Look for '?>'.
 					CHECK_ERROR(status_bad_pi, s);
 
 					ENDSEG();
-					CHECK_ERROR(status_bad_pi, s);
+					if (!ENDSWITH(*s, '>')) THROW_ERROR(status_bad_pi, s);
 
-					++s; // Step over >
+					s += (*s == '>'); // Step over >
 
 					if (OPTSET(parse_pi))
 					{
@@ -1113,10 +1123,10 @@ namespace
 			}
 			else // not parsing PI
 			{
-				SCANFOR(*s == '?' && *(s+1) == '>'); // Look for '?>'.
+				SCANFOR(s[0] == '?' && ENDSWITH(s[1], '>')); // Look for '?>'.
 				CHECK_ERROR(status_bad_pi, s);
 
-				s += 2;
+				s += (s[1] == '>' ? 2 : 1);
 			}
 
 			// store from registers
@@ -1126,7 +1136,7 @@ namespace
 			THROW_ERROR(status_ok, s);
 		}
 
-		xml_parse_result parse(char* s, xml_node_struct* xmldoc, unsigned int optmsk = parse_default)
+		xml_parse_result parse(char* s, xml_node_struct* xmldoc, unsigned int optmsk, char endch)
 		{
 			if (!s || !xmldoc) return MAKE_PARSE_RESULT(status_internal_error);
 
@@ -1154,7 +1164,13 @@ namespace
 						cursor->name = s;
 
 						SCANWHILE(is_chartype(*s, ct_symbol)); // Scan for a terminator.
-						CHECK_ERROR(status_bad_start_element, s);
+
+						if (*s == 0)
+						{
+							// end of tag
+							if (endch == '>') continue;
+							else THROW_ERROR(status_bad_start_element, s);
+						}
 
 						ENDSEG(); // Save char in 'ch', terminate & step over.
 
@@ -1216,11 +1232,11 @@ namespace
 								{
 									++s;
 
-									if (*s != '>') THROW_ERROR(status_bad_start_element, s);
+									if (!ENDSWITH(*s, '>')) THROW_ERROR(status_bad_start_element, s);
 							
 									POPNODE(); // Pop.
 
-									++s;
+									s += (*s == '>');
 
 									break;
 								}
@@ -1230,6 +1246,10 @@ namespace
 
 									break;
 								}
+								else if (*s == 0 && endch == '>')
+								{
+									break;
+								}
 								else THROW_ERROR(status_bad_start_element, s);
 							}
 
@@ -1237,11 +1257,11 @@ namespace
 						}
 						else if (ch == '/') // '<#.../'
 						{
-							if (*s != '>') THROW_ERROR(status_bad_start_element, s);
+							if (!ENDSWITH(*s, '>')) THROW_ERROR(status_bad_start_element, s);
 
 							POPNODE(); // Pop.
 
-							++s;
+							s += (*s == '>');
 						}
 						else THROW_ERROR(status_bad_start_element, s);
 					}
@@ -1259,19 +1279,29 @@ namespace
 							if (*s++ != *name++) THROW_ERROR(status_end_element_mismatch, s);
 						}
 
-						if (*name) THROW_ERROR(status_end_element_mismatch, s);
+						if (*name)
+						{
+							if (*s == 0 && name[0] == endch && name[1] == 0) THROW_ERROR(status_bad_end_element, s);
+							else THROW_ERROR(status_end_element_mismatch, s);
+						}
 							
 						POPNODE(); // Pop.
 
 						SKIPWS();
-						CHECK_ERROR(status_bad_end_element, s);
 
-						if (*s != '>') THROW_ERROR(status_bad_end_element, s);
-						++s;
+						if (*s == 0)
+						{
+							if (endch != '>') THROW_ERROR(status_bad_end_element, s);
+						}
+						else
+						{
+							if (*s != '>') THROW_ERROR(status_bad_end_element, s);
+							++s;
+						}
 					}
 					else if (*s == '?') // '<?...'
 					{
-						xml_parse_result quest_result = parse_question(s, cursor, optmsk, buffer_start);
+						xml_parse_result quest_result = parse_question(s, cursor, optmsk, buffer_start, endch);
 
 						if (!quest_result) return quest_result;
 
@@ -1279,10 +1309,11 @@ namespace
 					}
 					else if (*s == '!') // '<!...'
 					{
-						xml_parse_result excl_result = parse_exclamation(s, cursor, optmsk, buffer_start);
+						xml_parse_result excl_result = parse_exclamation(s, cursor, optmsk, buffer_start, endch);
 
 						if (!excl_result) return excl_result;
 					}
+					else if (*s == 0 && endch == '?') THROW_ERROR(status_bad_pi, s);
 					else THROW_ERROR(status_unrecognized_tag, s);
 				}
 				else
@@ -1327,6 +1358,26 @@ namespace
 			if (cursor != xmldoc) THROW_ERROR(status_end_element_mismatch, s);
 			
 			THROW_ERROR(status_ok, s);
+		}
+
+		xml_parse_result parse(char* s, size_t size, xml_node_struct* xmldoc, unsigned int optmsk = parse_default)
+		{
+			if (size == 0) return MAKE_PARSE_RESULT(status_ok);
+
+			char endch = s[size - 1];
+			s[size - 1] = 0;
+
+			xml_parse_result result = parse(s, xmldoc, optmsk, endch);
+
+			if (result && endch == '<')
+			{
+				char* buffer_start = s;
+
+				// there's no possible well-formed document with < at the end
+				THROW_ERROR(status_unrecognized_tag, buffer_start + size);
+			}
+
+			return result;
 		}
 		
 	private:
@@ -1413,11 +1464,12 @@ namespace
 	}
 
 	// Output facilities
-	struct xml_buffered_writer
+	class xml_buffered_writer
 	{
 		xml_buffered_writer(const xml_buffered_writer&);
 		xml_buffered_writer& operator=(const xml_buffered_writer&);
 
+	public:
 		xml_buffered_writer(xml_writer& writer): writer(writer), bufsize(0)
 		{
 		}
@@ -3056,7 +3108,7 @@ namespace pugi
 		
 		xml_parser parser(alloc);
 		
-		return parser.parse(xmlstr, _root, options); // Parse the input string.
+		return parser.parse(xmlstr, strlen(xmlstr), _root, options); // Parse the input string.
 	}
 		
 	xml_parse_result xml_document::parse(const transfer_ownership_tag&, char* xmlstr, unsigned int options)
