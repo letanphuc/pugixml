@@ -41,6 +41,15 @@ TEST(parse_pi_error)
 		CHECK(doc.load("<?name", flags).status == status_bad_pi);
 		CHECK(doc.load("<?name>", flags).status == status_bad_pi);
 		CHECK(doc.load("<?name ?", flags).status == status_bad_pi);
+		CHECK(doc.load("<?name?", flags).status == status_bad_pi);
+		CHECK(doc.load("<?name? ", flags).status == status_bad_pi);
+		CHECK(doc.load("<?name?  ", flags).status == status_bad_pi);
+		CHECK(doc.load("<?name ", flags).status == status_bad_pi);
+		CHECK(doc.load("<?name  ", flags).status == status_bad_pi);
+		CHECK(doc.load("<?name   ", flags).status == status_bad_pi);
+		CHECK(doc.load("<?name value", flags).status == status_bad_pi);
+		CHECK(doc.load("<?name value ", flags).status == status_bad_pi);
+		CHECK(doc.load("<?name value  ", flags).status == status_bad_pi);
 	}
 	
 	CHECK(doc.load("<?xx#?>", parse_minimal | parse_pi).status == status_bad_pi);
@@ -375,6 +384,11 @@ TEST(parse_attribute_variations)
 TEST(parse_attribute_error)
 {
 	xml_document doc;
+	CHECK(doc.load("<node id", parse_minimal).status == status_bad_attribute);
+	CHECK(doc.load("<node id ", parse_minimal).status == status_bad_attribute);
+	CHECK(doc.load("<node id  ", parse_minimal).status == status_bad_attribute);
+	CHECK(doc.load("<node id   ", parse_minimal).status == status_bad_attribute);
+	CHECK(doc.load("<node id/", parse_minimal).status == status_bad_attribute);
 	CHECK(doc.load("<node id/>", parse_minimal).status == status_bad_attribute);
 	CHECK(doc.load("<node id?/>", parse_minimal).status == status_bad_attribute);
 	CHECK(doc.load("<node id=/>", parse_minimal).status == status_bad_attribute);
@@ -385,6 +399,7 @@ TEST(parse_attribute_error)
 	CHECK(doc.load("<node id='\"/>", parse_minimal).status == status_bad_attribute);
 	CHECK(doc.load("<node #/>", parse_minimal).status == status_bad_start_element);
 	CHECK(doc.load("<node#/>", parse_minimal).status == status_bad_start_element);
+	CHECK(doc.load("<node id1='1'id2='2'/>", parse_minimal).status == status_bad_attribute);
 }
 
 TEST(parse_tag_single)
@@ -411,6 +426,9 @@ TEST(parse_tag_error)
 	CHECK(doc.load("<node#", parse_minimal).status == status_bad_start_element);
 	CHECK(doc.load("<node", parse_minimal).status == status_bad_start_element);
 	CHECK(doc.load("<node/", parse_minimal).status == status_bad_start_element);
+	CHECK(doc.load("<node /", parse_minimal).status == status_bad_start_element);
+	CHECK(doc.load("<node / ", parse_minimal).status == status_bad_start_element);
+	CHECK(doc.load("<node / >", parse_minimal).status == status_bad_start_element);
 	CHECK(doc.load("<node/ >", parse_minimal).status == status_bad_start_element);
 	CHECK(doc.load("</ node>", parse_minimal).status == status_end_element_mismatch);
 	CHECK(doc.load("</node", parse_minimal).status == status_end_element_mismatch);
@@ -422,6 +440,24 @@ TEST(parse_tag_error)
 	CHECK(doc.load("<node>", parse_minimal).status == status_end_element_mismatch);
 	CHECK(doc.load("<node/><", parse_minimal).status == status_unrecognized_tag);
 	CHECK(doc.load("<node attr='value'>", parse_minimal).status == status_end_element_mismatch);
+	CHECK(doc.load("</></node>", parse_minimal).status == status_end_element_mismatch);
+	CHECK(doc.load("</node>", parse_minimal).status == status_end_element_mismatch);
+	CHECK(doc.load("</>", parse_minimal).status == status_end_element_mismatch);
+	CHECK(doc.load("<node></node v>", parse_minimal).status == status_bad_end_element);
+}
+
+TEST(parse_declaration_cases)
+{
+	xml_document doc;
+	CHECK(doc.load("<?xml?><?xmL?><?xMl?><?xML?><?Xml?><?XmL?><?XMl?><?XML?>", parse_minimal | parse_pi));
+	CHECK(!doc.first_child());
+}
+
+TEST(parse_declaration_attr_cases)
+{
+	xml_document doc;
+	CHECK(doc.load("<?xml ?><?xmL ?><?xMl ?><?xML ?><?Xml ?><?XmL ?><?XMl ?><?XML ?>", parse_minimal | parse_pi));
+	CHECK(!doc.first_child());
 }
 
 TEST(parse_declaration_skip)
@@ -491,4 +527,12 @@ TEST(parse_doctype_error)
 	CHECK(doc.load("<!DOCTYPE doc PUBLIC \"foo'\"").status == status_bad_doctype);
 	CHECK(doc.load("<!DOCTYPE doc SYSTEM 'foo' [<!ELEMENT foo 'ANY").status == status_bad_doctype);
 	CHECK(doc.load("<!DOCTYPE doc SYSTEM 'foo' [<!ELEMENT foo 'ANY'>").status == status_bad_doctype);
+	CHECK(doc.load("<!DOCTYPE doc SYSTEM 'foo' [<!ELEMENT foo 'ANY'>]").status == status_bad_doctype);
+	CHECK(doc.load("<!DOCTYPE doc SYSTEM 'foo' [<!ELEMENT foo 'ANY'>] ").status == status_bad_doctype);
+}
+
+TEST(parse_empty)
+{
+	xml_document doc;
+	CHECK(doc.load("") && !doc.first_child());
 }

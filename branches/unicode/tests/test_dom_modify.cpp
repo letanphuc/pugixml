@@ -62,6 +62,16 @@ TEST_XML(dom_node_set_value, "<node>text</node>")
 	CHECK_NODE(doc, "<node>no text</node>");
 }
 
+TEST_XML(dom_node_set_value_allocated, "<node>text</node>")
+{
+	CHECK(doc.child("node").first_child().set_value("no text"));
+	CHECK(!doc.child("node").set_value("no text"));
+	CHECK(!xml_node().set_value("no text"));
+	CHECK(doc.child("node").first_child().set_value("no text at all"));
+
+	CHECK_NODE(doc, "<node>no text at all</node>");
+}
+
 TEST_XML(dom_node_append_attribute, "<node><child/></node>")
 {
 	CHECK(xml_node().append_attribute("a") == xml_attribute());
