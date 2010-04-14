@@ -35,11 +35,15 @@ TEST(parse_pi_error)
 		unsigned int flags = flag_sets[i];
 
 		CHECK(doc.load("<?", flags).status == status_bad_pi);
+		CHECK(doc.load("<??", flags).status == status_bad_pi);
+		CHECK(doc.load("<?>", flags).status == status_bad_pi);
 		CHECK(doc.load("<?#?>", flags).status == status_bad_pi);
 		CHECK(doc.load("<?name", flags).status == status_bad_pi);
 		CHECK(doc.load("<?name>", flags).status == status_bad_pi);
 		CHECK(doc.load("<?name ?", flags).status == status_bad_pi);
 	}
+	
+	CHECK(doc.load("<?xx#?>", parse_minimal | parse_pi).status == status_bad_pi);
 }
 
 TEST(parse_comments_skip)
@@ -167,6 +171,9 @@ TEST(parse_cdata_error)
 		CHECK(doc.load("<![CDATA", flags).status == status_bad_cdata);
 		CHECK(doc.load("<![CDATA[", flags).status == status_bad_cdata);
 		CHECK(doc.load("<![CDATA[]", flags).status == status_bad_cdata);
+		CHECK(doc.load("<![CDATA[data", flags).status == status_bad_cdata);
+		CHECK(doc.load("<![CDATA[data]", flags).status == status_bad_cdata);
+		CHECK(doc.load("<![CDATA[data]]", flags).status == status_bad_cdata);
 		CHECK(doc.load("<![CDATA[>", flags).status == status_bad_cdata);
 		CHECK(doc.load("<![CDATA[ <![CDATA[]]><![CDATA ]]>", flags).status == status_bad_cdata);
 	}
@@ -369,6 +376,7 @@ TEST(parse_attribute_error)
 {
 	xml_document doc;
 	CHECK(doc.load("<node id/>", parse_minimal).status == status_bad_attribute);
+	CHECK(doc.load("<node id?/>", parse_minimal).status == status_bad_attribute);
 	CHECK(doc.load("<node id=/>", parse_minimal).status == status_bad_attribute);
 	CHECK(doc.load("<node id='/>", parse_minimal).status == status_bad_attribute);
 	CHECK(doc.load("<node id=\"/>", parse_minimal).status == status_bad_attribute);
@@ -411,6 +419,9 @@ TEST(parse_tag_error)
 	CHECK(doc.load("<node></node", parse_minimal).status == status_bad_end_element);
 	CHECK(doc.load("<node></node ", parse_minimal).status == status_bad_end_element);
 	CHECK(doc.load("<node></nodes>", parse_minimal).status == status_end_element_mismatch);
+	CHECK(doc.load("<node>", parse_minimal).status == status_end_element_mismatch);
+	CHECK(doc.load("<node/><", parse_minimal).status == status_unrecognized_tag);
+	CHECK(doc.load("<node attr='value'>", parse_minimal).status == status_end_element_mismatch);
 }
 
 TEST(parse_declaration_skip)
