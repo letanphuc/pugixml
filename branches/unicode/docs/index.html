@@ -416,7 +416,8 @@ environment). The library is written in standard-conformant C++ and was tested o
 
 <p>
 <ul>
-<li>Windows 32-bit (MSVC<sup><a href="#annot-3">3</a></sup> 6.0, MSVC 7.0 (2002), MSVC 7.1 (2003), MSVC 8.0 (2005), ICC<sup><a href="#annot-4">4</a></sup> 8.0, ICC 8.1, GCC 3.4.2 (MinGW), BCC<sup><a href="#annot-5">5</a></sup> 5.82, DMC<sup><a href="#annot-6">6</a></sup> 8.50, Comeau C++ 4.3.3, PGI<sup><a href="#annot-7">7</a></sup> 6.2, CW<sup><a href="#annot-8">8</a></sup> 8.0)
+<li>Windows 32-bit (MSVC<sup><a href="#annot-3">3</a></sup> 6.0, MSVC 7.0 (2002), MSVC 7.1 (2003), MSVC 8.0 (2005), MSVC 9.0 (2008), MSVC 10.0 (2010), ICC<sup><a href="#annot-4">4</a></sup> 8.0, ICC 8.1, GCC 3.4.2 (MinGW), GCC 4.4.0 (MinGW), BCC<sup><a href="#annot-5">5</a></sup> 5.82, DMC<sup><a href="#annot-6">6</a></sup> 8.50, Comeau C++ 4.3.3, PGI<sup><a href="#annot-7">7</a></sup> 6.2, CW<sup><a href="#annot-8">8</a></sup> 8.0)
+<li>Windows 64-bit (MSVC 9.0 (2008))
 <li>Linux 32-bit (GCC 3.2)
 <li>Sony Playstation Portable (GCC 3.4.2; in PUGIXML_NO_STL mode)
 <li>Sony Playstation 3 (GCC 4.0.2; in PUGIXML_NO_EXCEPTIONS mode (-fno-exceptions))
@@ -627,6 +628,7 @@ if necessary)
 <li>Added XPath implementation 
 <li>Fixed several bugs 
 </ul>
+</ul>
 </dd>
 </dt>
 <dt>31.10.2007 - v0.34
@@ -672,7 +674,7 @@ were attributes, i.e. doc.child("xml").attribute("version").as_float()); corresp
 </ul>
 </dd>
 </dt>
-<dt>8.02.2009 - v0.42
+<dt>17.09.2009 - v0.42
 <dd>Maintenance release. Changes: <ul>
 <li>Fixed deallocation in case of custom allocation functions or if delete[] / free are incompatible
 <li>XPath parser fixed for incorrect queries (i.e. incorrect XPath queries should now always fail to compile)
@@ -681,6 +683,42 @@ were attributes, i.e. doc.child("xml").attribute("version").as_float()); corresp
 <li>Improved compatibility (miscellaneous warning fixes, fixed cstring include dependency for GCC)
 <li>Fixed iterator begin/end and print function to work correctly for empty nodes
 <li>Added xml_attribute::set_value overloads for different types
+</ul>
+</dd>
+</dt>
+<dt>8.11.2009 - v0.5
+<dd>Major bugfix release. Changes: <ul>
+<li>XPath bugfixes: <ul>
+<li>Fixed translate(), lang() and concat() functions (infinite loops/crashes)
+<li>Fixed compilation of queries with empty literal strings ("")
+<li>Fixed axis tests: they never add empty nodes/attributes to the resulting node set now
+<li>Fixed string-value evaluation for node-set (the result excluded some text descendants)
+<li>Fixed self:: axis (it behaved like ancestor-or-self::)
+<li>Fixed following:: and preceding:: axes (they included descendent and ancestor nodes, respectively)
+<li>Minor fix for namespace-uri() function (namespace declaration scope includes the parent element of namespace declaration attribute)
+<li>Some incorrect queries are no longer parsed now (i.e. foo: *)
+<li>Fixed text()/etc. node test parsing bug (i.e. foo[text()] failed to compile)
+<li>Fixed root step (/) - it now selects empty node set if query is evaluated on empty node
+<li>Fixed string to number conversion ("123 " converted to NaN, "123 .456" converted to 123.456 - now the results are 123 and NaN, respectively)
+<li>Node set copying now preserves sorted type; leads to better performance on some queries
+</ul>
+<li>Miscellaneous bugfixes: <ul>
+<li>Fixed xml_node::offset_debug for PI nodes
+<li>Added empty attribute checks to xml_node::remove_attribute
+<li>Fixed node_pi and node_declaration copying
+<li>Const-correctness fixes
+</ul>
+<li>Specification changes: <ul>
+<li>xpath_node::select_nodes() and related functions now throw exception if expression return type is not node set (instead of assertion)
+<li>xml_node::traverse() now sets depth to -1 for both begin() and end() callbacks (was 0 at begin() and -1 at end())
+<li>In case of non-raw node printing a newline is output after PCDATA inside nodes if the PCDATA has siblings
+<li>UTF8 -&gt; wchar_t conversion now considers 5-byte UTF8-like sequences as invalid
+</ul>
+<li>New features: <ul>
+<li>Added xpath_node_set::operator[] for index-based iteration
+<li>Added xpath_query::return_type()
+<li>Added getter accessors for memory-management functions
+</ul>
 </ul>
 </dd>
 </dt>
@@ -730,7 +768,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 <hr>
 
-<p>Revised 17 September, 2009</p>
+<p>Revised 8 November, 2009</p>
 <p><i>&copy; Copyright <a href="mailto:arseny.kapoulkine@gmail.com">Arseny Kapoulkine</a> 2006-2009. All Rights Reserved.</i></p>
 </body>
 </html>
