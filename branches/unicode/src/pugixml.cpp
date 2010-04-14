@@ -684,8 +684,6 @@ namespace
 		
 	template <typename opt2> char* strconv_pcdata_t(char* s, opt2)
 	{
-		assert(*s);
-
 		const bool opt_eol = opt2::o1;
 		const bool opt_escape = opt2::o2;
 
@@ -740,8 +738,6 @@ namespace
 		const bool opt_eol = opt4::o3;
 		const bool opt_escape = opt4::o4;
 
-		if (!*s) return 0;
-			
 		gap g;
 
 		// trim leading whitespaces
@@ -942,7 +938,6 @@ namespace
 							CHECK_ERROR(status_bad_cdata, s);
 
 							ENDSEG(); // Zero-terminate this segment.
-							CHECK_ERROR(status_bad_cdata, s);
 						}
 
 						POPNODE(); // Pop since this is a standalone.
@@ -993,7 +988,7 @@ namespace
 					if (bd != 0) THROW_ERROR(status_bad_doctype, s);
 				}
 
-				SCANFOR(ENDSWITH(*s, '>'));
+				SCANFOR(*s == '>');
 
 				if (*s == 0)
 				{
@@ -1036,7 +1031,7 @@ namespace
 					THROW_ERROR(status_bad_pi, s);
 
 				ENDSEG();
-				CHECK_ERROR(status_bad_pi, s);
+				if (*s == 0 && endch != '>') THROW_ERROR(status_bad_pi, s);
 
 				if (ch == '?') // nothing except target present
 				{
@@ -1109,7 +1104,6 @@ namespace
 					CHECK_ERROR(status_bad_pi, s);
 
 					ENDSEG();
-					if (!ENDSWITH(*s, '>')) THROW_ERROR(status_bad_pi, s);
 
 					s += (*s == '>'); // Step over >
 
@@ -1138,8 +1132,6 @@ namespace
 
 		xml_parse_result parse(char* s, xml_node_struct* xmldoc, unsigned int optmsk, char endch)
 		{
-			if (!s || !xmldoc) return MAKE_PARSE_RESULT(status_internal_error);
-
 			char* buffer_start = s;
 
 			// UTF-8 BOM
@@ -1269,8 +1261,6 @@ namespace
 					{
 						++s;
 
-						if (!cursor) THROW_ERROR(status_bad_end_element, s);
-
 						char* name = cursor->name;
 						if (!name) THROW_ERROR(status_end_element_mismatch, s);
 						
@@ -1335,8 +1325,6 @@ namespace
 						cursor->value = s; // Save the offset.
 
 						s = strconv_pcdata(s, optmsk);
-								
-						if (!s) THROW_ERROR(status_bad_pcdata, cursor->value);
 								
 						POPNODE(); // Pop since this is a standalone.
 						
