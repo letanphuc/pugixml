@@ -346,6 +346,7 @@ TEST_XML(dom_node_next_previous_sibling, "<node><child1/><child2/><child3/></nod
 	CHECK(child1.next_sibling_w("?") == xml_node());
 	CHECK(child3.previous_sibling_w("*[3456789]") == xml_node());
 	CHECK(child3.previous_sibling_w("?") == xml_node());
+	CHECK(child3.previous_sibling_w("*1") == child1);
 }
 
 TEST_XML(dom_node_child_value, "<node><novalue/><child1>value1</child1><child2>value2<n/></child2><child3><![CDATA[value3]]></child3>value4</node>")
