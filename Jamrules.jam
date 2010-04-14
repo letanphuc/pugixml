@@ -40,7 +40,7 @@ if ( $(toolset:I=^mingw) )
 }
 else if ( $(toolset:I=^msvc) )
 {
-	CCFLAGS += /D$(defines) ;
+	CCFLAGS += /D$(defines) /Z7 ;
 
 	if ( $(configuration) = "debug" )
 	{
@@ -74,6 +74,8 @@ else if ( $(toolset:I=^msvc) )
 		CCFLAGS += /D_HAS_EXCEPTIONS=0 ;
 	}
 
+	LDFLAGS += /DEBUG ;
+
 	if ( $(toolset:I=x64$) )
 	{
 		postfix = "\\amd64" ;
@@ -98,7 +100,7 @@ else if ( $(toolset:I=^msvc) )
 	
 	actions LinkAction
 	{
-		"%$(toolset)_PATH%\bin$(postfix)\link.exe" /SUBSYSTEM:CONSOLE /NOLOGO /OUT:$(<) $(>) /LIBPATH:"%$(toolset)_PATH%\lib$(postfix)" /LIBPATH:"%$(toolset)_PATH%\PlatformSDK\lib" /LIBPATH:"%WINSDK_PATH%\Lib$(sdk_postfix)" $(LDFLAGS)
+		"%$(toolset)_PATH%\bin$(postfix)\link.exe" /SUBSYSTEM:CONSOLE /NOLOGO /OUT:$(<) /PDB:$(<:S=.pdb) $(>) /LIBPATH:"%$(toolset)_PATH%\lib$(postfix)" /LIBPATH:"%$(toolset)_PATH%\PlatformSDK\lib" /LIBPATH:"%WINSDK_PATH%\Lib$(sdk_postfix)" $(LDFLAGS)
 	}
 	
 	actions CoverageAction
