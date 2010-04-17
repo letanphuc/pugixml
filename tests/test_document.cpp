@@ -185,3 +185,10 @@ TEST(document_parse_result_description)
 		CHECK(result.description()[0] != 0);
 	}
 }
+
+TEST(document_load_fail)
+{
+	xml_document doc;
+	CHECK(!doc.load("<foo><bar/>"));
+//	CHECK(!doc.child("foo"));
+}

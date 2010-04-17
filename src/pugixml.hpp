@@ -1781,6 +1781,8 @@ namespace pugi
 		 * \return parsing result
 		 */
 		xml_parse_result parse(char* xmlstr, unsigned int options = parse_default);
+
+		xml_parse_result parse(size_t size, char* xmlstr, unsigned int options = parse_default);
 		
 		/**
 		 * Parse the given XML string in-situ (gains ownership).
@@ -1793,6 +1795,8 @@ namespace pugi
 		 * \return parsing result
 		 */
 		xml_parse_result parse(const transfer_ownership_tag&, char* xmlstr, unsigned int options = parse_default);
+
+		xml_parse_result parse(const transfer_ownership_tag&, size_t size, char* xmlstr, unsigned int options = parse_default);
 		
 		/**
 		 * Save XML to writer

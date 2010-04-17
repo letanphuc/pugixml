@@ -681,159 +681,169 @@ namespace
 			else ++s;
 		}
 	}
+	
+	typedef char* (*strconv_pcdata_t)(char*);
 		
-	template <typename opt2> char* strconv_pcdata_t(char* s, opt2)
+	template <typename opt2> struct strconv_pcdata_impl
 	{
-		const bool opt_eol = opt2::o1;
-		const bool opt_escape = opt2::o2;
-
-		gap g;
-		
-		while (true)
+		static char* parse(char* s)
 		{
-			while (!is_chartype(*s, ct_parse_pcdata)) ++s;
-				
-			if (*s == '<') // PCDATA ends here
-			{
-				*g.flush(s) = 0;
-				
-				return s + 1;
-			}
-			else if (opt_eol && *s == '\r') // Either a single 0x0d or 0x0d 0x0a pair
-			{
-				*s++ = '\n'; // replace first one with 0x0a
-				
-				if (*s == '\n') g.push(s, 1);
-			}
-			else if (opt_escape && *s == '&')
-			{
-				s = strconv_escape(s, g);
-			}
-			else if (*s == 0)
-			{
-				return s;
-			}
-			else ++s;
-		}
-	}
+			const bool opt_eol = opt2::o1;
+			const bool opt_escape = opt2::o2;
 
-	char* strconv_pcdata(char* s, unsigned int optmask)
+			gap g;
+			
+			while (true)
+			{
+				while (!is_chartype(*s, ct_parse_pcdata)) ++s;
+					
+				if (*s == '<') // PCDATA ends here
+				{
+					*g.flush(s) = 0;
+					
+					return s + 1;
+				}
+				else if (opt_eol && *s == '\r') // Either a single 0x0d or 0x0d 0x0a pair
+				{
+					*s++ = '\n'; // replace first one with 0x0a
+					
+					if (*s == '\n') g.push(s, 1);
+				}
+				else if (opt_escape && *s == '&')
+				{
+					s = strconv_escape(s, g);
+				}
+				else if (*s == 0)
+				{
+					return s;
+				}
+				else ++s;
+			}
+		}
+	};
+	
+	strconv_pcdata_t get_strconv_pcdata(unsigned int optmask)
 	{
 		STATIC_ASSERT(parse_escapes == 0x10 && parse_eol == 0x20);
 
 		switch ((optmask >> 4) & 3) // get bitmask for flags (eol escapes)
 		{
-		case 0: return strconv_pcdata_t(s, opt2_to_type<0, 0>());
-		case 1: return strconv_pcdata_t(s, opt2_to_type<0, 1>());
-		case 2: return strconv_pcdata_t(s, opt2_to_type<1, 0>());
-		case 3: return strconv_pcdata_t(s, opt2_to_type<1, 1>());
+		case 0: return strconv_pcdata_impl<opt2_to_type<0, 0> >::parse;
+		case 1: return strconv_pcdata_impl<opt2_to_type<0, 1> >::parse;
+		case 2: return strconv_pcdata_impl<opt2_to_type<1, 0> >::parse;
+		case 3: return strconv_pcdata_impl<opt2_to_type<1, 1> >::parse;
 		default: return 0; // should not get here
 		}
 	}
 
-	template <typename opt4> char* strconv_attribute_t(char* s, char end_quote, opt4)
-	{
-		const bool opt_wconv = opt4::o1;
-		const bool opt_wnorm = opt4::o2;
-		const bool opt_eol = opt4::o3;
-		const bool opt_escape = opt4::o4;
-
-		gap g;
-
-		// trim leading whitespaces
-		if (opt_wnorm && is_chartype(*s, ct_space))
-		{
-			char* str = s;
-			
-			do ++str;
-			while (is_chartype(*str, ct_space));
-			
-			g.push(s, str - s);
-		}
-
-		while (true)
-		{
-			while (!is_chartype(*s, (opt_wnorm || opt_wconv) ? ct_parse_attr_ws : ct_parse_attr)) ++s;
-			
-			if (*s == end_quote)
-			{
-				char* str = g.flush(s);
-				
-				if (opt_wnorm)
-				{
-					do *str-- = 0;
-					while (is_chartype(*str, ct_space));
-				}
-				else *str = 0;
-			
-				return s + 1;
-			}
-			else if (opt_wnorm && is_chartype(*s, ct_space))
-			{
-				*s++ = ' ';
+	typedef char* (*strconv_attribute_t)(char*, char);
 	
-				if (is_chartype(*s, ct_space))
-				{
-					char* str = s + 1;
-					while (is_chartype(*str, ct_space)) ++str;
-					
-					g.push(s, str - s);
-				}
-			}
-			else if (opt_wconv && is_chartype(*s, ct_space))
+	template <typename opt4> struct strconv_attribute_impl
+	{
+		static char* parse(char* s, char end_quote)
+		{
+			const bool opt_wconv = opt4::o1;
+			const bool opt_wnorm = opt4::o2;
+			const bool opt_eol = opt4::o3;
+			const bool opt_escape = opt4::o4;
+
+			gap g;
+
+			// trim leading whitespaces
+			if (opt_wnorm && is_chartype(*s, ct_space))
 			{
-				if (opt_eol)
-				{
-					if (*s == '\r')
-					{
-						*s++ = ' ';
+				char* str = s;
 				
-						if (*s == '\n') g.push(s, 1);
+				do ++str;
+				while (is_chartype(*str, ct_space));
+				
+				g.push(s, str - s);
+			}
+
+			while (true)
+			{
+				while (!is_chartype(*s, (opt_wnorm || opt_wconv) ? ct_parse_attr_ws : ct_parse_attr)) ++s;
+				
+				if (*s == end_quote)
+				{
+					char* str = g.flush(s);
+					
+					if (opt_wnorm)
+					{
+						do *str-- = 0;
+						while (is_chartype(*str, ct_space));
+					}
+					else *str = 0;
+				
+					return s + 1;
+				}
+				else if (opt_wnorm && is_chartype(*s, ct_space))
+				{
+					*s++ = ' ';
+		
+					if (is_chartype(*s, ct_space))
+					{
+						char* str = s + 1;
+						while (is_chartype(*str, ct_space)) ++str;
+						
+						g.push(s, str - s);
+					}
+				}
+				else if (opt_wconv && is_chartype(*s, ct_space))
+				{
+					if (opt_eol)
+					{
+						if (*s == '\r')
+						{
+							*s++ = ' ';
+					
+							if (*s == '\n') g.push(s, 1);
+						}
+						else *s++ = ' ';
 					}
 					else *s++ = ' ';
 				}
-				else *s++ = ' ';
+				else if (opt_eol && *s == '\r')
+				{
+					*s++ = '\n';
+					
+					if (*s == '\n') g.push(s, 1);
+				}
+				else if (opt_escape && *s == '&')
+				{
+					s = strconv_escape(s, g);
+				}
+				else if (!*s)
+				{
+					return 0;
+				}
+				else ++s;
 			}
-			else if (opt_eol && *s == '\r')
-			{
-				*s++ = '\n';
-				
-				if (*s == '\n') g.push(s, 1);
-			}
-			else if (opt_escape && *s == '&')
-			{
-				s = strconv_escape(s, g);
-			}
-			else if (!*s)
-			{
-				return 0;
-			}
-			else ++s;
 		}
-	}
+	};
 
-	char* strconv_attribute(char* s, char end_quote, unsigned int optmask)
+	strconv_attribute_t get_strconv_attribute(unsigned int optmask)
 	{
 		STATIC_ASSERT(parse_escapes == 0x10 && parse_eol == 0x20 && parse_wnorm_attribute == 0x40 && parse_wconv_attribute == 0x80);
 		
 		switch ((optmask >> 4) & 15) // get bitmask for flags (wconv wnorm eol escapes)
 		{
-		case 0:  return strconv_attribute_t(s, end_quote, opt4_to_type<0, 0, 0, 0>());
-		case 1:  return strconv_attribute_t(s, end_quote, opt4_to_type<0, 0, 0, 1>());
-		case 2:  return strconv_attribute_t(s, end_quote, opt4_to_type<0, 0, 1, 0>());
-		case 3:  return strconv_attribute_t(s, end_quote, opt4_to_type<0, 0, 1, 1>());
-		case 4:  return strconv_attribute_t(s, end_quote, opt4_to_type<0, 1, 0, 0>());
-		case 5:  return strconv_attribute_t(s, end_quote, opt4_to_type<0, 1, 0, 1>());
-		case 6:  return strconv_attribute_t(s, end_quote, opt4_to_type<0, 1, 1, 0>());
-		case 7:  return strconv_attribute_t(s, end_quote, opt4_to_type<0, 1, 1, 1>());
-		case 8:  return strconv_attribute_t(s, end_quote, opt4_to_type<1, 0, 0, 0>());
-		case 9:  return strconv_attribute_t(s, end_quote, opt4_to_type<1, 0, 0, 1>());
-		case 10: return strconv_attribute_t(s, end_quote, opt4_to_type<1, 0, 1, 0>());
-		case 11: return strconv_attribute_t(s, end_quote, opt4_to_type<1, 0, 1, 1>());
-		case 12: return strconv_attribute_t(s, end_quote, opt4_to_type<1, 1, 0, 0>());
-		case 13: return strconv_attribute_t(s, end_quote, opt4_to_type<1, 1, 0, 1>());
-		case 14: return strconv_attribute_t(s, end_quote, opt4_to_type<1, 1, 1, 0>());
-		case 15: return strconv_attribute_t(s, end_quote, opt4_to_type<1, 1, 1, 1>());
+		case 0:  return strconv_attribute_impl<opt4_to_type<0, 0, 0, 0> >::parse;
+		case 1:  return strconv_attribute_impl<opt4_to_type<0, 0, 0, 1> >::parse;
+		case 2:  return strconv_attribute_impl<opt4_to_type<0, 0, 1, 0> >::parse;
+		case 3:  return strconv_attribute_impl<opt4_to_type<0, 0, 1, 1> >::parse;
+		case 4:  return strconv_attribute_impl<opt4_to_type<0, 1, 0, 0> >::parse;
+		case 5:  return strconv_attribute_impl<opt4_to_type<0, 1, 0, 1> >::parse;
+		case 6:  return strconv_attribute_impl<opt4_to_type<0, 1, 1, 0> >::parse;
+		case 7:  return strconv_attribute_impl<opt4_to_type<0, 1, 1, 1> >::parse;
+		case 8:  return strconv_attribute_impl<opt4_to_type<1, 0, 0, 0> >::parse;
+		case 9:  return strconv_attribute_impl<opt4_to_type<1, 0, 0, 1> >::parse;
+		case 10: return strconv_attribute_impl<opt4_to_type<1, 0, 1, 0> >::parse;
+		case 11: return strconv_attribute_impl<opt4_to_type<1, 0, 1, 1> >::parse;
+		case 12: return strconv_attribute_impl<opt4_to_type<1, 1, 0, 0> >::parse;
+		case 13: return strconv_attribute_impl<opt4_to_type<1, 1, 0, 1> >::parse;
+		case 14: return strconv_attribute_impl<opt4_to_type<1, 1, 1, 0> >::parse;
+		case 15: return strconv_attribute_impl<opt4_to_type<1, 1, 1, 1> >::parse;
 		default: return 0; // should not get here
 		}
 	}
@@ -1132,6 +1142,9 @@ namespace
 
 		xml_parse_result parse(char* s, xml_node_struct* xmldoc, unsigned int optmsk, char endch)
 		{
+			strconv_attribute_t strconv_attribute = get_strconv_attribute(optmsk);
+			strconv_pcdata_t strconv_pcdata = get_strconv_pcdata(optmsk);
+			
 			char* buffer_start = s;
 
 			// UTF-8 BOM
@@ -1207,7 +1220,7 @@ namespace
 											++s; // Step over the quote.
 											a->value = s; // Save the offset.
 
-											s = strconv_attribute(s, ch, optmsk);
+											s = strconv_attribute(s, ch);
 										
 											if (!s) THROW_ERROR(status_bad_attribute, a->value);
 
@@ -1223,12 +1236,19 @@ namespace
 								else if (*s == '/')
 								{
 									++s;
-
-									if (!ENDSWITH(*s, '>')) THROW_ERROR(status_bad_start_element, s);
-							
-									POPNODE(); // Pop.
-
-									s += (*s == '>');
+									
+									if (*s == '>')
+									{
+										POPNODE();
+										s++;
+										break;
+									}
+									else if (*s == 0 && endch == '>')
+									{
+										POPNODE();
+										break;
+									}
+									else THROW_ERROR(status_bad_start_element, s);
 
 									break;
 								}
@@ -1324,7 +1344,7 @@ namespace
 						PUSHNODE(node_pcdata); // Append a new node on the tree.
 						cursor->value = s; // Save the offset.
 
-						s = strconv_pcdata(s, optmsk);
+						s = strconv_pcdata(s);
 								
 						POPNODE(); // Pop since this is a standalone.
 						
@@ -3017,7 +3037,7 @@ namespace pugi
 
 		if (!stream.good()) return MAKE_PARSE_RESULT(status_io_error);
 
-		char* s = static_cast<char*>(global_allocate(length + 1));
+		char* s = static_cast<char*>(global_allocate(length));
 		if (!s) return MAKE_PARSE_RESULT(status_out_of_memory);
 
 		stream.read(s, length);
@@ -3028,22 +3048,22 @@ namespace pugi
 			return MAKE_PARSE_RESULT(status_io_error);
 		}
 
-		s[stream.gcount()] = 0;
-
-		return parse(transfer_ownership_tag(), s, options); // Parse the input string.
+		return parse(transfer_ownership_tag(), stream.gcount(), s, options); // Parse the input string.
 	}
 #endif
 
 	xml_parse_result xml_document::load(const char* contents, unsigned int options)
 	{
 		destroy();
+		
+		size_t length = strlen(contents);
 
-		char* s = static_cast<char*>(global_allocate(strlen(contents) + 1));
+		char* s = static_cast<char*>(global_allocate(length));
 		if (!s) return MAKE_PARSE_RESULT(status_out_of_memory);
 
-		strcpy(s, contents);
+		memcpy(s, contents, length);
 
-		return parse(transfer_ownership_tag(), s, options); // Parse the input string.
+		return parse(transfer_ownership_tag(), length, s, options); // Parse the input string.
 	}
 
 	xml_parse_result xml_document::load_file(const char* name, unsigned int options)
@@ -3063,7 +3083,7 @@ namespace pugi
 			return MAKE_PARSE_RESULT(status_io_error);
 		}
 		
-		char* s = static_cast<char*>(global_allocate(length + 1));
+		char* s = static_cast<char*>(global_allocate(length));
 
 		if (!s)
 		{
@@ -3079,13 +3099,16 @@ namespace pugi
 			global_deallocate(s);
 			return MAKE_PARSE_RESULT(status_io_error);
 		}
-
-		s[length] = 0;
 		
-		return parse(transfer_ownership_tag(), s, options); // Parse the input string.
+		return parse(transfer_ownership_tag(), length, s, options); // Parse the input string.
 	}
 
 	xml_parse_result xml_document::parse(char* xmlstr, unsigned int options)
+	{
+		return parse(strlen(xmlstr), xmlstr, options);
+	}
+
+	xml_parse_result xml_document::parse(size_t size, char* xmlstr, unsigned int options)
 	{
 		destroy();
 
@@ -3096,12 +3119,17 @@ namespace pugi
 		
 		xml_parser parser(alloc);
 		
-		return parser.parse(xmlstr, strlen(xmlstr), _root, options); // Parse the input string.
+		return parser.parse(xmlstr, size, _root, options); // Parse the input string.
 	}
 		
 	xml_parse_result xml_document::parse(const transfer_ownership_tag&, char* xmlstr, unsigned int options)
 	{
-		xml_parse_result res = parse(xmlstr, options);
+		return parse(transfer_ownership_tag(), strlen(xmlstr), xmlstr, options);
+	}
+
+	xml_parse_result xml_document::parse(const transfer_ownership_tag&, size_t size, char* xmlstr, unsigned int options)
+	{
+		xml_parse_result res = parse(size, xmlstr, options);
 
 		if (res) _buffer = xmlstr;
 		else global_deallocate(xmlstr);

@@ -32,7 +32,7 @@ TEST(custom_memory_management)
 	{
 		// parse document
 		xml_document doc;
-		CHECK(doc.load("<node/>"));
+		CHECK(doc.load("<node />"));
 	
 		CHECK(allocate_count == 1);
 		CHECK(deallocate_count == 0);
