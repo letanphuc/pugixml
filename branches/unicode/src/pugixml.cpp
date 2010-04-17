@@ -1169,14 +1169,6 @@ namespace
 						cursor->name = s;
 
 						SCANWHILE(is_chartype(*s, ct_symbol)); // Scan for a terminator.
-
-						if (*s == 0)
-						{
-							// end of tag
-							if (endch == '>') continue;
-							else THROW_ERROR(status_bad_start_element, s);
-						}
-
 						ENDSEG(); // Save char in 'ch', terminate & step over.
 
 						if (ch == '>')
@@ -1272,6 +1264,13 @@ namespace
 							POPNODE(); // Pop.
 
 							s += (*s == '>');
+						}
+						else if (ch == 0)
+						{
+							// we stepped over null terminator, backtrack & handle closing tag
+							--s;
+							
+							if (endch != '>') THROW_ERROR(status_bad_start_element, s);
 						}
 						else THROW_ERROR(status_bad_start_element, s);
 					}
