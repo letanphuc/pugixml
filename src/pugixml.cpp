@@ -1249,8 +1249,6 @@ namespace
 										break;
 									}
 									else THROW_ERROR(status_bad_start_element, s);
-
-									break;
 								}
 								else if (*s == '>')
 								{
