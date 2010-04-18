@@ -281,7 +281,12 @@ TEST(parse_escapes_unicode)
 {
 	xml_document doc;
 	CHECK(doc.load(T("<node>&#x03B3;&#x03b3;</node>"), parse_minimal | parse_escapes));
-	CHECK_STRING(doc.child_value(T("node")), T("\xce\xb3\xce\xb3"));
+
+#ifdef PUGIXML_WCHAR_MODE
+	CHECK_STRING(doc.child_value(T("node")), L"\x3b3\x3b3");
+#else
+	CHECK_STRING(doc.child_value(T("node")), "\xce\xb3\xce\xb3");
+#endif
 }
 
 TEST(parse_escapes_error)
