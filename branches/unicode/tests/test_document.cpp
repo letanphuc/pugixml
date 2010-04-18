@@ -13,8 +13,8 @@
 TEST(document_create)
 {
 	pugi::xml_document doc;
-	doc.append_child().set_name("node");
-	CHECK_NODE(doc, "<node />");
+	doc.append_child().set_name(T("node"));
+	CHECK_NODE(doc, T("<node />"));
 }
 
 #ifndef PUGIXML_NO_STL
@@ -24,7 +24,7 @@ TEST(document_load_stream)
 
 	std::istringstream iss("<node/>");
 	CHECK(doc.load(iss));
-	CHECK_NODE(doc, "<node />");
+	CHECK_NODE(doc, T("<node />"));
 }
 
 TEST(document_load_stream_error)
@@ -52,8 +52,8 @@ TEST(document_load_string)
 {
 	pugi::xml_document doc;
 
-	CHECK(doc.load("<node/>"));
-	CHECK_NODE(doc, "<node />");
+	CHECK(doc.load(T("<node/>")));
+	CHECK_NODE(doc, T("<node />"));
 }
 
 TEST(document_load_file)
@@ -61,7 +61,7 @@ TEST(document_load_file)
 	pugi::xml_document doc;
 
 	CHECK(doc.load_file("tests/data/small.xml"));
-	CHECK_NODE(doc, "<node />");
+	CHECK_NODE(doc, T("<node />"));
 }
 
 TEST(document_load_file_large)
@@ -70,10 +70,10 @@ TEST(document_load_file_large)
 
 	CHECK(doc.load_file("tests/data/large.xml"));
 
-	std::string str;
-	str += "<node>";
-	for (int i = 0; i < 10000; ++i) str += "<node />";
-	str += "</node>";
+	pugi::string_t str;
+	str += T("<node>");
+	for (int i = 0; i < 10000; ++i) str += T("<node />");
+	str += T("</node>");
 
 	CHECK_NODE(doc, str.c_str());
 }
@@ -98,18 +98,18 @@ TEST_XML(document_save, "<node/>")
 {
 	xml_writer_string writer;
 
-	doc.save(writer, "", pugi::format_no_declaration | pugi::format_raw);
+	doc.save(writer, T(""), pugi::format_no_declaration | pugi::format_raw);
 
-	CHECK(writer.result == "<node />");
+	CHECK(writer.result == T("<node />"));
 }
 
 TEST_XML(document_save_bom, "<node/>")
 {
 	xml_writer_string writer;
 
-	doc.save(writer, "", pugi::format_no_declaration | pugi::format_raw | pugi::format_write_bom_utf8);
+	doc.save(writer, T(""), pugi::format_no_declaration | pugi::format_raw | pugi::format_write_bom_utf8);
 
-	CHECK(writer.result == "\xef\xbb\xbf<node />");
+	CHECK(writer.result == T("\xef\xbb\xbf<node />"));
 }
 
 TEST_XML(document_save_declaration, "<node/>")
@@ -118,7 +118,7 @@ TEST_XML(document_save_declaration, "<node/>")
 
 	doc.save(writer);
 
-	CHECK(writer.result == "<?xml version=\"1.0\"?>\n<node />\n");
+	CHECK(writer.result == T("<?xml version=\"1.0\"?>\n<node />\n"));
 }
 
 TEST_XML(document_save_file, "<node/>")
@@ -126,19 +126,19 @@ TEST_XML(document_save_file, "<node/>")
 	CHECK(doc.save_file("tests/data/output.xml"));
 
 	CHECK(doc.load_file("tests/data/output.xml", pugi::parse_default | pugi::parse_declaration));
-	CHECK_NODE(doc, "<?xml version=\"1.0\"?><node />");
+	CHECK_NODE(doc, T("<?xml version=\"1.0\"?><node />"));
 
 	unlink("tests/data/output.xml");
 }
 
 TEST(document_parse)
 {
-	char text[] = "<node/>";
+	pugi::char_t text[] = T("<node/>");
 
 	pugi::xml_document doc;
 
 	CHECK(doc.parse(text));
-	CHECK_NODE(doc, "<node />");
+	CHECK_NODE(doc, T("<node />"));
 }
 
 TEST(document_parse_transfer_ownership)
@@ -189,6 +189,6 @@ TEST(document_parse_result_description)
 TEST(document_load_fail)
 {
 	xml_document doc;
-	CHECK(!doc.load("<foo><bar/>"));
+	CHECK(!doc.load(T("<foo><bar/>")));
 //	CHECK(!doc.child("foo"));
 }
