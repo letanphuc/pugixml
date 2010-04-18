@@ -39,27 +39,27 @@ struct test_runner
 	static jmp_buf _failure;
 };
 
-inline bool test_string_equal(const char* lhs, const char* rhs)
+inline bool test_string_equal(const pugi::char_t* lhs, const pugi::char_t* rhs)
 {
-	return (!lhs || !rhs) ? lhs == rhs : strcmp(lhs, rhs) == 0;
+	return (!lhs || !rhs) ? lhs == rhs : pugi::impl::strequal(lhs, rhs);
 }
 
-template <typename Node> inline bool test_node_name_value(const Node& node, const char* name, const char* value)
+template <typename Node> inline bool test_node_name_value(const Node& node, const pugi::char_t* name, const pugi::char_t* value)
 {
 	return test_string_equal(node.name(), name) && test_string_equal(node.value(), value);
 }
 
 struct xml_writer_string: public pugi::xml_writer
 {
-	std::string result;
+	pugi::string_t result;
 	
 	virtual void write(const void* data, size_t size)
 	{
-		result += std::string(static_cast<const char*>(data), size);
+		result += pugi::string_t(static_cast<const pugi::char_t*>(data), size / sizeof(pugi::char_t));
 	}
 };
 
-inline bool test_node(const pugi::xml_node& node, const char* contents, const char* indent, unsigned int flags)
+inline bool test_node(const pugi::xml_node& node, const pugi::char_t* contents, const pugi::char_t* indent, unsigned int flags)
 {
 	xml_writer_string writer;
 	node.print(writer, indent, flags);
@@ -68,28 +68,28 @@ inline bool test_node(const pugi::xml_node& node, const char* contents, const ch
 }
 
 #ifndef PUGIXML_NO_XPATH
-inline bool test_xpath_string(const pugi::xml_node& node, const char* query, const char* expected)
+inline bool test_xpath_string(const pugi::xml_node& node, const pugi::char_t* query, const pugi::char_t* expected)
 {
 	pugi::xpath_query q(query);
 
 	return q.evaluate_string(node) == expected;
 }
 
-inline bool test_xpath_boolean(const pugi::xml_node& node, const char* query, bool expected)
+inline bool test_xpath_boolean(const pugi::xml_node& node, const pugi::char_t* query, bool expected)
 {
 	pugi::xpath_query q(query);
 
 	return q.evaluate_boolean(node) == expected;
 }
 
-inline bool test_xpath_number(const pugi::xml_node& node, const char* query, double expected)
+inline bool test_xpath_number(const pugi::xml_node& node, const pugi::char_t* query, double expected)
 {
 	pugi::xpath_query q(query);
 
 	return fabs(q.evaluate_number(node) - expected) < 1e-16f;
 }
 
-inline bool test_xpath_number_nan(const pugi::xml_node& node, const char* query)
+inline bool test_xpath_number_nan(const pugi::xml_node& node, const pugi::char_t* query)
 {
 	pugi::xpath_query q(query);
 
@@ -102,7 +102,7 @@ inline bool test_xpath_number_nan(const pugi::xml_node& node, const char* query)
 #endif
 }
 
-inline bool test_xpath_fail_compile(const char* query)
+inline bool test_xpath_fail_compile(const pugi::char_t* query)
 {
 	try
 	{
@@ -126,7 +126,7 @@ struct xpath_node_set_tester
 		if (!condition) longjmp(test_runner::_failure, (int)(intptr_t)message);
 	}
 
-	xpath_node_set_tester(const pugi::xml_node& node, const char* query, const char* message): last(0), message(message)
+	xpath_node_set_tester(const pugi::xml_node& node, const pugi::char_t* query, const char* message): last(0), message(message)
 	{
 		pugi::xpath_query q(query);
 		result = q.evaluate_node_set(node);
@@ -191,7 +191,7 @@ struct dummy_fixture {};
 		\
 		test_fixture_##name() \
 		{ \
-			CHECK(doc.load(xml, flags)); \
+			CHECK(doc.load(PUGIXML_TEXT(xml), flags)); \
 		} \
 		\
 	private: \
@@ -218,7 +218,7 @@ struct dummy_fixture {};
 #define CHECK_DOUBLE(value, expected) CHECK_TEXT(fabs(value - expected) < 1e-6, STR(value) " is not equal to " STR(expected))
 #define CHECK_NAME_VALUE(node, name, value) CHECK_TEXT(test_node_name_value(node, name, value), STR(node) " name/value do not match " STR(name) " and " STR(value))
 #define CHECK_NODE_EX(node, expected, indent, flags) CHECK_TEXT(test_node(node, expected, indent, flags), STR(node) " contents does not match " STR(expected))
-#define CHECK_NODE(node, expected) CHECK_NODE_EX(node, expected, "", pugi::format_raw)
+#define CHECK_NODE(node, expected) CHECK_NODE_EX(node, expected, PUGIXML_TEXT(""), pugi::format_raw)
 
 #ifndef PUGIXML_NO_XPATH
 #define CHECK_XPATH_STRING(node, query, expected) CHECK_TEXT(test_xpath_string(node, query, expected), STR(query) " does not evaluate to " STR(expected) " in context " STR(node))
@@ -228,5 +228,7 @@ struct dummy_fixture {};
 #define CHECK_XPATH_FAIL(query) CHECK_TEXT(test_xpath_fail_compile(query), STR(query) " should not compile")
 #define CHECK_XPATH_NODESET(node, query) xpath_node_set_tester(node, query, CHECK_JOIN2(STR(query) " does not evaluate to expected set in context " STR(node), " at "__FILE__ ":", __LINE__))
 #endif
+
+#define T(text) PUGIXML_TEXT(text)
 
 #endif
