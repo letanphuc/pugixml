@@ -86,6 +86,7 @@ namespace
 	
 	inline bool is_chartypex(char_t c, chartypex ct)
 	{
+		// $$$ wrong for wchar_t
 		return !!(chartypex_table[static_cast<unsigned char>(c)] & ct);
 	}
 

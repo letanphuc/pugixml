@@ -422,6 +422,7 @@ namespace
 	
 	inline bool is_chartype(char_t c, chartype ct)
 	{
+		// $$$ wrong for wchar_t
 		return !!(chartype_table[static_cast<unsigned char>(c)] & ct);
 	}
 
@@ -608,7 +609,7 @@ namespace
 			if (end) // there was a gap already; collapse it
 			{
 				// Move [old_gap_end, new_gap_start) to [old_gap_start, ...)
-				memmove(end - size, end, s - end);
+				memmove(end - size, end, reinterpret_cast<char*>(s) - reinterpret_cast<char*>(end));
 			}
 				
 			s += count; // end of current gap
@@ -624,7 +625,7 @@ namespace
 			if (end)
 			{
 				// Move [old_gap_end, current_pos) to [old_gap_start, ...)
-				memmove(end - size, end, s - end);
+				memmove(end - size, end, reinterpret_cast<char*>(s) - reinterpret_cast<char*>(end));
 
 				return s - size;
 			}
@@ -1543,25 +1544,25 @@ namespace
 
 		void flush()
 		{
-			if (bufsize > 0) writer.write(buffer, bufsize);
+			if (bufsize > 0) writer.write(buffer, bufsize * sizeof(char_t));
 			bufsize = 0;
 		}
 
-		void write(const void* data, size_t size)
+		void write(const char_t* data, size_t length)
 		{
-			if (bufsize + size > sizeof(buffer))
+			if (bufsize + length > bufcapacity)
 			{
 				flush();
 
-				if (size > sizeof(buffer))
+				if (length > bufcapacity)
 				{
-					writer.write(data, size);
+					writer.write(data, length * sizeof(char_t));
 					return;
 				}
 			}
 
-			memcpy(buffer + bufsize, data, size);
-			bufsize += size;
+			memcpy(buffer + bufsize, data, length * sizeof(char_t));
+			bufsize += length;
 		}
 
 		void write(const char_t* data)
@@ -1571,13 +1572,15 @@ namespace
 
 		void write(char_t data)
 		{
-			if (bufsize + 1 > sizeof(buffer)) flush();
+			if (bufsize + 1 > bufcapacity) flush();
 
 			buffer[bufsize++] = data;
 		}
 
+		static const size_t bufcapacity = 8192;
+
 		xml_writer& writer;
-		char_t buffer[8192];
+		char_t buffer[bufcapacity];
 		size_t bufsize;
 	};
 
@@ -1590,6 +1593,7 @@ namespace
 			const char_t* prev = s;
 			
 			// While *s is a usual symbol
+			// $$$ >= 32 is wrong for wchar_t, revise
 			while (*s && *s != '&' && *s != '<' && *s != '>' && (*s != '"' || !attribute)
 					&& ((unsigned char)*s >= 32 || (*s == '\r' && !attribute) || (*s == '\n' && !attribute) || *s == '\t'))
 				++s;
@@ -1625,6 +1629,7 @@ namespace
 					break;
 				default: // s is not a usual symbol
 				{
+					// $$$ wrong for wchar_t
 					unsigned int ch = (unsigned char)*s++;
 
 					char buf[8];
@@ -3133,7 +3138,7 @@ namespace pugi
 		char_t* s = static_cast<char_t*>(global_allocate((length > 0 ? length : 1) * sizeof(char_t)));
 		if (!s) return MAKE_PARSE_RESULT(status_out_of_memory);
 
-		memcpy(s, contents, length);
+		memcpy(s, contents, length * sizeof(char_t));
 
 		return parse(transfer_ownership_tag(), length, s, options); // Parse the input string.
 	}
@@ -3211,13 +3216,13 @@ namespace pugi
 
 	void xml_document::save(xml_writer& writer, const char_t* indent, unsigned int flags) const
 	{
-		xml_buffered_writer buffered_writer(writer);
-
 		if (flags & format_write_bom_utf8)
 		{
 			static const unsigned char utf8_bom[] = {0xEF, 0xBB, 0xBF};
-			buffered_writer.write(utf8_bom, 3);
+			writer.write(utf8_bom, 3);
 		}
+
+		xml_buffered_writer buffered_writer(writer);
 
 		if (!(flags & format_no_declaration))
 		{
