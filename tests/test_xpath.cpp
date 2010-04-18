@@ -22,7 +22,7 @@ TEST_XML(xpath_document_order, "<node><child1 attr1='value1' attr2='value2'/><ch
 
 TEST(xpath_allocator_many_pages)
 {
-	pugi::string_t query = T("0");
+	std::basic_string<pugi::char_t> query = T("0");
 
 	for (int i = 0; i < 128; ++i) query += T("+string-length('abcdefgh')");
 
@@ -31,7 +31,7 @@ TEST(xpath_allocator_many_pages)
 
 TEST(xpath_allocator_large_page)
 {
-	pugi::string_t query;
+	std::basic_string<pugi::char_t> query;
 
 	for (int i = 0; i < 1024; ++i) query += T("abcdefgh");
 

@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "common.hpp"
 
 #include <fstream>
@@ -76,7 +78,7 @@ TEST(document_load_file_large)
 
 	CHECK(doc.load_file("tests/data/large.xml"));
 
-	pugi::string_t str;
+	std::basic_string<pugi::char_t> str;
 	str += T("<node>");
 	for (int i = 0; i < 10000; ++i) str += T("<node />");
 	str += T("</node>");
