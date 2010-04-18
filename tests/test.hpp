@@ -208,27 +208,27 @@ struct dummy_fixture {};
 #define CHECK_TEXT(condition, text) if (condition) ; else longjmp(test_runner::_failure, (int)(intptr_t)(CHECK_JOIN2(text, " at "__FILE__ ":", __LINE__)))
 
 #if (defined(_MSC_VER) && _MSC_VER == 1200) || defined(__MWERKS__)
-#	define STR(value) "??" // MSVC 6.0 and CodeWarrior have troubles stringizing stuff with strings w/escaping inside
+#	define STRINGIZE(value) "??" // MSVC 6.0 and CodeWarrior have troubles stringizing stuff with strings w/escaping inside
 #else
-#	define STR(value) #value
+#	define STRINGIZE(value) #value
 #endif
 
-#define CHECK(condition) CHECK_TEXT(condition, STR(condition) " is false")
-#define CHECK_STRING(value, expected) CHECK_TEXT(test_string_equal(value, expected), STR(value) " is not equal to " STR(expected))
-#define CHECK_DOUBLE(value, expected) CHECK_TEXT(fabs(value - expected) < 1e-6, STR(value) " is not equal to " STR(expected))
-#define CHECK_NAME_VALUE(node, name, value) CHECK_TEXT(test_node_name_value(node, name, value), STR(node) " name/value do not match " STR(name) " and " STR(value))
-#define CHECK_NODE_EX(node, expected, indent, flags) CHECK_TEXT(test_node(node, expected, indent, flags), STR(node) " contents does not match " STR(expected))
+#define CHECK(condition) CHECK_TEXT(condition, STRINGIZE(condition) " is false")
+#define CHECK_STRING(value, expected) CHECK_TEXT(test_string_equal(value, expected), STRINGIZE(value) " is not equal to " STRINGIZE(expected))
+#define CHECK_DOUBLE(value, expected) CHECK_TEXT(fabs(value - expected) < 1e-6, STRINGIZE(value) " is not equal to " STRINGIZE(expected))
+#define CHECK_NAME_VALUE(node, name, value) CHECK_TEXT(test_node_name_value(node, name, value), STRINGIZE(node) " name/value do not match " STRINGIZE(name) " and " STRINGIZE(value))
+#define CHECK_NODE_EX(node, expected, indent, flags) CHECK_TEXT(test_node(node, expected, indent, flags), STRINGIZE(node) " contents does not match " STRINGIZE(expected))
 #define CHECK_NODE(node, expected) CHECK_NODE_EX(node, expected, PUGIXML_TEXT(""), pugi::format_raw)
 
 #ifndef PUGIXML_NO_XPATH
-#define CHECK_XPATH_STRING(node, query, expected) CHECK_TEXT(test_xpath_string(node, query, expected), STR(query) " does not evaluate to " STR(expected) " in context " STR(node))
-#define CHECK_XPATH_BOOLEAN(node, query, expected) CHECK_TEXT(test_xpath_boolean(node, query, expected), STR(query) " does not evaluate to " STR(expected) " in context " STR(node))
-#define CHECK_XPATH_NUMBER(node, query, expected) CHECK_TEXT(test_xpath_number(node, query, expected), STR(query) " does not evaluate to " STR(expected) " in context " STR(node))
-#define CHECK_XPATH_NUMBER_NAN(node, query) CHECK_TEXT(test_xpath_number_nan(node, query), STR(query) " does not evaluate to NaN in context " STR(node))
-#define CHECK_XPATH_FAIL(query) CHECK_TEXT(test_xpath_fail_compile(query), STR(query) " should not compile")
-#define CHECK_XPATH_NODESET(node, query) xpath_node_set_tester(node, query, CHECK_JOIN2(STR(query) " does not evaluate to expected set in context " STR(node), " at "__FILE__ ":", __LINE__))
+#define CHECK_XPATH_STRING(node, query, expected) CHECK_TEXT(test_xpath_string(node, query, expected), STRINGIZE(query) " does not evaluate to " STRINGIZE(expected) " in context " STRINGIZE(node))
+#define CHECK_XPATH_BOOLEAN(node, query, expected) CHECK_TEXT(test_xpath_boolean(node, query, expected), STRINGIZE(query) " does not evaluate to " STRINGIZE(expected) " in context " STRINGIZE(node))
+#define CHECK_XPATH_NUMBER(node, query, expected) CHECK_TEXT(test_xpath_number(node, query, expected), STRINGIZE(query) " does not evaluate to " STRINGIZE(expected) " in context " STRINGIZE(node))
+#define CHECK_XPATH_NUMBER_NAN(node, query) CHECK_TEXT(test_xpath_number_nan(node, query), STRINGIZE(query) " does not evaluate to NaN in context " STRINGIZE(node))
+#define CHECK_XPATH_FAIL(query) CHECK_TEXT(test_xpath_fail_compile(query), STRINGIZE(query) " should not compile")
+#define CHECK_XPATH_NODESET(node, query) xpath_node_set_tester(node, query, CHECK_JOIN2(STRINGIZE(query) " does not evaluate to expected set in context " STRINGIZE(node), " at "__FILE__ ":", __LINE__))
 #endif
 
-#define T(text) PUGIXML_TEXT(text)
+#define STR(text) PUGIXML_TEXT(text)
 
 #endif

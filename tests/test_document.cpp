@@ -15,8 +15,8 @@
 TEST(document_create)
 {
 	pugi::xml_document doc;
-	doc.append_child().set_name(T("node"));
-	CHECK_NODE(doc, T("<node />"));
+	doc.append_child().set_name(STR("node"));
+	CHECK_NODE(doc, STR("<node />"));
 }
 
 #ifndef PUGIXML_NO_STL
@@ -28,7 +28,7 @@ TEST(document_load_stream)
 
 	std::istringstream iss("<node/>");
 	CHECK(doc.load(iss));
-	CHECK_NODE(doc, T("<node />"));
+	CHECK_NODE(doc, STR("<node />"));
 }
 #endif
 
@@ -57,8 +57,8 @@ TEST(document_load_string)
 {
 	pugi::xml_document doc;
 
-	CHECK(doc.load(T("<node/>")));
-	CHECK_NODE(doc, T("<node />"));
+	CHECK(doc.load(STR("<node/>")));
+	CHECK_NODE(doc, STR("<node />"));
 }
 
 #ifndef PUGIXML_WCHAR_MODE
@@ -69,7 +69,7 @@ TEST(document_load_file)
 	pugi::xml_document doc;
 
 	CHECK(doc.load_file("tests/data/small.xml"));
-	CHECK_NODE(doc, T("<node />"));
+	CHECK_NODE(doc, STR("<node />"));
 }
 
 TEST(document_load_file_large)
@@ -79,9 +79,9 @@ TEST(document_load_file_large)
 	CHECK(doc.load_file("tests/data/large.xml"));
 
 	std::basic_string<pugi::char_t> str;
-	str += T("<node>");
-	for (int i = 0; i < 10000; ++i) str += T("<node />");
-	str += T("</node>");
+	str += STR("<node>");
+	for (int i = 0; i < 10000; ++i) str += STR("<node />");
+	str += STR("</node>");
 
 	CHECK_NODE(doc, str.c_str());
 }
@@ -107,9 +107,9 @@ TEST_XML(document_save, "<node/>")
 {
 	xml_writer_string writer;
 
-	doc.save(writer, T(""), pugi::format_no_declaration | pugi::format_raw);
+	doc.save(writer, STR(""), pugi::format_no_declaration | pugi::format_raw);
 
-	CHECK(writer.result == T("<node />"));
+	CHECK(writer.result == STR("<node />"));
 }
 
 #ifndef PUGIXML_WCHAR_MODE
@@ -118,9 +118,9 @@ TEST_XML(document_save_bom_utf8, "<node/>")
 {
 	xml_writer_string writer;
 
-	doc.save(writer, T(""), pugi::format_no_declaration | pugi::format_raw | pugi::format_write_bom_utf8);
+	doc.save(writer, STR(""), pugi::format_no_declaration | pugi::format_raw | pugi::format_write_bom_utf8);
 
-	CHECK(writer.result == T("\xef\xbb\xbf<node />"));
+	CHECK(writer.result == STR("\xef\xbb\xbf<node />"));
 }
 #endif
 
@@ -130,7 +130,7 @@ TEST_XML(document_save_declaration, "<node/>")
 
 	doc.save(writer);
 
-	CHECK(writer.result == T("<?xml version=\"1.0\"?>\n<node />\n"));
+	CHECK(writer.result == STR("<?xml version=\"1.0\"?>\n<node />\n"));
 }
 
 TEST_XML(document_save_file, "<node/>")
@@ -138,36 +138,36 @@ TEST_XML(document_save_file, "<node/>")
 	CHECK(doc.save_file("tests/data/output.xml"));
 
 	CHECK(doc.load_file("tests/data/output.xml", pugi::parse_default | pugi::parse_declaration));
-	CHECK_NODE(doc, T("<?xml version=\"1.0\"?><node />"));
+	CHECK_NODE(doc, STR("<?xml version=\"1.0\"?><node />"));
 
 	unlink("tests/data/output.xml");
 }
 
 TEST(document_parse)
 {
-	pugi::char_t text[] = T("<node/>");
+	pugi::char_t text[] = STR("<node/>");
 
 	pugi::xml_document doc;
 
 	CHECK(doc.parse(text));
-	CHECK_NODE(doc, T("<node />"));
+	CHECK_NODE(doc, STR("<node />"));
 }
 
 TEST(document_parse_transfer_ownership)
 {
 	allocation_function alloc = get_memory_allocation_function();
 
-	size_t size = strlen("<node/>") * sizeof(pugi::char_t);
+	size_t size = (strlen("<node/>") + 1) * sizeof(pugi::char_t);
 
 	pugi::char_t* text = static_cast<pugi::char_t*>(alloc(size));
 	CHECK(text);
 
-	memcpy(text, T("<node/>"), size);
+	memcpy(text, STR("<node/>"), size);
 
 	pugi::xml_document doc;
 
 	CHECK(doc.parse(transfer_ownership_tag(), text));
-	CHECK_NODE(doc, T("<node />"));
+	CHECK_NODE(doc, STR("<node />"));
 }
 
 TEST(document_parse_result_bool)
@@ -203,7 +203,7 @@ TEST(document_parse_result_description)
 TEST(document_load_fail)
 {
 	xml_document doc;
-	CHECK(!doc.load(T("<foo><bar/>")));
+	CHECK(!doc.load(STR("<foo><bar/>")));
 //  $$$ return this check, ensure that it crashes if impl is wrong (i.e. add allocator that marks freed pages with noaccess)
 //	CHECK(!doc.child("foo"));
 }

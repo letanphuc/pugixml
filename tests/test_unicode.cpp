@@ -52,5 +52,5 @@ TEST(as_utf8)
 
 TEST_XML(parse_bom_utf8, "\xef\xbb\xbf<node/>")
 {
-	CHECK_NODE(doc, T("<node />"));
+	CHECK_NODE(doc, STR("<node />"));
 }

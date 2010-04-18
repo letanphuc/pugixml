@@ -41,7 +41,7 @@ static void replace_memory_management()
 	// create some document to touch original functions
 	{
 		pugi::xml_document doc;
-		doc.append_child().set_name(T("node"));
+		doc.append_child().set_name(STR("node"));
 	}
 
 	// replace functions
