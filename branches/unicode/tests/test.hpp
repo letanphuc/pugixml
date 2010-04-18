@@ -55,7 +55,7 @@ struct xml_writer_string: public pugi::xml_writer
 	
 	virtual void write(const void* data, size_t size)
 	{
-		result += pugi::string_t(static_cast<const pugi::char_t*>(data), size / sizeof(pugi::char_t));
+		result += pugi::string_t(static_cast<const pugi::char_t*>(data), static_cast<const pugi::char_t*>(data) + size / sizeof(pugi::char_t));
 	}
 };
 
