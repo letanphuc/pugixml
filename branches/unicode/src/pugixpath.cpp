@@ -25,6 +25,10 @@
 #include <ctype.h>
 #include <string.h>
 
+#ifdef PUGIXML_WCHAR_MODE
+#	include <wchar.h>
+#endif
+
 #if defined(_MSC_VER)
 #	pragma warning(disable: 4127) // conditional expression is constant
 #	pragma warning(disable: 4702) // unreachable code

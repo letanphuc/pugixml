@@ -13,22 +13,26 @@
 
 #include "pugixml.hpp"
 
+#if !defined(PUGIXML_NO_XPATH) && defined(PUGIXML_NO_EXCEPTIONS)
+#error No exception mode can not be used with XPath support
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
-// For placement new
-#include <new>
-
-#if !defined(PUGIXML_NO_XPATH) && defined(PUGIXML_NO_EXCEPTIONS)
-#error No exception mode can not be used with XPath support
+#ifdef PUGIXML_WCHAR_MODE
+#	include <wchar.h>
 #endif
 
 #ifndef PUGIXML_NO_STL
 #	include <istream>
 #	include <ostream>
 #endif
+
+// For placement new
+#include <new>
 
 #ifdef _MSC_VER
 #	pragma warning(disable: 4127) // conditional expression is constant
