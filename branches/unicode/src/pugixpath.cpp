@@ -31,7 +31,7 @@
 #	pragma warning(disable: 4996) // this function or variable may be unsafe
 #endif
 
-// String utilities
+// String utilities prototypes
 namespace pugi
 {
 	namespace impl
@@ -39,15 +39,6 @@ namespace pugi
 		size_t strlen(const char_t* s);
 		void strcpy(char_t* dst, const char_t* src);
 		bool strequalrange(const char_t* lhs, const char_t* rhs, size_t count);
-
-		const char_t* strchr(const char_t* s, char_t c)
-		{
-		#ifdef PUGIXML_WCHAR_MODE
-			return wcschr(s, c);
-		#else
-			return ::strchr(s, c);
-		#endif
-		}
 	}
 }
 
@@ -93,6 +84,15 @@ namespace
 	bool starts_with(const string_t& s, const char_t* pattern)
 	{
 		return s.compare(0, impl::strlen(pattern), pattern) == 0;
+	}
+
+	const char_t* find_char(const char_t* s, char_t c)
+	{
+	#ifdef PUGIXML_WCHAR_MODE
+		return wcschr(s, c);
+	#else
+		return ::strchr(s, c);
+	#endif
 	}
 
 	string_t string_value(const xpath_node& na)
@@ -436,14 +436,14 @@ namespace
 	
 	const char_t* local_name(const char_t* name)
 	{
-		const char_t* p = impl::strchr(name, ':');
+		const char_t* p = find_char(name, ':');
 		
 		return p ? p + 1 : name;
 	}
 	
 	const char_t* namespace_uri(const xml_node& node)
 	{
-		const char_t* pos = impl::strchr(node.name(), ':');
+		const char_t* pos = find_char(node.name(), ':');
 		
 		string_t ns = PUGIXML_TEXT("xmlns");
 		
@@ -469,7 +469,7 @@ namespace
 
 	const char_t* namespace_uri(const xml_attribute& attr, const xml_node& parent)
 	{
-		const char_t* pos = impl::strchr(attr.name(), ':');
+		const char_t* pos = find_char(attr.name(), ':');
 		
 		// Default namespace does not apply to attributes
 		if (!pos) return PUGIXML_TEXT("");

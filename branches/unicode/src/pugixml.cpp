@@ -65,6 +65,17 @@ namespace
 	pugi::deallocation_function global_deallocate = default_deallocate;
 }
 
+// String utilities prototypes
+namespace pugi
+{
+	namespace impl
+	{
+		size_t strlen(const char_t* s);
+		void strcpy(char_t* dst, const char_t* src);
+		bool strequalrange(const char_t* lhs, const char_t* rhs, size_t count);
+	}
+}
+
 // String utilities
 namespace pugi
 {
@@ -111,7 +122,7 @@ namespace pugi
 		}
 		
 		// Character set pattern match.
-		bool strequalwild_cset(const char_t** src, const char_t** dst)
+		static bool strequalwild_cset(const char_t** src, const char_t** dst)
 		{
 			int find = 0, excl = 0, star = 0;
 			
@@ -146,7 +157,7 @@ namespace pugi
 		}
 
 		// Wildcard pattern match.
-		bool strequalwild_astr(const char_t** src, const char_t** dst)
+		static bool strequalwild_astr(const char_t** src, const char_t** dst)
 		{
 			int find = 1;
 			++(*src);
@@ -1550,6 +1561,8 @@ namespace
 
 		void write(const char_t* data, size_t length)
 		{
+			const size_t bufcapacity = sizeof(buffer) / sizeof(buffer[0]);
+
 			if (bufsize + length > bufcapacity)
 			{
 				flush();
@@ -1572,15 +1585,15 @@ namespace
 
 		void write(char_t data)
 		{
+			const size_t bufcapacity = sizeof(buffer) / sizeof(buffer[0]);
+
 			if (bufsize + 1 > bufcapacity) flush();
 
 			buffer[bufsize++] = data;
 		}
 
-		static const size_t bufcapacity = 8192;
-
 		xml_writer& writer;
-		char_t buffer[bufcapacity];
+		char_t buffer[8192];
 		size_t bufsize;
 	};
 
