@@ -145,15 +145,17 @@ TEST(document_parse_transfer_ownership)
 {
 	allocation_function alloc = get_memory_allocation_function();
 
-	char* text = static_cast<char*>(alloc(strlen("<node/>") + 1));
+	size_t size = strlen("<node/>") * sizeof(pugi::char_t);
+
+	pugi::char_t* text = static_cast<pugi::char_t*>(alloc(size));
 	CHECK(text);
 
-	strcpy(text, "<node/>");
+	memcpy(text, T("<node/>"), size);
 
 	pugi::xml_document doc;
 
 	CHECK(doc.parse(transfer_ownership_tag(), text));
-	CHECK_NODE(doc, "<node />");
+	CHECK_NODE(doc, T("<node />"));
 }
 
 TEST(document_parse_result_bool)
