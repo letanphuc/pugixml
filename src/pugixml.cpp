@@ -48,6 +48,7 @@ using std::memcpy;
 
 #define STATIC_ASSERT(cond) { static const char condition_failed[(cond) ? 1 : -1] = {0}; (void)condition_failed[0]; }
 
+// Memory allocation
 namespace
 {
 	void* default_allocate(size_t size)
@@ -62,6 +63,136 @@ namespace
 
 	pugi::allocation_function global_allocate = default_allocate;
 	pugi::deallocation_function global_deallocate = default_deallocate;
+}
+
+// String utilities
+namespace pugi
+{
+	namespace impl
+	{
+		// Get string length
+		size_t strlen(const char_t* s)
+		{
+		#ifdef PUGIXML_WCHAR_MODE
+			return wcslen(s);
+		#else
+			return ::strlen(s);
+		#endif
+		}
+
+		// Copy one string into another
+		void strcpy(char_t* dst, const char_t* src)
+		{
+		#ifdef PUGIXML_WCHAR_MODE
+			wcscpy(dst, src);
+		#else
+			::strcpy(dst, src);
+		#endif
+		}
+
+		// Compare two strings
+		bool PUGIXML_FUNCTION strequal(const char_t* src, const char_t* dst)
+		{
+		#ifdef PUGIXML_WCHAR_MODE
+			return wcscmp(src, dst) == 0;
+		#else
+			return strcmp(src, dst) == 0;
+		#endif
+		}
+
+		// Compare lhs with [rhs_begin, rhs_end)
+		bool strequalrange(const char_t* lhs, const char_t* rhs, size_t count)
+		{
+		#ifdef PUGIXML_WCHAR_MODE
+			return wcsncmp(lhs, rhs, count) == 0;
+		#else
+			return strncmp(lhs, rhs, count) == 0;
+		#endif
+		}
+		
+		// Character set pattern match.
+		bool strequalwild_cset(const char_t** src, const char_t** dst)
+		{
+			int find = 0, excl = 0, star = 0;
+			
+			if (**src == '!')
+			{
+				excl = 1;
+				++(*src);
+			}
+			
+			while (**src != ']' || star == 1)
+			{
+				if (find == 0)
+				{
+					if (**src == '-' && *(*src-1) < *(*src+1) && *(*src+1) != ']' && star == 0)
+					{
+						if (**dst >= *(*src-1) && **dst <= *(*src+1))
+						{
+							find = 1;
+							++(*src);
+						}
+					}
+					else if (**src == **dst) find = 1;
+				}
+				++(*src);
+				star = 0;
+			}
+
+			if (excl == 1) find = (1 - find);
+			if (find == 1) ++(*dst);
+		
+			return find == 0;
+		}
+
+		// Wildcard pattern match.
+		bool strequalwild_astr(const char_t** src, const char_t** dst)
+		{
+			int find = 1;
+			++(*src);
+			while ((**dst != 0 && **src == '?') || **src == '*')
+			{
+				if(**src == '?') ++(*dst);
+				++(*src);
+			}
+			while (**src == '*') ++(*src);
+			if (**dst == 0 && **src != 0) return 0;
+			if (**dst == 0 && **src == 0) return 1;
+			else
+			{
+				if (!impl::strequalwild(*src,*dst))
+				{
+					do
+					{
+						++(*dst);
+						while(**src != **dst && **src != '[' && **dst != 0) 
+							++(*dst);
+					}
+					while ((**dst != 0) ? !impl::strequalwild(*src,*dst) : 0 != (find=0));
+				}
+				if (**dst == 0 && **src == 0) find = 1;
+				return find == 0;
+			}
+		}
+
+		// Compare two strings, with globbing, and character sets.
+		bool PUGIXML_FUNCTION strequalwild(const char_t* src, const char_t* dst)
+		{
+			int find = 1;
+			for(; *src != 0 && find == 1 && *dst != 0; ++src)
+			{
+				switch (*src)
+				{
+					case '?': ++dst; break;
+					case '[': ++src; find = !strequalwild_cset(&src,&dst); break;
+					case '*': find = !strequalwild_astr(&src,&dst); --src; break;
+					default : find = (int) (*src == *dst); ++dst;
+				}
+			}
+			while (*src == '*' && find == 1) ++src;
+			return (find == 1 && *dst == 0 && *src == 0);
+		}
+	}
 }
 
 namespace pugi
@@ -296,20 +427,20 @@ namespace
 
 	bool strcpy_insitu(char_t*& dest, bool& allocated, const char_t* source)
 	{
-		size_t source_size = strlen(source);
+		size_t source_length = impl::strlen(source);
 
-		if (dest && strlen(dest) >= source_size)
+		if (dest && impl::strlen(dest) >= source_length)
 		{
-			strcpy(dest, source);
+			impl::strcpy(dest, source);
 			
 			return true;
 		}
 		else
 		{
-			char_t* buf = static_cast<char_t*>(global_allocate(source_size + 1));
+			char_t* buf = static_cast<char_t*>(global_allocate((source_length + 1) * sizeof(char_t)));
 			if (!buf) return false;
 
-			strcpy(buf, source);
+			impl::strcpy(buf, source);
 
 			if (allocated) global_deallocate(dest);
 			
@@ -545,7 +676,11 @@ namespace
 					++stre;
 				}
 
+			#ifdef PUGIXML_WCHAR_MODE
+				*s++ = (wchar_t)ucsc; // $$$ surrogates handling
+			#else
 				s = strutf16_utf8(s, ucsc);
+			#endif
 					
 				g.push(s, stre - s);
 				return stre;
@@ -1390,83 +1525,6 @@ namespace
 		const xml_parser& operator=(const xml_parser&);
 	};
 
-	// Compare lhs with [rhs_begin, rhs_end)
-	bool strequalrange(const char_t* lhs, const char_t* rhs_begin, const char_t* rhs_end)
-	{
-		while (*lhs && rhs_begin != rhs_end && *lhs == *rhs_begin)
-		{
-			++lhs;
-			++rhs_begin;
-		}
-		
-		return (rhs_begin == rhs_end && *lhs == 0);
-	}
-	
-	// Character set pattern match.
-	bool strequalwild_cset(const char_t** src, const char_t** dst)
-	{
-		int find = 0, excl = 0, star = 0;
-		
-		if (**src == '!')
-		{
-			excl = 1;
-			++(*src);
-		}
-		
-		while (**src != ']' || star == 1)
-		{
-			if (find == 0)
-			{
-				if (**src == '-' && *(*src-1) < *(*src+1) && *(*src+1) != ']' && star == 0)
-				{
-					if (**dst >= *(*src-1) && **dst <= *(*src+1))
-					{
-						find = 1;
-						++(*src);
-					}
-				}
-				else if (**src == **dst) find = 1;
-			}
-			++(*src);
-			star = 0;
-		}
-
-		if (excl == 1) find = (1 - find);
-		if (find == 1) ++(*dst);
-	
-		return find == 0;
-	}
-
-	// Wildcard pattern match.
-	bool strequalwild_astr(const char_t** src, const char_t** dst)
-	{
-		int find = 1;
-		++(*src);
-		while ((**dst != 0 && **src == '?') || **src == '*')
-		{
-			if(**src == '?') ++(*dst);
-			++(*src);
-		}
-		while (**src == '*') ++(*src);
-		if (**dst == 0 && **src != 0) return 0;
-		if (**dst == 0 && **src == 0) return 1;
-		else
-		{
-			if (!impl::strequalwild(*src,*dst))
-			{
-				do
-				{
-					++(*dst);
-					while(**src != **dst && **src != '[' && **dst != 0) 
-						++(*dst);
-				}
-				while ((**dst != 0) ? !impl::strequalwild(*src,*dst) : 0 != (find=0));
-			}
-			if (**dst == 0 && **src == 0) find = 1;
-			return find == 0;
-		}
-	}
-
 	// Output facilities
 	class xml_buffered_writer
 	{
@@ -1508,7 +1566,7 @@ namespace
 
 		void write(const char_t* data)
 		{
-			write(data, strlen(data));
+			write(data, impl::strlen(data));
 		}
 
 		void write(char_t data)
@@ -1542,27 +1600,27 @@ namespace
 			{
 				case 0: break;
 				case '&':
-					writer.write("&amp;");
+					writer.write(PUGIXML_TEXT("&amp;"));
 					++s;
 					break;
 				case '<':
-					writer.write("&lt;");
+					writer.write(PUGIXML_TEXT("&lt;"));
 					++s;
 					break;
 				case '>':
-					writer.write("&gt;");
+					writer.write(PUGIXML_TEXT("&gt;"));
 					++s;
 					break;
 				case '"':
-					writer.write("&quot;");
+					writer.write(PUGIXML_TEXT("&quot;"));
 					++s;
 					break;
 				case '\r':
-					writer.write("&#13;");
+					writer.write(PUGIXML_TEXT("&#13;"));
 					++s;
 					break;
 				case '\n':
-					writer.write("&#10;");
+					writer.write(PUGIXML_TEXT("&#10;"));
 					++s;
 					break;
 				default: // s is not a usual symbol
@@ -1572,7 +1630,7 @@ namespace
 					char buf[8];
 					sprintf(buf, "&#%u;", ch);
 
-					writer.write(buf);
+					for (char* pos = buf; *pos; ++pos) writer.write(*pos);
 				}
 			}
 		}
@@ -1612,7 +1670,7 @@ namespace
 			if (flags & format_raw)
 			{
 				if (!node.first_child())
-					writer.write(" />");
+					writer.write(PUGIXML_TEXT(" />"));
 				else
 				{
 					writer.write('>');
@@ -1627,7 +1685,7 @@ namespace
 				}
 			}
 			else if (!node.first_child())
-				writer.write(" />\n");
+				writer.write(PUGIXML_TEXT(" />\n"));
 			else if (node.first_child() == node.last_child() && node.first_child().type() == node_pcdata)
 			{
 				writer.write('>');
@@ -1667,34 +1725,34 @@ namespace
 			break;
 
 		case node_cdata:
-			writer.write("<![CDATA[");
+			writer.write(PUGIXML_TEXT("<![CDATA["));
 			writer.write(node.value());
-			writer.write("]]>");
+			writer.write(PUGIXML_TEXT("]]>"));
 			if ((flags & format_raw) == 0) writer.write('\n');
 			break;
 
 		case node_comment:
-			writer.write("<!--");
+			writer.write(PUGIXML_TEXT("<!--"));
 			writer.write(node.value());
-			writer.write("-->");
+			writer.write(PUGIXML_TEXT("-->"));
 			if ((flags & format_raw) == 0) writer.write('\n');
 			break;
 
 		case node_pi:
-			writer.write("<?");
+			writer.write(PUGIXML_TEXT("<?"));
 			writer.write(node.name());
 			if (node.value()[0])
 			{
 				writer.write(' ');
 				writer.write(node.value());
 			}
-			writer.write("?>");
+			writer.write(PUGIXML_TEXT("?>"));
 			if ((flags & format_raw) == 0) writer.write('\n');
 			break;
 		
 		case node_declaration:
 		{
-			writer.write("<?");
+			writer.write(PUGIXML_TEXT("<?"));
 			writer.write(node.name());
 
 			for (xml_attribute a = node.first_attribute(); a; a = a.next_attribute())
@@ -1709,7 +1767,7 @@ namespace
 				writer.write('"');
 			}
 
-			writer.write("?>");
+			writer.write(PUGIXML_TEXT("?>"));
 			if ((flags & format_raw) == 0) writer.write('\n');
 			break;
 		}
@@ -1774,33 +1832,6 @@ namespace
 
 namespace pugi
 {
-	namespace impl
-	{
-		// Compare two strings
-		bool PUGIXML_FUNCTION strequal(const char_t* src, const char_t* dst)
-		{
-			return ::strcmp(src, dst) == 0;
-		}
-
-		// Compare two strings, with globbing, and character sets.
-		bool PUGIXML_FUNCTION strequalwild(const char_t* src, const char_t* dst)
-		{
-			int find = 1;
-			for(; *src != 0 && find == 1 && *dst != 0; ++src)
-			{
-				switch (*src)
-				{
-					case '?': ++dst; break;
-					case '[': ++src; find = !strequalwild_cset(&src,&dst); break;
-					case '*': find = !strequalwild_astr(&src,&dst); --src; break;
-					default : find = (int) (*src == *dst); ++dst;
-				}
-			}
-			while (*src == '*' && find == 1) ++src;
-			return (find == 1 && *dst == 0 && *src == 0);
-		}
-	}
-
 	xml_writer_file::xml_writer_file(void* file): file(file)
 	{
 	}
@@ -1911,29 +1942,56 @@ namespace pugi
 
 	int xml_attribute::as_int() const
 	{
-		return (_attr && _attr->value) ? atoi(_attr->value) : 0;
+		if (!_attr || !_attr->value) return 0;
+
+	#ifdef PUGIXML_WCHAR_MODE
+		return _wtoi(_attr->value);
+	#else
+		return atoi(_attr->value);
+	#endif
 	}
 
 	unsigned int xml_attribute::as_uint() const
 	{
-		int result = (_attr && _attr->value) ? atoi(_attr->value) : 0;
+		if (!_attr || !_attr->value) return 0;
+
+	#ifdef PUGIXML_WCHAR_MODE
+		int result = _wtoi(_attr->value);
+	#else
+		int result = atoi(_attr->value);
+	#endif
+
 		return result < 0 ? 0 : static_cast<unsigned int>(result);
 	}
 
 	double xml_attribute::as_double() const
 	{
-		return (_attr && _attr->value) ? atof(_attr->value) : 0;
+		if (!_attr || !_attr->value) return 0;
+
+	#ifdef PUGIXML_WCHAR_MODE
+		return _wtof(_attr->value);
+	#else
+		return atof(_attr->value);
+	#endif
 	}
 
 	float xml_attribute::as_float() const
 	{
-		return (_attr && _attr->value) ? (float)atof(_attr->value) : 0;
+		if (!_attr || !_attr->value) return 0;
+
+	#ifdef PUGIXML_WCHAR_MODE
+		return (float)_wtof(_attr->value);
+	#else
+		return (float)atof(_attr->value);
+	#endif
 	}
 
 	bool xml_attribute::as_bool() const
 	{
+		if (!_attr || !_attr->value) return false;
+
 		// only look at first char
-		char_t first = (_attr && _attr->value) ? *_attr->value : '\0';
+		char_t first = *_attr->value;
 
 		// 1*, t* (true), T* (True), y* (yes), Y* (YES)
 		return (first == '1' || first == 't' || first == 'T' || first == 'y' || first == 'Y');
@@ -1946,12 +2004,12 @@ namespace pugi
 
 	const char_t* xml_attribute::name() const
 	{
-		return (_attr && _attr->name) ? _attr->name : "";
+		return (_attr && _attr->name) ? _attr->name : PUGIXML_TEXT("");
 	}
 
 	const char_t* xml_attribute::value() const
 	{
-		return (_attr && _attr->value) ? _attr->value : "";
+		return (_attr && _attr->value) ? _attr->value : PUGIXML_TEXT("");
 	}
 
 	unsigned int xml_attribute::document_order() const
@@ -2014,27 +2072,45 @@ namespace pugi
 	bool xml_attribute::set_value(int rhs)
 	{
 		char_t buf[128];
+	
+	#ifdef PUGIXML_WCHAR_MODE
+		swprintf(buf, L"%d", rhs);
+	#else
 		sprintf(buf, "%d", rhs);
+	#endif
+
 		return set_value(buf);
 	}
 
 	bool xml_attribute::set_value(unsigned int rhs)
 	{
 		char_t buf[128];
+
+	#ifdef PUGIXML_WCHAR_MODE
+		swprintf(buf, L"%u", rhs);
+	#else
 		sprintf(buf, "%u", rhs);
+	#endif
+
 		return set_value(buf);
 	}
 
 	bool xml_attribute::set_value(double rhs)
 	{
 		char_t buf[128];
+
+	#ifdef PUGIXML_WCHAR_MODE
+		swprintf(buf, L"%g", rhs);
+	#else
 		sprintf(buf, "%g", rhs);
+	#endif
+
 		return set_value(buf);
 	}
 	
 	bool xml_attribute::set_value(bool rhs)
 	{
-		return set_value(rhs ? "true" : "false");
+		return set_value(rhs ? PUGIXML_TEXT("true") : PUGIXML_TEXT("false"));
 	}
 
 #ifdef __BORLANDC__
@@ -2138,7 +2214,7 @@ namespace pugi
 
 	const char_t* xml_node::name() const
 	{
-		return (_root && _root->name) ? _root->name : "";
+		return (_root && _root->name) ? _root->name : PUGIXML_TEXT("");
 	}
 
 	xml_node_type xml_node::type() const
@@ -2148,7 +2224,7 @@ namespace pugi
 	
 	const char_t* xml_node::value() const
 	{
-		return (_root && _root->value) ? _root->value : "";
+		return (_root && _root->value) ? _root->value : PUGIXML_TEXT("");
 	}
 	
 	xml_node xml_node::child(const char_t* name) const
@@ -2263,13 +2339,13 @@ namespace pugi
 
 	const char_t* xml_node::child_value() const
 	{
-		if (!_root) return "";
+		if (!_root) return PUGIXML_TEXT("");
 		
 		for (xml_node_struct* i = _root->first_child; i; i = i->next_sibling)
 			if ((static_cast<xml_node_type>(i->type) == node_pcdata || static_cast<xml_node_type>(i->type) == node_cdata) && i->value)
 				return i->value;
 
-		return "";
+		return PUGIXML_TEXT("");
 	}
 
 	const char_t* xml_node::child_value(const char_t* name) const
@@ -2664,7 +2740,7 @@ namespace pugi
 		{
 			for (xml_node_struct* j = found._root->first_child; j; j = j->next_sibling)
 			{
-				if (j->name && strequalrange(j->name, path_segment, path_segment_end))
+				if (j->name && impl::strequalrange(j->name, path_segment, static_cast<size_t>(path_segment_end - path_segment)))
 				{
 					xml_node subsearch = xml_node(j).first_element_by_path(next_segment, delimiter);
 
@@ -3036,7 +3112,7 @@ namespace pugi
 		char_t* s = static_cast<char_t*>(global_allocate(length > 0 ? length : 1));
 		if (!s) return MAKE_PARSE_RESULT(status_out_of_memory);
 
-		stream.read(s, length);
+		stream.read((char*)s, length);
 
 		if (stream.gcount() > length || stream.gcount() == 0)
 		{
@@ -3044,7 +3120,7 @@ namespace pugi
 			return MAKE_PARSE_RESULT(status_io_error);
 		}
 
-		return parse(transfer_ownership_tag(), stream.gcount(), s, options); // Parse the input string.
+		return parse(transfer_ownership_tag(), stream.gcount() / sizeof(char_t), s, options); // Parse the input string.
 	}
 #endif
 
@@ -3052,9 +3128,9 @@ namespace pugi
 	{
 		destroy();
 		
-		size_t length = strlen(contents);
+		size_t length = impl::strlen(contents);
 
-		char_t* s = static_cast<char_t*>(global_allocate(length > 0 ? length : 1));
+		char_t* s = static_cast<char_t*>(global_allocate((length > 0 ? length : 1) * sizeof(char_t)));
 		if (!s) return MAKE_PARSE_RESULT(status_out_of_memory);
 
 		memcpy(s, contents, length);
@@ -3062,7 +3138,7 @@ namespace pugi
 		return parse(transfer_ownership_tag(), length, s, options); // Parse the input string.
 	}
 
-	xml_parse_result xml_document::load_file(const char_t* name, unsigned int options)
+	xml_parse_result xml_document::load_file(const char* name, unsigned int options)
 	{
 		destroy();
 
@@ -3096,12 +3172,12 @@ namespace pugi
 			return MAKE_PARSE_RESULT(status_io_error);
 		}
 		
-		return parse(transfer_ownership_tag(), length, s, options); // Parse the input string.
+		return parse(transfer_ownership_tag(), length / sizeof(char_t), s, options); // Parse the input string.
 	}
 
 	xml_parse_result xml_document::parse(char_t* xmlstr, unsigned int options)
 	{
-		return parse(strlen(xmlstr), xmlstr, options);
+		return parse(impl::strlen(xmlstr), xmlstr, options);
 	}
 
 	xml_parse_result xml_document::parse(size_t size, char_t* xmlstr, unsigned int options)
@@ -3120,7 +3196,7 @@ namespace pugi
 		
 	xml_parse_result xml_document::parse(const transfer_ownership_tag&, char_t* xmlstr, unsigned int options)
 	{
-		return parse(transfer_ownership_tag(), strlen(xmlstr), xmlstr, options);
+		return parse(transfer_ownership_tag(), impl::strlen(xmlstr), xmlstr, options);
 	}
 
 	xml_parse_result xml_document::parse(const transfer_ownership_tag&, size_t size, char_t* xmlstr, unsigned int options)
@@ -3145,14 +3221,14 @@ namespace pugi
 
 		if (!(flags & format_no_declaration))
 		{
-			buffered_writer.write("<?xml version=\"1.0\"?>");
-			if (!(flags & format_raw)) buffered_writer.write("\n");
+			buffered_writer.write(PUGIXML_TEXT("<?xml version=\"1.0\"?>"));
+			if (!(flags & format_raw)) buffered_writer.write('\n');
 		}
 
 		node_output(buffered_writer, *this, indent, flags, 0);
 	}
 
-	bool xml_document::save_file(const char_t* name, const char_t* indent, unsigned int flags) const
+	bool xml_document::save_file(const char* name, const char_t* indent, unsigned int flags) const
 	{
 		FILE* file = fopen(name, "wb");
 		if (!file) return false;

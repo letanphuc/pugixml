@@ -31,6 +31,26 @@
 #	pragma warning(disable: 4996) // this function or variable may be unsafe
 #endif
 
+// String utilities
+namespace pugi
+{
+	namespace impl
+	{
+		size_t strlen(const char_t* s);
+		void strcpy(char_t* dst, const char_t* src);
+		bool strequalrange(const char_t* lhs, const char_t* rhs, size_t count);
+
+		const char_t* strchr(const char_t* s, char_t c)
+		{
+		#ifdef PUGIXML_WCHAR_MODE
+			return wcschr(s, c);
+		#else
+			return ::strchr(s, c);
+		#endif
+		}
+	}
+}
+
 namespace
 {
 	using namespace pugi;
@@ -71,7 +91,7 @@ namespace
 
 	bool starts_with(const string_t& s, const char_t* pattern)
 	{
-		return s.compare(0, strlen(pattern), pattern) == 0;
+		return s.compare(0, impl::strlen(pattern), pattern) == 0;
 	}
 
 	string_t string_value(const xpath_node& na)
@@ -355,7 +375,7 @@ namespace
 			}
 		}
 		
-		return string_t(buf);
+		return string_t(buf, buf + strlen(buf));
 	}
 	
 	double convert_string_to_number(const char_t* string)
@@ -415,14 +435,14 @@ namespace
 	
 	const char_t* local_name(const char_t* name)
 	{
-		const char_t* p = strchr(name, ':');
+		const char_t* p = impl::strchr(name, ':');
 		
 		return p ? p + 1 : name;
 	}
 	
 	const char_t* namespace_uri(const xml_node& node)
 	{
-		const char_t* pos = strchr(node.name(), ':');
+		const char_t* pos = impl::strchr(node.name(), ':');
 		
 		string_t ns = PUGIXML_TEXT("xmlns");
 		
@@ -448,7 +468,7 @@ namespace
 
 	const char_t* namespace_uri(const xml_attribute& attr, const xml_node& parent)
 	{
-		const char_t* pos = strchr(attr.name(), ':');
+		const char_t* pos = impl::strchr(attr.name(), ':');
 		
 		// Default namespace does not apply to attributes
 		if (!pos) return PUGIXML_TEXT("");
@@ -872,7 +892,7 @@ namespace pugi
 				else m_clc_capacity *= 2;
 
 				char_t* s = new char_t[m_clc_capacity + 1];
-				if (m_cur_lexeme_contents) strcpy(s, m_cur_lexeme_contents);
+				if (m_cur_lexeme_contents) impl::strcpy(s, m_cur_lexeme_contents);
 				
 				delete[] m_cur_lexeme_contents;
 				m_cur_lexeme_contents = s;
@@ -1482,7 +1502,7 @@ namespace pugi
 
 			// There are no attribute nodes corresponding to attributes that declare namespaces
 			// That is, "xmlns:..." or "xmlns"
-			if (!strncmp(a.name(), PUGIXML_TEXT("xmlns"), 5) && (a.name()[5] == 0 || a.name()[5] == ':')) return;
+			if (impl::strequalrange(a.name(), PUGIXML_TEXT("xmlns"), 5) && (a.name()[5] == 0 || a.name()[5] == ':')) return;
 			
 			switch (m_test)
 			{
@@ -1496,7 +1516,7 @@ namespace pugi
 				break;
 				
 			case nodetest_all_in_namespace:
-				if (!strncmp(a.name(), m_contents, strlen(m_contents)))
+				if (impl::strequalrange(a.name(), m_contents, impl::strlen(m_contents)))
 					ns.push_back(xpath_node(a, parent));
 				break;
 			
@@ -1545,7 +1565,7 @@ namespace pugi
 				break;
 				
 			case nodetest_all_in_namespace:
-				if (n.type() == node_element && !strncmp(n.name(), m_contents, strlen(m_contents)))
+				if (n.type() == node_element && impl::strequalrange(n.name(), m_contents, impl::strlen(m_contents)))
 					ns.push_back(n);
 				break;
 
@@ -1902,8 +1922,8 @@ namespace pugi
 		{
 			if (value)
 			{
-				char_t* c = static_cast<char_t*>(a.alloc(strlen(value) + 1));
-				strcpy(c, value);
+				char_t* c = static_cast<char_t*>(a.alloc((impl::strlen(value) + 1) * sizeof(char_t)));
+				impl::strcpy(c, value);
 				m_contents = c;
 			}
 			else m_contents = 0;
@@ -3253,7 +3273,7 @@ namespace pugi
 							
 							nt_name = string_t();
 						}
-						else if (nt_name == "processing-instruction")
+						else if (nt_name == PUGIXML_TEXT("processing-instruction"))
 						{
 							if (m_lexer.current() != lex_quoted_string)
 								throw xpath_exception("Only literals are allowed as arguments to processing-instruction()");
