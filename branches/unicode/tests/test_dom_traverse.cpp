@@ -561,7 +561,7 @@ TEST_XML(dom_node_first_element_by_path, "<node><child1>text<child2/></child1></
 
 struct test_walker: xml_tree_walker
 {
-	pugi::string_t log;
+	std::basic_string<pugi::char_t> log;
 	unsigned int call_count;
 	unsigned int stop_count;
 
@@ -569,12 +569,12 @@ struct test_walker: xml_tree_walker
 	{
 	}
 
-	pugi::string_t depthstr() const
+	std::basic_string<pugi::char_t> depthstr() const
 	{
 		char buffer[32];
 		sprintf(buffer, "%d", depth());
 
-		return pugi::string_t(buffer, buffer + strlen(buffer));
+		return std::basic_string<pugi::char_t>(buffer, buffer + strlen(buffer));
 	}
 
 	virtual bool begin(xml_node& node)

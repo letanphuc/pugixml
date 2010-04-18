@@ -57,11 +57,11 @@ TEST_XML(write_escape, "<node attr=''>text</node>")
 
 struct test_writer: xml_writer
 {
-	pugi::string_t contents;
+	std::basic_string<pugi::char_t> contents;
 
 	virtual void write(const void* data, size_t size)
 	{
-		contents += pugi::string_t(static_cast<const pugi::char_t*>(data), static_cast<const pugi::char_t*>(data) + size / sizeof(pugi::char_t));
+		contents += std::basic_string<pugi::char_t>(static_cast<const pugi::char_t*>(data), static_cast<const pugi::char_t*>(data) + size / sizeof(pugi::char_t));
 	}
 };
 
@@ -87,7 +87,7 @@ TEST_XML(write_print_stream, "<node/>")
 
 TEST_XML(write_huge_chunk, "<node/>")
 {
-	pugi::string_t name(10000, T('n'));
+	std::basic_string<pugi::char_t> name(10000, T('n'));
 	doc.child(T("node")).set_name(name.c_str());
 
 	test_writer writer;
