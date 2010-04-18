@@ -5,54 +5,54 @@
 
 TEST_XML(write_simple, "<node attr='1'><child>text</child></node>")
 {
-	CHECK_NODE_EX(doc, T("<node attr=\"1\">\n<child>text</child>\n</node>\n"), T(""), 0);
+	CHECK_NODE_EX(doc, STR("<node attr=\"1\">\n<child>text</child>\n</node>\n"), STR(""), 0);
 }
 
 TEST_XML(write_raw, "<node attr='1'><child>text</child></node>")
 {
-	CHECK_NODE_EX(doc, T("<node attr=\"1\"><child>text</child></node>"), T(""), format_raw);
+	CHECK_NODE_EX(doc, STR("<node attr=\"1\"><child>text</child></node>"), STR(""), format_raw);
 }
 
 TEST_XML(write_indent, "<node attr='1'><child><sub>text</sub></child></node>")
 {
-	CHECK_NODE_EX(doc, T("<node attr=\"1\">\n\t<child>\n\t\t<sub>text</sub>\n\t</child>\n</node>\n"), T("\t"), format_indent);
+	CHECK_NODE_EX(doc, STR("<node attr=\"1\">\n\t<child>\n\t\t<sub>text</sub>\n\t</child>\n</node>\n"), STR("\t"), format_indent);
 }
 
 TEST_XML(write_pcdata, "<node attr='1'><child><sub/>text</child></node>")
 {
-	CHECK_NODE_EX(doc, T("<node attr=\"1\">\n\t<child>\n\t\t<sub />\n\t\ttext\n\t</child>\n</node>\n"), T("\t"), format_indent);
+	CHECK_NODE_EX(doc, STR("<node attr=\"1\">\n\t<child>\n\t\t<sub />\n\t\ttext\n\t</child>\n</node>\n"), STR("\t"), format_indent);
 }
 
 TEST_XML(write_cdata, "<![CDATA[value]]>")
 {
-	CHECK_NODE(doc, T("<![CDATA[value]]>"));
-	CHECK_NODE_EX(doc, T("<![CDATA[value]]>\n"), T(""), 0);
+	CHECK_NODE(doc, STR("<![CDATA[value]]>"));
+	CHECK_NODE_EX(doc, STR("<![CDATA[value]]>\n"), STR(""), 0);
 }
 
 TEST_XML_FLAGS(write_comment, "<!--text-->", parse_default | parse_comments)
 {
-	CHECK_NODE(doc, T("<!--text-->"));
-	CHECK_NODE_EX(doc, T("<!--text-->\n"), T(""), 0);
+	CHECK_NODE(doc, STR("<!--text-->"));
+	CHECK_NODE_EX(doc, STR("<!--text-->\n"), STR(""), 0);
 }
 
 TEST_XML_FLAGS(write_pi, "<?name value?>", parse_default | parse_pi)
 {
-	CHECK_NODE(doc, T("<?name value?>"));
-	CHECK_NODE_EX(doc, T("<?name value?>\n"), T(""), 0);
+	CHECK_NODE(doc, STR("<?name value?>"));
+	CHECK_NODE_EX(doc, STR("<?name value?>\n"), STR(""), 0);
 }
 
 TEST_XML_FLAGS(write_declaration, "<?xml version='2.0'?>", parse_default | parse_declaration)
 {
-	CHECK_NODE(doc, T("<?xml version=\"2.0\"?>"));
-	CHECK_NODE_EX(doc, T("<?xml version=\"2.0\"?>\n"), T(""), 0);
+	CHECK_NODE(doc, STR("<?xml version=\"2.0\"?>"));
+	CHECK_NODE_EX(doc, STR("<?xml version=\"2.0\"?>\n"), STR(""), 0);
 }
 
 TEST_XML(write_escape, "<node attr=''>text</node>")
 {
-	doc.child(T("node")).attribute(T("attr")) = T("<>'\"&\x04\r\n\t");
-	doc.child(T("node")).first_child().set_value(T("<>'\"&\x04\r\n\t"));
+	doc.child(STR("node")).attribute(STR("attr")) = STR("<>'\"&\x04\r\n\t");
+	doc.child(STR("node")).first_child().set_value(STR("<>'\"&\x04\r\n\t"));
 
-	CHECK_NODE(doc, T("<node attr=\"&lt;&gt;'&quot;&amp;&#4;&#13;&#10;\t\">&lt;&gt;'\"&amp;&#4;\r\n\t</node>"));
+	CHECK_NODE(doc, STR("<node attr=\"&lt;&gt;'&quot;&amp;&#4;&#13;&#10;\t\">&lt;&gt;'\"&amp;&#4;\r\n\t</node>"));
 }
 
 struct test_writer: xml_writer
@@ -70,7 +70,7 @@ TEST_XML(write_print_writer, "<node/>")
 	test_writer writer;
 	doc.print(writer);
 
-	CHECK(writer.contents == T("<node />\n"));
+	CHECK(writer.contents == STR("<node />\n"));
 }
 
 #ifndef PUGIXML_NO_STL
@@ -80,18 +80,18 @@ TEST_XML(write_print_stream, "<node/>")
 	doc.print(oss);
 
 #ifndef PUGIXML_WCHAR_MODE // $$$ fix this (should we provide a writer for wide stream if we're wide? probably)
-	CHECK(oss.str() == T("<node />\n"));
+	CHECK(oss.str() == STR("<node />\n"));
 #endif
 }
 #endif
 
 TEST_XML(write_huge_chunk, "<node/>")
 {
-	std::basic_string<pugi::char_t> name(10000, T('n'));
-	doc.child(T("node")).set_name(name.c_str());
+	std::basic_string<pugi::char_t> name(10000, STR('n'));
+	doc.child(STR("node")).set_name(name.c_str());
 
 	test_writer writer;
 	doc.print(writer);
 
-	CHECK(writer.contents == T("<") + name + T(" />\n"));
+	CHECK(writer.contents == STR("<") + name + STR(" />\n"));
 }
