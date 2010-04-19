@@ -148,7 +148,7 @@ else if ( $(toolset) = "ic8" )
 }
 else if ( $(toolset:I=^dmc) )
 {
-	CCFLAGS += -D$(defines) ;
+	CCFLAGS += -D$(defines) -g ;
 
 	if ( $(configuration) = "debug" )
 	{
@@ -176,7 +176,7 @@ else if ( $(toolset:I=^dmc) )
 	
 	actions LinkAction
 	{
-		"%$(toolset)_PATH%\bin\link.exe" $(>:\\) , $(<:\\) , nul , $(LDFLAGS:\\)
+		"%$(toolset)_PATH%\bin\link.exe" $(>:\\) , $(<:\\) , nul , $(LDFLAGS:\\) -L/co/ma
 	}
 	
 	actions CoverageAction
