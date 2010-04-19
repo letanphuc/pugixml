@@ -30,7 +30,7 @@ if ( $(toolset:I=^mingw) )
 	
 	actions LinkAction
 	{
-		"%$(toolset)_PATH%\bin\g++" $(>) -o $(<) -static-libgcc $(LDFLAGS) 
+		"%$(toolset)_PATH%\bin\g++" $(>) -o $(<) -static-libgcc -static $(LDFLAGS) 
 	}
 	
 	actions CoverageAction
