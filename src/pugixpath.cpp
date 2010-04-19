@@ -385,9 +385,9 @@ namespace
 		wchar_t wbuf[128];
 		impl::widen_ascii(wbuf, buf);
 		
-		return wbuf;
+		return string_t(wbuf);
 	#else
-		return buf;
+		return string_t(buf);
 	#endif
 	}
 	

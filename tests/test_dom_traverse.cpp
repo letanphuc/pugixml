@@ -472,7 +472,8 @@ struct find_predicate_prefix
 	template <typename T> bool operator()(const T& obj) const
 	{
 	#ifdef PUGIXML_WCHAR_MODE
-		return wcsncmp(obj.name(), prefix, wcslen(prefix)) == 0;
+		// can't use wcsncmp here because of a bug in DMC
+		return std::basic_string<pugi::char_t>(obj.name()).compare(0, wcslen(prefix), prefix) == 0;
 	#else
 		return strncmp(obj.name(), prefix, strlen(prefix)) == 0;
 	#endif
@@ -579,9 +580,9 @@ struct test_walker: xml_tree_walker
 		wchar_t wbuf[32];
 		std::copy(buf, buf + strlen(buf) + 1, wbuf);
 
-		return wbuf;
+		return std::basic_string<pugi::char_t>(wbuf);
 	#else
-		return buf;
+		return std::basic_string<pugi::char_t>(buf);
 	#endif
 	}
 
