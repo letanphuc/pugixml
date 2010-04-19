@@ -77,6 +77,7 @@ namespace pugi
 		size_t strlen(const char_t* s);
 		void strcpy(char_t* dst, const char_t* src);
 		bool strequalrange(const char_t* lhs, const char_t* rhs, size_t count);
+		void widen_ascii(wchar_t* dest, const char* source);
 	}
 }
 
@@ -206,6 +207,13 @@ namespace pugi
 			}
 			while (*src == '*' && find == 1) ++src;
 			return (find == 1 && *dst == 0 && *src == 0);
+		}
+
+		// Convert string to wide string, assuming all symbols are ASCII
+		void widen_ascii(wchar_t* dest, const char* source)
+		{
+			for (const char* i = source; *i; ++i) *dest++ = *i;
+			*dest = 0;
 		}
 	}
 }
@@ -1967,7 +1975,7 @@ namespace pugi
 		if (!_attr || !_attr->value) return 0;
 
 	#ifdef PUGIXML_WCHAR_MODE
-		return _wtoi(_attr->value);
+		return (int)wcstol(_attr->value, 0, 10);
 	#else
 		return atoi(_attr->value);
 	#endif
@@ -1978,7 +1986,7 @@ namespace pugi
 		if (!_attr || !_attr->value) return 0;
 
 	#ifdef PUGIXML_WCHAR_MODE
-		int result = _wtoi(_attr->value);
+		int result = (int)wcstol(_attr->value, 0, 10);
 	#else
 		int result = atoi(_attr->value);
 	#endif
@@ -1991,7 +1999,7 @@ namespace pugi
 		if (!_attr || !_attr->value) return 0;
 
 	#ifdef PUGIXML_WCHAR_MODE
-		return _wtof(_attr->value);
+		return wcstod(_attr->value, 0);
 	#else
 		return atof(_attr->value);
 	#endif
@@ -2002,7 +2010,7 @@ namespace pugi
 		if (!_attr || !_attr->value) return 0;
 
 	#ifdef PUGIXML_WCHAR_MODE
-		return (float)_wtof(_attr->value);
+		return (float)wcstod(_attr->value, 0);
 	#else
 		return (float)atof(_attr->value);
 	#endif
@@ -2093,41 +2101,47 @@ namespace pugi
 
 	bool xml_attribute::set_value(int rhs)
 	{
-		char_t buf[128];
+		char buf[128];
+		sprintf(buf, "%d", rhs);
 	
 	#ifdef PUGIXML_WCHAR_MODE
-		swprintf(buf, L"%d", rhs);
-	#else
-		sprintf(buf, "%d", rhs);
-	#endif
+		char_t wbuf[128];
+		impl::widen_ascii(wbuf, buf);
 
+		return set_value(wbuf);
+	#else
 		return set_value(buf);
+	#endif
 	}
 
 	bool xml_attribute::set_value(unsigned int rhs)
 	{
-		char_t buf[128];
+		char buf[128];
+		sprintf(buf, "%u", rhs);
 
 	#ifdef PUGIXML_WCHAR_MODE
-		swprintf(buf, L"%u", rhs);
-	#else
-		sprintf(buf, "%u", rhs);
-	#endif
+		char_t wbuf[128];
+		impl::widen_ascii(wbuf, buf);
 
+		return set_value(wbuf);
+	#else
 		return set_value(buf);
+	#endif
 	}
 
 	bool xml_attribute::set_value(double rhs)
 	{
-		char_t buf[128];
+		char buf[128];
+		sprintf(buf, "%g", rhs);
 
 	#ifdef PUGIXML_WCHAR_MODE
-		swprintf(buf, L"%g", rhs);
-	#else
-		sprintf(buf, "%g", rhs);
-	#endif
+		char_t wbuf[128];
+		impl::widen_ascii(wbuf, buf);
 
+		return set_value(wbuf);
+	#else
 		return set_value(buf);
+	#endif
 	}
 	
 	bool xml_attribute::set_value(bool rhs)

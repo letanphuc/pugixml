@@ -43,6 +43,7 @@ namespace pugi
 		size_t strlen(const char_t* s);
 		void strcpy(char_t* dst, const char_t* src);
 		bool strequalrange(const char_t* lhs, const char_t* rhs, size_t count);
+		void widen_ascii(wchar_t* dest, const char* source);
 	}
 }
 
@@ -364,7 +365,7 @@ namespace
 		if (is_nan(value)) return PUGIXML_TEXT("NaN");
 		else if (is_inf(value)) return value < 0 ? PUGIXML_TEXT("-Infinity") : PUGIXML_TEXT("Infinity");
 		
-		char buf[100];
+		char buf[128];
 		
 		if (value == (int)value) sprintf(buf, "%d", (int)value);
 		else
@@ -379,8 +380,15 @@ namespace
 				*(ptr+1) = 0;
 			}
 		}
+
+	#ifdef PUGIXML_WCHAR_MODE
+		wchar_t wbuf[128];
+		impl::widen_ascii(wbuf, buf);
 		
-		return string_t(buf, buf + strlen(buf));
+		return wbuf;
+	#else
+		return buf;
+	#endif
 	}
 	
 	double convert_string_to_number(const char_t* string)

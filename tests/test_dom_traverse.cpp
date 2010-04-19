@@ -572,10 +572,17 @@ struct test_walker: xml_tree_walker
 
 	std::basic_string<pugi::char_t> depthstr() const
 	{
-		char buffer[32];
-		sprintf(buffer, "%d", depth());
+		char buf[32];
+		sprintf(buf, "%d", depth());
 
-		return std::basic_string<pugi::char_t>(buffer, buffer + strlen(buffer));
+	#ifdef PUGIXML_WCHAR_MODE
+		wchar_t wbuf[32];
+		std::copy(buf, buf + strlen(buf) + 1, wbuf);
+
+		return wbuf;
+	#else
+		return buf;
+	#endif
 	}
 
 	virtual bool begin(xml_node& node)
