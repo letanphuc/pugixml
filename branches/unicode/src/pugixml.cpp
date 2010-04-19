@@ -119,11 +119,11 @@ namespace pugi
 		// Compare lhs with [rhs_begin, rhs_end)
 		bool strequalrange(const char_t* lhs, const char_t* rhs, size_t count)
 		{
-		#ifdef PUGIXML_WCHAR_MODE
-			return wcsncmp(lhs, rhs, count) == 0;
-		#else
-			return strncmp(lhs, rhs, count) == 0;
-		#endif
+			for (size_t i = 0; i < count; ++i)
+				if (lhs[i] != rhs[i])
+					return false;
+		
+			return true;
 		}
 		
 		// Character set pattern match.
