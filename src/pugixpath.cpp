@@ -3193,7 +3193,9 @@ namespace pugi
 	    	{
 	    		m_lexer.next();
 
-	    		n = new (m_alloc.node()) xpath_ast_node(ast_filter, n, parse_expression(), axis_child);
+				xpath_ast_node* expr = parse_expression();
+
+	    		n = new (m_alloc.node()) xpath_ast_node(ast_filter, n, expr, axis_child);
 
 	    		if (m_lexer.current() != lex_close_square_brace)
 	    			throw xpath_exception("Unmatched square brace");
@@ -3333,7 +3335,9 @@ namespace pugi
 			{
 				m_lexer.next();
 				
-				xpath_ast_node* pred = new (m_alloc.node()) xpath_ast_node(ast_predicate, parse_expression(), 0, axis);
+				xpath_ast_node* expr = parse_expression();
+
+				xpath_ast_node* pred = new (m_alloc.node()) xpath_ast_node(ast_predicate, expr, 0, axis);
 				
 				if (m_lexer.current() != lex_close_square_brace)
 	    			throw xpath_exception("unmatched square brace");
@@ -3466,7 +3470,9 @@ namespace pugi
 	    	{
 	    		m_lexer.next();
 
-	    		n = new (m_alloc.node()) xpath_ast_node(ast_op_union, n, parse_union_expression());
+				xpath_ast_node* expr = parse_union_expression();
+
+	    		n = new (m_alloc.node()) xpath_ast_node(ast_op_union, n, expr);
 	    	}
 
 	    	return n;
@@ -3479,7 +3485,9 @@ namespace pugi
 	    	{
 	    		m_lexer.next();
 
-	    		return new (m_alloc.node()) xpath_ast_node(ast_op_negate, parse_unary_expression());
+				xpath_ast_node* expr = parse_unary_expression();
+
+	    		return new (m_alloc.node()) xpath_ast_node(ast_op_negate, expr);
 	    	}
 	    	else return parse_union_expression();
 	    }
@@ -3499,7 +3507,9 @@ namespace pugi
 	    			impl::strequal(m_lexer.contents(), PUGIXML_TEXT("div")) ? ast_op_divide : ast_op_mod;
 	    		m_lexer.next();
 
-	    		n = new (m_alloc.node()) xpath_ast_node(op, n, parse_unary_expression());
+				xpath_ast_node* expr = parse_unary_expression();
+
+	    		n = new (m_alloc.node()) xpath_ast_node(op, n, expr);
 	    	}
 
 	    	return n;
@@ -3518,7 +3528,9 @@ namespace pugi
 
 	    		m_lexer.next();
 
-	    		n = new (m_alloc.node()) xpath_ast_node(l == lex_plus ? ast_op_add : ast_op_subtract, n, parse_multiplicative_expression());
+				xpath_ast_node* expr = parse_multiplicative_expression();
+
+	    		n = new (m_alloc.node()) xpath_ast_node(l == lex_plus ? ast_op_add : ast_op_subtract, n, expr);
 	    	}
 
 	    	return n;
@@ -3539,9 +3551,10 @@ namespace pugi
 	    		lexeme_t l = m_lexer.current();
 	    		m_lexer.next();
 
+				xpath_ast_node* expr = parse_additive_expression();
+
 	    		n = new (m_alloc.node()) xpath_ast_node(l == lex_less ? ast_op_less : l == lex_greater ? ast_op_greater :
-	    						l == lex_less_or_equal ? ast_op_less_or_equal : ast_op_greater_or_equal,
-	    						n, parse_additive_expression());
+	    						l == lex_less_or_equal ? ast_op_less_or_equal : ast_op_greater_or_equal, n, expr);
 	    	}
 
 	    	return n;
@@ -3560,7 +3573,9 @@ namespace pugi
 
 	    		m_lexer.next();
 
-	    		n = new (m_alloc.node()) xpath_ast_node(l == lex_equal ? ast_op_equal : ast_op_not_equal, n, parse_relational_expression());
+				xpath_ast_node* expr = parse_relational_expression();
+
+	    		n = new (m_alloc.node()) xpath_ast_node(l == lex_equal ? ast_op_equal : ast_op_not_equal, n, expr);
 	    	}
 
 	    	return n;
@@ -3575,7 +3590,9 @@ namespace pugi
 	    	{
 	    		m_lexer.next();
 
-	    		n = new (m_alloc.node()) xpath_ast_node(ast_op_and, n, parse_equality_expression());
+				xpath_ast_node* expr = parse_equality_expression();
+
+	    		n = new (m_alloc.node()) xpath_ast_node(ast_op_and, n, expr);
 	    	}
 
 	    	return n;
@@ -3590,7 +3607,9 @@ namespace pugi
 	    	{
 	    		m_lexer.next();
 
-	    		n = new (m_alloc.node()) xpath_ast_node(ast_op_or, n, parse_and_expression());
+				xpath_ast_node* expr = parse_and_expression();
+
+	    		n = new (m_alloc.node()) xpath_ast_node(ast_op_or, n, expr);
 	    	}
 
 	    	return n;
