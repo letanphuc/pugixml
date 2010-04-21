@@ -93,9 +93,11 @@ TEST(document_load_file_error)
 
 	CHECK(doc.load_file("filedoesnotexist").status == status_file_not_found);
 
-#ifdef __linux
+#ifdef __unix
 	CHECK(doc.load_file("/dev/null").status == status_io_error);
-#else
+#endif
+
+#ifdef _WIN32
 #ifndef __DMC__ // Digital Mars CRT does not like 'con' pseudo-file
 	CHECK(doc.load_file("con").status == status_io_error);
 #endif
@@ -208,5 +210,5 @@ TEST(document_load_fail)
 {
 	xml_document doc;
 	CHECK(!doc.load(STR("<foo><bar/>")));
-	CHECK(doc.child("foo").child("bar"));
+	CHECK(doc.child(STR("foo")).child(STR("bar")));
 }
