@@ -4,20 +4,21 @@
 #include <stdio.h>
 
 #include <stdlib.h>
-#include <malloc.h>
+
+#if defined(__GNUC__) && !defined(_WIN32)
+size_t _msize(void* ptr)
+{
+	return malloc_usable_size(ptr);
+}
+#else
+#	include <malloc.h>
+#endif
 
 test_runner* test_runner::_tests = 0;
 size_t test_runner::_memory_fail_threshold = 0;
 jmp_buf test_runner::_failure;
 
 static size_t g_memory_total_size = 0;
-
-#ifdef __linux
-size_t _msize(void* ptr)
-{
-	return malloc_usable_size(ptr);
-}
-#endif
 
 static void* custom_allocate(size_t size)
 {
