@@ -1,5 +1,7 @@
 #include "allocator.hpp"
 
+#include <string.h>
+
 // Low-level allocation functions
 #if defined(_WIN32) || defined(_WIN64)
 #	ifdef __MWERKS__
