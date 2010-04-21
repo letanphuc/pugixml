@@ -208,6 +208,5 @@ TEST(document_load_fail)
 {
 	xml_document doc;
 	CHECK(!doc.load(STR("<foo><bar/>")));
-//  $$$ return this check, ensure that it crashes if impl is wrong (i.e. add allocator that marks freed pages with noaccess)
-//	CHECK(!doc.child("foo"));
+	CHECK(doc.child("foo").child("bar"));
 }
