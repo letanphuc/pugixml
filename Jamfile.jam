@@ -41,13 +41,13 @@ else
 	BUILD = build/$(toolset)/standard/$(configuration) ;
 }
 
-if ( $(toolset:I=^mingw) )
+if ( $(toolset:I=^mingw) || $(toolset) = gcc )
 {
 	CCFLAGS = -fprofile-arcs -ftest-coverage ;
 	LDFLAGS = -fprofile-arcs ;
 	GCOVFLAGS = -n ;
 
-	if ( $(toolset) = mingw44 )
+	if ( $(toolset) != mingw34 )
 	{
 		GCOVFLAGS += -o $(BUILD)/src ; # because stupid gcov can't find files via relative paths any more
 	}
@@ -58,6 +58,6 @@ include "Jamrules.jam" ;
 
 # targets
 Library pugixml : src/pugixml.cpp src/pugixpath.cpp ;
-Application tests : tests/main.cpp [ Glob tests : test_*.cpp ] : pugixml ;
+Application tests : tests/main.cpp tests/allocator.cpp [ Glob tests : test_*.cpp ] : pugixml ;
 Test run_tests : tests ;
 Coverage coverage : run_tests ;

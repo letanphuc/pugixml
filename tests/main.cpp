@@ -1,18 +1,8 @@
 #include "test.hpp"
+#include "allocator.hpp"
 
 #include <exception>
 #include <stdio.h>
-
-#include <stdlib.h>
-
-#if defined(__GNUC__) && !defined(_WIN32)
-size_t _msize(void* ptr)
-{
-	return malloc_usable_size(ptr);
-}
-#else
-#	include <malloc.h>
-#endif
 
 test_runner* test_runner::_tests = 0;
 size_t test_runner::_memory_fail_threshold = 0;
@@ -26,9 +16,9 @@ static void* custom_allocate(size_t size)
 		return 0;
 	else
 	{
-		void* ptr = malloc(size);
+		void* ptr = memory_allocate(size);
 
-		g_memory_total_size += _msize(ptr);
+		g_memory_total_size += memory_size(ptr);
 		
 		return ptr;
 	}
@@ -38,9 +28,9 @@ static void custom_deallocate(void* ptr)
 {
 	if (ptr)
 	{
-		g_memory_total_size -= _msize(ptr);
+		g_memory_total_size -= memory_size(ptr);
 		
-		free(ptr);
+		memory_deallocate(ptr);
 	}
 }
 
