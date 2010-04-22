@@ -42,9 +42,9 @@ if ( $(toolset:I=^mingw) || $(toolset) = "gcc" )
 		"$(GCCPATH)g++" $(>) -o $(<) -static-libgcc -static $(LDFLAGS) 
 	}
 	
-	actions CoverageAction
+	actions maxtargets 1 CoverageAction
 	{
-		"$(GCCPATH)gcov" $(>:\\) $(GCOVFLAGS) | perl tests/gcov-filter.pl
+		"$(GCCPATH)gcov" $(>) $(GCOVFLAGS) | perl tests/gcov-filter.pl
 	}
 }
 else if ( $(toolset:I=^msvc) )
