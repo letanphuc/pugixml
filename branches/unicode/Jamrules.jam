@@ -411,6 +411,9 @@ rule CleanCoverage TARGET
 	# clean object files
 	local FILES = $($(SOURCE)_objects:S=.gcda) ;
 
+	# disable "independent target" warnings
+	NotFile $(FILES) ;
+
 	DeleteAction $(CLEAN_TARGET) : $(FILES) ;
 }
 
