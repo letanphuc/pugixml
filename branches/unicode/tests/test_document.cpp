@@ -30,6 +30,24 @@ TEST(document_load_stream)
 	CHECK(doc.load(iss));
 	CHECK_NODE(doc, STR("<node />"));
 }
+
+TEST(document_load_stream_empty)
+{
+	pugi::xml_document doc;
+
+	std::istringstream iss;
+	CHECK(doc.load(iss));
+	CHECK(!doc.first_child());
+}
+
+TEST(document_load_stream_text)
+{
+	pugi::xml_document doc;
+
+	std::ifstream iss("tests/data/multiline.xml");
+	CHECK(doc.load(iss));
+	CHECK_NODE(doc, STR("<node1 /><node2 /><node3 />"));
+}
 #endif
 
 TEST(document_load_stream_error)
@@ -43,9 +61,6 @@ TEST(document_load_stream_error)
 	std::ifstream fs2("con");
 	CHECK(doc.load(fs2).status == status_io_error);
 #endif
-
-	std::ifstream fs3("nul");
-	CHECK(doc.load(fs3).status == status_io_error);
 
 	test_runner::_memory_fail_threshold = 1;
 	std::istringstream iss("<node/>");
@@ -70,6 +85,14 @@ TEST(document_load_file)
 
 	CHECK(doc.load_file("tests/data/small.xml"));
 	CHECK_NODE(doc, STR("<node />"));
+}
+
+TEST(document_load_file_empty)
+{
+	pugi::xml_document doc;
+
+	CHECK(doc.load_file("tests/data/empty.xml"));
+	CHECK(!doc.first_child());
 }
 
 TEST(document_load_file_large)
@@ -101,8 +124,6 @@ TEST(document_load_file_error)
 #ifndef __DMC__ // Digital Mars CRT does not like 'con' pseudo-file
 	CHECK(doc.load_file("con").status == status_io_error);
 #endif
-
-	CHECK(doc.load_file("nul").status == status_io_error);
 #endif
 
 	test_runner::_memory_fail_threshold = 1;
