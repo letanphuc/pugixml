@@ -47,10 +47,7 @@ if ( $(toolset:I=^mingw) || $(toolset) = gcc )
 	LDFLAGS = -fprofile-arcs ;
 	GCOVFLAGS = -n ;
 
-	if ( $(toolset) != mingw34 )
-	{
-		GCOVFLAGS += -o $(BUILD)/src ; # because stupid gcov can't find files via relative paths any more
-	}
+	GCOVFLAGS += -o $(BUILD)/src ; # because stupid gcov can't find files via relative paths
 }
 
 # rules
@@ -60,4 +57,4 @@ include "Jamrules.jam" ;
 Library pugixml : src/pugixml.cpp src/pugixpath.cpp ;
 Application tests : tests/main.cpp tests/allocator.cpp [ Glob tests : test_*.cpp ] : pugixml ;
 Test run_tests : tests ;
-Coverage coverage : run_tests ;
+Coverage coverage : pugixml ;

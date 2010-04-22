@@ -66,7 +66,7 @@ foreach $configuration (@configurations)
 			$result = system("$cmdline run_tests >>autotest.log");
 
 			# get coverage
-			if ($result == 0 && $toolset =~ /mingw/)
+			if ($result == 0 && $toolset =~ /mingw|gcc/)
 			{
 				$coverage = `$cmdline coverage`;
 
