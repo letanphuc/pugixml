@@ -58,3 +58,4 @@ Library pugixml : src/pugixml.cpp src/pugixpath.cpp ;
 Application tests : tests/main.cpp tests/allocator.cpp [ Glob tests : test_*.cpp ] : pugixml ;
 Test run_tests : tests ;
 Coverage coverage : pugixml ;
+Depends coverage : run_tests ;
