@@ -3150,7 +3150,7 @@ namespace pugi
 
 		stream.read((char*)s, length);
 
-		if (stream.gcount() > length || stream.gcount() == 0)
+		if (stream.gcount() > length || (length > 0 && stream.gcount() == 0))
 		{
 			global_deallocate(s);
 			return MAKE_PARSE_RESULT(status_io_error);
@@ -3199,10 +3199,10 @@ namespace pugi
 			return MAKE_PARSE_RESULT(status_out_of_memory);
 		}
 
-		size_t read = fread(s, (size_t)length, 1, file);
+		size_t read = fread(s, 1, (size_t)length, file);
 		fclose(file);
 
-		if (read != 1)
+		if (read != (size_t)length)
 		{
 			global_deallocate(s);
 			return MAKE_PARSE_RESULT(status_io_error);
