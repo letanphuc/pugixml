@@ -6,7 +6,8 @@
 
 test_runner* test_runner::_tests = 0;
 size_t test_runner::_memory_fail_threshold = 0;
-jmp_buf test_runner::_failure;
+jmp_buf test_runner::_failure_buffer;
+const char* test_runner::_failure_message;
 
 static size_t g_memory_total_size = 0;
 
@@ -68,7 +69,7 @@ static bool run_test(test_runner* test)
 #	pragma warning(disable: 4611) // interaction between _setjmp and C++ object destruction is non-portable
 #endif
 
-		volatile int result = setjmp(test_runner::_failure);
+		volatile int result = setjmp(test_runner::_failure_buffer);
 	
 #ifdef _MSC_VER
 #	pragma warning(pop)
@@ -76,13 +77,17 @@ static bool run_test(test_runner* test)
 
 		if (result)
 		{
-			printf("Test %s failed: %s\n", test->_name, (const char*)(intptr_t)result);
+			printf("Test %s failed: %s\n", test->_name, test_runner::_failure_message);
 			return false;
 		}
 
 		test->run();
 
-		if (g_memory_total_size != 0) longjmp(test_runner::_failure, (int)(intptr_t)"Memory leaks found");
+		if (g_memory_total_size != 0)
+		{
+			printf("Test %s failed: memory leaks found (%d bytes)\n", test->_name, g_memory_total_size);
+			return false;
+		}
 
 		return true;
 #ifndef PUGIXML_NO_EXCEPTIONS

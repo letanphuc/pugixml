@@ -84,6 +84,6 @@ void memory_deallocate(void* ptr)
 
 	size_t size = memory_size(ptr);
 
-	deallocate((size_t*)ptr - 1, size + 4);
+	deallocate((size_t*)ptr - 1, size + sizeof(size_t));
 }
 

@@ -36,7 +36,8 @@ struct test_runner
 
 	static test_runner* _tests;
 	static size_t _memory_fail_threshold;
-	static jmp_buf _failure;
+	static jmp_buf _failure_buffer;
+	static const char* _failure_message;
 };
 
 inline bool test_string_equal(const pugi::char_t* lhs, const pugi::char_t* rhs)
@@ -123,7 +124,11 @@ struct xpath_node_set_tester
 
 	void check(bool condition)
 	{
-		if (!condition) longjmp(test_runner::_failure, (int)(intptr_t)message);
+		if (!condition)
+		{
+			test_runner::_failure_message = message;
+			longjmp(test_runner::_failure_buffer, 1);
+		}
 	}
 
 	xpath_node_set_tester(const pugi::xml_node& node, const pugi::char_t* query, const char* message): last(0), message(message)
@@ -205,7 +210,7 @@ struct dummy_fixture {};
 
 #define CHECK_JOIN(text, file, line) text file #line
 #define CHECK_JOIN2(text, file, line) CHECK_JOIN(text, file, line)
-#define CHECK_TEXT(condition, text) if (condition) ; else longjmp(test_runner::_failure, (int)(intptr_t)(CHECK_JOIN2(text, " at "__FILE__ ":", __LINE__)))
+#define CHECK_TEXT(condition, text) if (condition) ; else test_runner::_failure_message = CHECK_JOIN2(text, " at "__FILE__ ":", __LINE__), longjmp(test_runner::_failure_buffer, 1)
 
 #if (defined(_MSC_VER) && _MSC_VER == 1200) || defined(__MWERKS__)
 #	define STRINGIZE(value) "??" // MSVC 6.0 and CodeWarrior have troubles stringizing stuff with strings w/escaping inside
