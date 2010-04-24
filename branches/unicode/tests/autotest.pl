@@ -22,40 +22,26 @@ $fast = (shift eq 'fast');
 
 $fail = 0;
 
-$report = <<END;
-<html><head><title>pugixml autotest report</title></head><body>
-<h3>pugixml autotest report</h3>
-<table border=0 cellspacing=0 cellpadding=4>
-<tr><td></td>
-END
+system("echo ### autotest begin >autotest.log");
+
+%results = ();
 
 foreach $toolset (@toolsets)
 {
-	$report .= "<th>$toolset</th>";
-}
-
-$report .= "</tr>\n";
-
-system("echo ### autotest begin >autotest.log");
-
-foreach $configuration (@configurations)
-{
-	foreach $defineset (@definesets)
+	foreach $configuration (@configurations)
 	{
-		$defineabbr = $defineset;
-
-		for ($i = 0; $i < $#definesabbr + 1; ++$i)
+		foreach $defineset (@definesets)
 		{
-			$defineabbr =~ s/$defines[$i]/$definesabbr[$i]/;
-		}
+			$defineabbr = $defineset;
 
-		if ($defineabbr !~ /noxpath/ && $defineabbr =~ /noexcept/) { next; }
-		if ($defineabbr !~ /noxpath/ && $defineabbr =~ /nostl/) { next; }
+			for ($i = 0; $i < $#definesabbr + 1; ++$i)
+			{
+				$defineabbr =~ s/$defines[$i]/$definesabbr[$i]/;
+			}
 
-		$report .= "<tr><td>$configuration $defineabbr</td>";
+			if ($defineabbr !~ /noxpath/ && $defineabbr =~ /noexcept/) { next; }
+			if ($defineabbr !~ /noxpath/ && $defineabbr =~ /nostl/) { next; }
 
-		foreach $toolset (@toolsets)
-		{
 			print "*** testing $toolset/$configuration ($defineabbr) ... ***\n";
 
 			my $cmdline = "jam toolset=$toolset configuration=$configuration defines=\"$defineset\"";
@@ -78,6 +64,8 @@ foreach $configuration (@configurations)
 			$fail = 1 if ($result != 0);
 
 			# print build report
+			my $report = "";
+
 			if ($result == 0)
 			{
 				my $align = ($coverage_pugixml > 0 || $coverage_pugixpath > 0) ? 'left' : 'center';
@@ -96,19 +84,45 @@ foreach $configuration (@configurations)
 			{
 				$report .= "<td bgcolor='#ff0000' align='center'>failed</td>"
 			}
+
+			$results{"$configuration $defineabbr"}{$toolset} = $report;
+
+			last if ($fast);
 		}
 
 		last if ($fast);
 	}
-		
-	$report .= "</tr>\n";
-
-	last if ($fast);
 }
 
 system("echo ### autotest end >>autotest.log");
 
 $date = scalar localtime;
+
+$report = <<END;
+<html><head><title>pugixml autotest report</title></head><body>
+<h3>pugixml autotest report</h3>
+<table border=0 cellspacing=0 cellpadding=4>
+<tr><td></td>
+END
+
+foreach $toolset (@toolsets)
+{
+	$report .= "<th>$toolset</th>";
+}
+
+$report .= "</tr>\n";
+
+foreach $k (sort {$a cmp $b} keys %results)
+{
+	$report .= "<tr><td>$k</td>";
+
+	foreach $toolset (@toolsets)
+	{
+		$report .= $results{$k}{$toolset};
+	}
+		
+	$report .= "</tr>\n";
+}
 
 $report .= <<END;
 </table><br>
