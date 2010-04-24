@@ -31,13 +31,17 @@ TEST(document_load_stream)
 	CHECK_NODE(doc, STR("<node />"));
 }
 
-TEST(document_load_stream_empty)
+TEST(document_load_stream_offset)
 {
 	pugi::xml_document doc;
 
-	std::istringstream iss;
+	std::istringstream iss("<foobar> <node/>");
+
+	std::string s;
+	iss >> s;
+
 	CHECK(doc.load(iss));
-	CHECK(!doc.first_child());
+	CHECK_NODE(doc, STR("<node />"));
 }
 
 TEST(document_load_stream_text)
