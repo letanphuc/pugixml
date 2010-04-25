@@ -22,6 +22,16 @@ namespace pugi
 		typedef unsigned short char16_t;
 		typedef unsigned int char32_t;
 
+		inline char16_t endian_swap(char16_t value)
+		{
+			return ((value & 0xff) << 8) | (value >> 8);
+		}
+
+		inline char32_t endian_swap(char32_t value)
+		{
+			return ((value & 0xff) << 24) | ((value & 0xff00) << 8) | ((value & 0xff0000) >> 8) | (value >> 24);
+		}
+
 		struct utf16_counter
 		{
 			typedef size_t value_type;
@@ -98,18 +108,25 @@ namespace pugi
 
 		template <> struct wchar_selector<2>
 		{
+			typedef char16_t type;
 			typedef utf16_counter counter;
 			typedef utf16_writer writer;
 		};
 
 		template <> struct wchar_selector<4>
 		{
+			typedef char16_t type;
 			typedef utf32_counter counter;
 			typedef utf32_writer writer;
 		};
 
 		typedef wchar_selector<sizeof(wchar_t)>::counter wchar_counter;
 		typedef wchar_selector<sizeof(wchar_t)>::writer wchar_writer;
+
+		inline wchar_t endian_swap(wchar_t value)
+		{
+			return (wchar_t)endian_swap(static_cast<wchar_selector<sizeof(wchar_t)>::type>(value));
+		}
 
 		template <typename Traits> static inline typename Traits::value_type decode_utf8_block(const char8_t* data, size_t size, typename Traits::value_type result, size_t* valid_size)
 		{
@@ -192,6 +209,11 @@ namespace pugi
 		inline void convert_utf8_to_wchar(wchar_t* result, const char8_t* data, size_t size)
 		{
 			decode_utf8_block<wchar_writer>(data, size, reinterpret_cast<wchar_writer::value_type>(result), 0);
+		}
+
+		template <typename T> inline void convert_utf_endian_swap(T* result, const T* data, size_t length)
+		{
+			for (size_t i = 0; i < length; ++i) result[i] = endian_swap(data[i]);
 		}
 	}
 }
