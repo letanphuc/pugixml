@@ -43,18 +43,18 @@ namespace pugi
 
 			static value_type low(value_type result, char32_t ch)
 			{
-				*result = ch;
+				*result = static_cast<char16_t>(ch);
 
 				return result + 1;
 			}
 
 			static value_type high(value_type result, char32_t ch)
 			{
-				char16_t msh = (char32_t)(ch - 0x10000) >> 10;
-				char16_t lsh = (char32_t)(ch - 0x10000) & 0x3ff;
+				char32_t msh = (char32_t)(ch - 0x10000) >> 10;
+				char32_t lsh = (char32_t)(ch - 0x10000) & 0x3ff;
 
-				result[0] = 0xD800 + msh;
-				result[1] = 0xDC00 + lsh;
+				result[0] = static_cast<char16_t>(0xD800 + msh);
+				result[1] = static_cast<char16_t>(0xDC00 + lsh);
 
 				return result + 2;
 			}
