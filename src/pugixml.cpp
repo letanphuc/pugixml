@@ -524,13 +524,39 @@ namespace
 	}
 
 #ifdef PUGIXML_WCHAR_MODE
+	inline bool need_endian_swap_utf(unsigned int lf, unsigned int rf)
+	{
+		return (lf == parse_format_utf16_be && rf == parse_format_utf16_le) || (lf == parse_format_utf16_le && rf == parse_format_utf16_be) ||
+		       (lf == parse_format_utf32_be && rf == parse_format_utf32_le) || (lf == parse_format_utf32_le && rf == parse_format_utf32_be);
+	}
+
+	bool convert_buffer_endian_swap(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size, bool is_mutable)
+	{
+		const char_t* data = static_cast<const char_t*>(contents);
+	
+		out_buffer = is_mutable ? const_cast<char_t*>(data) : static_cast<char_t*>(global_allocate(size > 0 ? size : 1));
+		out_length = size / sizeof(char_t);
+
+		if (!out_buffer) return false;
+
+		impl::convert_utf_endian_swap(out_buffer, data, out_length);
+
+		return true;
+	}
+
 	bool convert_buffer(char_t*& out_buffer, size_t& out_length, unsigned int options, const void* contents, size_t size, bool is_mutable)
 	{
 		// get actual format
 		unsigned int format = get_buffer_format(options, contents, size);
 
+		// get native format
+		unsigned int wchar_format = get_wchar_format();
+
 		// fast path: no conversion required
-		if (format == get_wchar_format()) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
+		if (format == wchar_format) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
+
+		// only endian-swapping is required
+		if (need_endian_swap_utf(format, wchar_format)) return convert_buffer_endian_swap(out_buffer, out_length, contents, size, is_mutable);
 
 		// not implemented yet
 		return false;
