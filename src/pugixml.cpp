@@ -3156,7 +3156,7 @@ namespace pugi
 			return MAKE_PARSE_RESULT(status_io_error);
 		}
 
-		return parse(transfer_ownership_tag(), stream.gcount() / sizeof(char_t), s, options); // Parse the input string.
+		return load_buffer_insitu_own(s, stream.gcount(), options); // Parse the input string.
 	}
 #endif
 
@@ -3164,14 +3164,14 @@ namespace pugi
 	{
 		destroy();
 		
-		size_t length = impl::strlen(contents);
+		// Force native format (skip autodetection)
+	#ifdef PUGIXML_WCHAR_MODE
+		options = (options & ~parse_format_mask) | parse_format_wchar;
+	#else
+		options = (options & ~parse_format_mask) | parse_format_utf8;
+	#endif
 
-		char_t* s = static_cast<char_t*>(global_allocate((length > 0 ? length : 1) * sizeof(char_t)));
-		if (!s) return MAKE_PARSE_RESULT(status_out_of_memory);
-
-		memcpy(s, contents, length * sizeof(char_t));
-
-		return parse(transfer_ownership_tag(), length, s, options); // Parse the input string.
+		return load_buffer(contents, impl::strlen(contents) * sizeof(char_t), options);
 	}
 
 	xml_parse_result xml_document::load_file(const char* name, unsigned int options)
@@ -3208,38 +3208,40 @@ namespace pugi
 			return MAKE_PARSE_RESULT(status_io_error);
 		}
 		
-		return parse(transfer_ownership_tag(), length / sizeof(char_t), s, options); // Parse the input string.
+		return load_buffer_insitu_own(s, length, options);
 	}
 
-	xml_parse_result xml_document::parse(char_t* xmlstr, unsigned int options)
+	xml_parse_result xml_document::load_buffer(const void* contents, size_t size, unsigned int options)
 	{
-		return parse(impl::strlen(xmlstr), xmlstr, options);
+		destroy();
+		
+		char_t* s = static_cast<char_t*>(global_allocate(size > 0 ? size : 1));
+		if (!s) return MAKE_PARSE_RESULT(status_out_of_memory);
+
+		memcpy(s, contents, size);
+
+		return load_buffer_insitu_own(s, size, options);
 	}
 
-	xml_parse_result xml_document::parse(size_t size, char_t* xmlstr, unsigned int options)
+	xml_parse_result xml_document::load_buffer_insitu(void* contents, size_t size, unsigned int options)
 	{
 		destroy();
 
 		// for offset_debug
-		static_cast<xml_document_struct*>(_root)->buffer = xmlstr;
+		static_cast<xml_document_struct*>(_root)->buffer = static_cast<char_t*>(contents);
 
 		xml_allocator& alloc = static_cast<xml_document_struct*>(_root)->allocator;
 		
 		xml_parser parser(alloc);
 		
-		return parser.parse(xmlstr, size, _root, options); // Parse the input string.
+		return parser.parse(static_cast<char_t*>(contents), size / sizeof(char_t), _root, options); // Parse the input string.
 	}
 		
-	xml_parse_result xml_document::parse(const transfer_ownership_tag&, char_t* xmlstr, unsigned int options)
+	xml_parse_result xml_document::load_buffer_insitu_own(void* contents, size_t size, unsigned int options)
 	{
-		return parse(transfer_ownership_tag(), impl::strlen(xmlstr), xmlstr, options);
-	}
+		xml_parse_result res = load_buffer_insitu(contents, size, options);
 
-	xml_parse_result xml_document::parse(const transfer_ownership_tag&, size_t size, char_t* xmlstr, unsigned int options)
-	{
-		xml_parse_result res = parse(size, xmlstr, options);
-
-		_buffer = xmlstr;
+		_buffer = static_cast<char_t*>(contents);
 
 		return res;
 	}
