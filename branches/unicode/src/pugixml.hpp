@@ -212,7 +212,7 @@ namespace pugi
 	 * which means that document format is autodetected from BOM and necessary format conversions are
 	 * applied. You can override this mode by using any of the specific formats.
 	 */
-	const unsigned int parse_format_bom	        = 0x0000; //!< Auto-detect input format using BOM; use native format if BOM is not found
+	const unsigned int parse_format_auto        = 0x0000; //!< Auto-detect input format using BOM or </<? detection; use UTF8 if BOM is not found
 
 	const unsigned int parse_format_utf8        = 0x1000; //!< Force input format to UTF8
 
@@ -234,7 +234,7 @@ namespace pugi
      * with spaces in attribute values and performing EOL handling. Note, that PCDATA sections
      * consisting only of whitespace characters are not parsed (by default) for performance reasons.
      */
-	const unsigned int parse_default			= parse_cdata | parse_escapes | parse_wconv_attribute | parse_eol | parse_format_bom;
+	const unsigned int parse_default			= parse_cdata | parse_escapes | parse_wconv_attribute | parse_eol | parse_format_auto;
 
 	// Formatting flags
 	
