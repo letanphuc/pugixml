@@ -216,12 +216,12 @@ namespace pugi
 
 	const unsigned int parse_format_utf8        = 0x1000; //!< Force input format to UTF8
 
-	const unsigned int parse_format_utf16le     = 0x2000; //!< Force input format to little-endian UTF16
-	const unsigned int parse_format_utf16be     = 0x3000; //!< Force input format to big-endian UTF16
+	const unsigned int parse_format_utf16_le    = 0x2000; //!< Force input format to little-endian UTF16
+	const unsigned int parse_format_utf16_be    = 0x3000; //!< Force input format to big-endian UTF16
 	const unsigned int parse_format_utf16       = 0x4000; //!< Force input format to UTF16 with native endianness
 
-	const unsigned int parse_format_utf32le     = 0x5000; //!< Force input format to little-endian UTF32
-	const unsigned int parse_format_utf32be     = 0x6000; //!< Force input format to big-endian UTF32
+	const unsigned int parse_format_utf32_le    = 0x5000; //!< Force input format to little-endian UTF32
+	const unsigned int parse_format_utf32_be    = 0x6000; //!< Force input format to big-endian UTF32
 	const unsigned int parse_format_utf32       = 0x7000; //!< Force input format to UTF32 with native endianness
 
 	const unsigned int parse_format_wchar       = 0x8000; //!< Force input format to wchar_t
@@ -1827,7 +1827,7 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return parsing result
 		 */
-		xml_parse_result load_buffer_insitu(void* contents, size_t size, unsigned int options = parse_default);
+		xml_parse_result load_buffer_inplace(void* contents, size_t size, unsigned int options = parse_default);
 
 		/**
 		 * Load document from buffer in-situ (gains buffer ownership).
@@ -1840,7 +1840,7 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return parsing result
 		 */
-		xml_parse_result load_buffer_insitu_own(void* contents, size_t size, unsigned int options = parse_default);
+		xml_parse_result load_buffer_inplace_own(void* contents, size_t size, unsigned int options = parse_default);
 
 		/**
 		 * Save XML to writer
