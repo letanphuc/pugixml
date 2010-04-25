@@ -1584,7 +1584,7 @@ namespace
 
 					SKIPWS(); // Eat whitespace if no genuine PCDATA here.
 
-					if ((mark == s || !OPTSET(parse_ws_pcdata)) && (!*s || *s == '<'))
+					if ((!OPTSET(parse_ws_pcdata) || mark == s) && (*s == '<' || !*s))
 					{
 						continue;
 					}
