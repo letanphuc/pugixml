@@ -474,23 +474,27 @@ namespace
 		if ((options & parse_format_mask) == parse_format_wchar) return get_wchar_format();
 
 		// only do autodetection if no explicit format is requested
-		if ((options & parse_format_mask) != parse_format_bom) return options & parse_format_mask;
+		if ((options & parse_format_mask) != parse_format_auto) return options & parse_format_mask;
 
-		// look for BOM in first few bytes
+		// try to guess format (based on XML specification, Appendix F.1)
 		const impl::char8_t* data = static_cast<const impl::char8_t*>(contents);
 
+		// look for BOM in first few bytes
 		if (size > 4 && data[0] == 0 && data[1] == 0 && data[2] == 0xfe && data[3] == 0xff) return parse_format_utf32_be;
 		if (size > 4 && data[0] == 0xff && data[1] == 0xfe && data[2] == 0 && data[3] == 0) return parse_format_utf32_le;
 		if (size > 2 && data[0] == 0xfe && data[1] == 0xff) return parse_format_utf16_be;
 		if (size > 2 && data[0] == 0xff && data[1] == 0xfe) return parse_format_utf16_le;
 		if (size > 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) return parse_format_utf8;
 
-		// no known BOM detected, use native format
-	#ifdef PUGIXML_WCHAR_MODE
-		return get_wchar_format();
-	#else
+		// look for <, <? or <?xm in various encodings
+		if (size > 4 && data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 0x3c) return parse_format_utf32_be;
+		if (size > 4 && data[0] == 0x3c && data[1] == 0 && data[2] == 0 && data[3] == 0) return parse_format_utf32_le;
+		if (size > 4 && data[0] == 0 && data[1] == 0x3c && data[2] == 0 && data[3] == 0x3f) return parse_format_utf16_be;
+		if (size > 4 && data[0] == 0x3c && data[1] == 0 && data[2] == 0x3f && data[3] == 0) return parse_format_utf16_le;
+		if (size > 4 && data[0] == 0x3c && data[1] == 0x3f && data[2] == 0x78 && data[3] == 0x6d) return parse_format_utf8;
+
+		// no known BOM detected, assume UTF8
 		return parse_format_utf8;
-	#endif
 	}
 
 	bool get_mutable_buffer(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size, bool is_mutable)
