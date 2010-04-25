@@ -170,21 +170,31 @@ TEST_XML(document_save_file, "<node/>")
 	unlink("tests/data/output.xml");
 }
 
-TEST(document_parse)
+TEST(document_load_buffer)
+{
+	const pugi::char_t text[] = STR("<node/>");
+
+	pugi::xml_document doc;
+
+	CHECK(doc.load_buffer(text, sizeof(text)));
+	CHECK_NODE(doc, STR("<node />"));
+}
+
+TEST(document_load_buffer_insitu)
 {
 	pugi::char_t text[] = STR("<node/>");
 
 	pugi::xml_document doc;
 
-	CHECK(doc.parse(text));
+	CHECK(doc.load_buffer_insitu(text, sizeof(text)));
 	CHECK_NODE(doc, STR("<node />"));
 }
 
-TEST(document_parse_transfer_ownership)
+TEST(document_load_buffer_insitu_own)
 {
 	allocation_function alloc = get_memory_allocation_function();
 
-	size_t size = (strlen("<node/>") + 1) * sizeof(pugi::char_t);
+	size_t size = strlen("<node/>") * sizeof(pugi::char_t);
 
 	pugi::char_t* text = static_cast<pugi::char_t*>(alloc(size));
 	CHECK(text);
@@ -193,7 +203,7 @@ TEST(document_parse_transfer_ownership)
 
 	pugi::xml_document doc;
 
-	CHECK(doc.parse(transfer_ownership_tag(), text));
+	CHECK(doc.load_buffer_insitu_own(text, size));
 	CHECK_NODE(doc, STR("<node />"));
 }
 

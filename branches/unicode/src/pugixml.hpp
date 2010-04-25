@@ -208,12 +208,33 @@ namespace pugi
 	const unsigned int parse_declaration		= 0x0100;
 
 	/**
+	 * These flags determine the format of input data for XML document. Default mode is parse_format_bom,
+	 * which means that document format is autodetected from BOM and necessary format conversions are
+	 * applied. You can override this mode by using any of the specific formats.
+	 */
+	const unsigned int parse_format_bom	        = 0x0000; //!< Auto-detect input format using BOM; use native format if BOM is not found
+
+	const unsigned int parse_format_utf8        = 0x1000; //!< Force input format to UTF8
+
+	const unsigned int parse_format_utf16le     = 0x2000; //!< Force input format to little-endian UTF16
+	const unsigned int parse_format_utf16be     = 0x3000; //!< Force input format to big-endian UTF16
+	const unsigned int parse_format_utf16       = 0x4000; //!< Force input format to UTF16 with native endianness
+
+	const unsigned int parse_format_utf32le     = 0x5000; //!< Force input format to little-endian UTF32
+	const unsigned int parse_format_utf32be     = 0x6000; //!< Force input format to big-endian UTF32
+	const unsigned int parse_format_utf32       = 0x7000; //!< Force input format to UTF32 with native endianness
+
+	const unsigned int parse_format_wchar       = 0x8000; //!< Force input format to wchar_t
+
+	const unsigned int parse_format_mask = 0xf000; //!< \internal bitmask for format flags
+
+	/**
      * This is the default set of flags. It includes parsing CDATA sections (comments/PIs are not
      * parsed), performing character and entity reference expansion, replacing whitespace characters
      * with spaces in attribute values and performing EOL handling. Note, that PCDATA sections
      * consisting only of whitespace characters are not parsed (by default) for performance reasons.
      */
-	const unsigned int parse_default			= parse_cdata | parse_escapes | parse_wconv_attribute | parse_eol;
+	const unsigned int parse_default			= parse_cdata | parse_escapes | parse_wconv_attribute | parse_eol | parse_format_bom;
 
 	// Formatting flags
 	
@@ -1769,7 +1790,7 @@ namespace pugi
 #endif
 
 		/**
-		 * Load document from string.
+		 * Load document from string. String has to be zero-terminated. No format conversions are applied.
 		 *
 		 * \param contents - input string
 		 * \param options - parsing options
@@ -1787,33 +1808,40 @@ namespace pugi
 		xml_parse_result load_file(const char* name, unsigned int options = parse_default);
 
 		/**
-		 * Parse the given XML string in-situ.
-		 * The string is modified; you should ensure that string data will persist throughout the
-		 * document's lifetime. Although, document does not gain ownership over the string, so you
-		 * should free the memory occupied by it manually.
+		 * Load document from buffer
 		 *
-		 * \param xmlstr - readwrite string with xml data
+		 * \param contents - buffer contents
+		 * \param size - buffer size in bytes
 		 * \param options - parsing options
 		 * \return parsing result
 		 */
-		xml_parse_result parse(char_t* xmlstr, unsigned int options = parse_default);
+		xml_parse_result load_buffer(const void* contents, size_t size, unsigned int options = parse_default);
 
-		xml_parse_result parse(size_t size, char_t* xmlstr, unsigned int options = parse_default);
-		
 		/**
-		 * Parse the given XML string in-situ (gains ownership).
-		 * The string is modified; document gains ownership over the string, so you don't have to worry
-		 * about it's lifetime.
-		 * Call example: doc.parse(transfer_ownership_tag(), string, options);
+		 * Load document from buffer in-situ.
+		 * The buffer is modified; you should ensure that buffer data will persist throughout the document's
+		 * lifetime. Document does not gain ownership over the buffer, so you should free the buffer memory manually.
 		 *
-		 * \param xmlstr - readwrite string with xml data
+		 * \param contents - buffer contents
+		 * \param size - buffer size in bytes
 		 * \param options - parsing options
 		 * \return parsing result
 		 */
-		xml_parse_result parse(const transfer_ownership_tag&, char_t* xmlstr, unsigned int options = parse_default);
+		xml_parse_result load_buffer_insitu(void* contents, size_t size, unsigned int options = parse_default);
 
-		xml_parse_result parse(const transfer_ownership_tag&, size_t size, char_t* xmlstr, unsigned int options = parse_default);
-		
+		/**
+		 * Load document from buffer in-situ (gains buffer ownership).
+		 * The buffer is modified; you should ensure that buffer data will persist throughout the document's
+		 * lifetime. Document gains ownership over the buffer, so you should allocate the buffer with pugixml
+		 * allocation function.
+		 *
+		 * \param contents - buffer contents
+		 * \param size - buffer size in bytes
+		 * \param options - parsing options
+		 * \return parsing result
+		 */
+		xml_parse_result load_buffer_insitu_own(void* contents, size_t size, unsigned int options = parse_default);
+
 		/**
 		 * Save XML to writer
 		 *
