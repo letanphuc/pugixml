@@ -544,6 +544,25 @@ namespace
 		return true;
 	}
 
+	bool convert_buffer_utf8(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size)
+	{
+		const impl::char8_t* data = static_cast<const impl::char8_t*>(contents);
+
+		// first pass: get length in wchar_t units, correct input size if input sequence ends prematurely
+		out_length = impl::length_utf8_to_wchar(data, size, &size);
+
+		// allocate buffer of suitable length and set last two symbols to zero (no garbage if input sequence ends prematurely)
+		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
+		if (!out_buffer) return false;
+
+		out_buffer[out_length > 0 ? out_length - 1 : 0] = out_buffer[out_length > 1 ? out_length - 2 : 0] = 0;
+
+		// second pass: convert utf8 input to wchar_t
+		impl::convert_utf8_to_wchar(out_buffer, data, size);
+
+		return true;
+	}
+
 	bool convert_buffer(char_t*& out_buffer, size_t& out_length, unsigned int options, const void* contents, size_t size, bool is_mutable)
 	{
 		// get actual format
@@ -557,6 +576,9 @@ namespace
 
 		// only endian-swapping is required
 		if (need_endian_swap_utf(format, wchar_format)) return convert_buffer_endian_swap(out_buffer, out_length, contents, size, is_mutable);
+
+		// source format is utf8
+		if (format == parse_format_utf8) return convert_buffer_utf8(out_buffer, out_length, contents, size);
 
 		// not implemented yet
 		return false;
