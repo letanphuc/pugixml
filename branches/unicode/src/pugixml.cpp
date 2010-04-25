@@ -458,45 +458,86 @@ namespace
 		return *reinterpret_cast<unsigned char*>(&ui) == 1;
 	}
 
-	unsigned int fix_wchar_format(unsigned int options)
+	unsigned int get_wchar_format()
 	{
 		STATIC_ASSERT(sizeof(wchar_t) == 2 || sizeof(wchar_t) == 4);
 
-		options &= ~parse_format_mask;
-
 		if (sizeof(wchar_t) == 2)
-			return options | (is_little_endian() ? parse_format_utf16_le : parse_format_utf16_be);
+			return is_little_endian() ? parse_format_utf16_le : parse_format_utf16_be;
 		else 
-			return options | (is_little_endian() ? parse_format_utf32_le : parse_format_utf32_be);
+			return is_little_endian() ? parse_format_utf32_le : parse_format_utf32_be;
 	}
 
-	unsigned int autodetect_format(unsigned int options, const void* contents, size_t size)
+	unsigned int get_buffer_format(unsigned int options, const void* contents, size_t size)
 	{
 		// replace wchar format with utf implementation
-		if ((options & parse_format_mask) == parse_format_wchar) return fix_wchar_format(options);
+		if ((options & parse_format_mask) == parse_format_wchar) return get_wchar_format();
 
 		// only do autodetection if no explicit format is requested
-		if ((options & parse_format_mask) != parse_format_bom) return options;
-
-		// remove format flags
-		options &= ~parse_format_mask;
+		if ((options & parse_format_mask) != parse_format_bom) return options & parse_format_mask;
 
 		// look for BOM in first few bytes
 		const impl::char8_t* data = static_cast<const impl::char8_t*>(contents);
 
-		if (size > 4 && data[0] == 0 && data[1] == 0 && data[2] == 0xfe && data[3] == 0xff) return options | parse_format_utf32_be;
-		if (size > 4 && data[0] == 0xff && data[1] == 0xfe && data[2] == 0 && data[3] == 0) return options | parse_format_utf32_le;
-		if (size > 2 && data[0] == 0xfe && data[1] == 0xff) return options | parse_format_utf16_be;
-		if (size > 2 && data[0] == 0xff && data[1] == 0xfe) return options | parse_format_utf16_le;
-		if (size > 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) return options | parse_format_utf8;
+		if (size > 4 && data[0] == 0 && data[1] == 0 && data[2] == 0xfe && data[3] == 0xff) return parse_format_utf32_be;
+		if (size > 4 && data[0] == 0xff && data[1] == 0xfe && data[2] == 0 && data[3] == 0) return parse_format_utf32_le;
+		if (size > 2 && data[0] == 0xfe && data[1] == 0xff) return parse_format_utf16_be;
+		if (size > 2 && data[0] == 0xff && data[1] == 0xfe) return parse_format_utf16_le;
+		if (size > 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) return parse_format_utf8;
 
 		// no known BOM detected, use native format
 	#ifdef PUGIXML_WCHAR_MODE
-		return fix_wchar_format(options);
+		return get_wchar_format();
 	#else
-		return options | parse_format_utf8;
+		return parse_format_utf8;
 	#endif
 	}
+
+	bool get_mutable_buffer(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size, bool is_mutable)
+	{
+		if (is_mutable)
+		{
+			out_buffer = static_cast<char_t*>(const_cast<void*>(contents));
+		}
+		else
+		{
+			void* buffer = global_allocate(size > 0 ? size : 1);
+			if (!buffer) return false;
+
+			memcpy(buffer, contents, size);
+
+			out_buffer = static_cast<char_t*>(buffer);
+		}
+
+		out_length = size / sizeof(char_t);
+		return true;
+	}
+
+#ifdef PUGIXML_WCHAR_MODE
+	bool convert_buffer(char_t*& out_buffer, size_t& out_length, unsigned int options, const void* contents, size_t size, bool is_mutable)
+	{
+		// get actual format
+		unsigned int format = get_buffer_format(options, contents, size);
+
+		// fast path: no conversion required
+		if (format == get_format_wchar()) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
+
+		// not implemented yet
+		return false;
+	}
+#else
+	bool convert_buffer(char_t*& out_buffer, size_t& out_length, unsigned int options, const void* contents, size_t size, bool is_mutable)
+	{
+		// get actual format
+		unsigned int format = get_buffer_format(options, contents, size);
+
+		// fast path: no conversion required
+		if (format == parse_format_utf8) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
+
+		// not implemented yet
+		return false;
+	}
+#endif
 
 	bool strcpy_insitu(char_t*& dest, bool& allocated, const char_t* source)
 	{
@@ -1564,26 +1605,39 @@ namespace
 				}
 			}
 
+			// check that last tag is closed
 			if (cursor != xmldoc) THROW_ERROR(status_end_element_mismatch, s);
 			
 			THROW_ERROR(status_ok, s);
 		}
 
-		xml_parse_result parse(char_t* s, size_t size, xml_node_struct* xmldoc, unsigned int optmsk = parse_default)
+		static xml_parse_result parse(char_t* buffer, size_t length, xml_node_struct* xmldoc, unsigned int optmsk)
 		{
-			if (size == 0) return MAKE_PARSE_RESULT(status_ok);
+			// store buffer for offset_debug
+			static_cast<xml_document_struct*>(xmldoc)->buffer = buffer;
 
-			char_t endch = s[size - 1];
-			s[size - 1] = 0;
+			// early-out for empty documents
+			if (length == 0) return MAKE_PARSE_RESULT(status_ok);
 
-			xml_parse_result result = parse(s, xmldoc, optmsk, endch);
+			// create parser on stack
+			xml_allocator& alloc = static_cast<xml_document_struct*>(xmldoc)->allocator;
+			
+			xml_parser parser(alloc);
 
+			// save last character and make buffer zero-terminated (speeds up parsing)
+			char_t endch = buffer[length - 1];
+			buffer[length - 1] = 0;
+			
+			// perform actual parsing
+			xml_parse_result result = parser.parse(buffer, xmldoc, optmsk, endch);
+
+			// since we removed last character, we have to handle the only possible false positive
 			if (result && endch == '<')
 			{
-				char_t* buffer_start = s;
+				char_t* buffer_start = buffer;
 
 				// there's no possible well-formed document with < at the end
-				THROW_ERROR(status_unrecognized_tag, buffer_start + size);
+				THROW_ERROR(status_unrecognized_tag, buffer_start + length);
 			}
 
 			return result;
@@ -3259,34 +3313,59 @@ namespace pugi
 	xml_parse_result xml_document::load_buffer(const void* contents, size_t size, unsigned int options)
 	{
 		destroy();
+
+		// get private buffer
+		char_t* buffer;
+		size_t length;
+
+		if (!convert_buffer(buffer, length, options, contents, size, false)) return MAKE_PARSE_RESULT(status_out_of_memory);
 		
-		char_t* s = static_cast<char_t*>(global_allocate(size > 0 ? size : 1));
-		if (!s) return MAKE_PARSE_RESULT(status_out_of_memory);
+		// parse
+		xml_parse_result res = xml_parser::parse(buffer, length, _root, options);
 
-		memcpy(s, contents, size);
+		// grab onto buffer
+		_buffer = buffer;
 
-		return load_buffer_inplace_own(s, size, options);
+		return res;
 	}
 
 	xml_parse_result xml_document::load_buffer_inplace(void* contents, size_t size, unsigned int options)
 	{
 		destroy();
 
-		// for offset_debug
-		static_cast<xml_document_struct*>(_root)->buffer = static_cast<char_t*>(contents);
+		// get private buffer
+		char_t* buffer;
+		size_t length;
 
-		xml_allocator& alloc = static_cast<xml_document_struct*>(_root)->allocator;
+		if (!convert_buffer(buffer, length, options, contents, size, true)) return MAKE_PARSE_RESULT(status_out_of_memory);
 		
-		xml_parser parser(alloc);
-		
-		return parser.parse(static_cast<char_t*>(contents), size / sizeof(char_t), _root, options); // Parse the input string.
+		// parse
+		xml_parse_result res = xml_parser::parse(buffer, length, _root, options);
+
+		// grab onto buffer if it's our buffer, user is responsible for deallocating contens himself
+		if (buffer != contents) _buffer = buffer;
+
+		return res;
 	}
 		
 	xml_parse_result xml_document::load_buffer_inplace_own(void* contents, size_t size, unsigned int options)
 	{
-		xml_parse_result res = load_buffer_inplace(contents, size, options);
+		destroy();
 
-		_buffer = static_cast<char_t*>(contents);
+		// get private buffer
+		char_t* buffer;
+		size_t length;
+
+		if (!convert_buffer(buffer, length, options, contents, size, true)) return MAKE_PARSE_RESULT(status_out_of_memory);
+
+		// delete original buffer if we performed a conversion
+		if (buffer != contents) global_deallocate(contents);
+		
+		// parse
+		xml_parse_result res = xml_parser::parse(buffer, length, _root, options);
+
+		// grab onto buffer
+		_buffer = buffer;
 
 		return res;
 	}
