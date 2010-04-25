@@ -17,6 +17,8 @@
 #error No exception mode can not be used with XPath support
 #endif
 
+#include "pugiutf.hpp"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -447,6 +449,53 @@ namespace
 	{
 		// $$$ wrong for wchar_t
 		return !!(chartype_table[static_cast<unsigned char>(c)] & ct);
+	}
+
+	bool is_little_endian()
+	{
+		unsigned int ui = 1;
+
+		return *reinterpret_cast<unsigned char*>(&ui) == 1;
+	}
+
+	unsigned int fix_wchar_format(unsigned int options)
+	{
+		STATIC_ASSERT(sizeof(wchar_t) == 2 || sizeof(wchar_t) == 4);
+
+		options &= ~parse_format_mask;
+
+		if (sizeof(wchar_t) == 2)
+			return options | (is_little_endian() ? parse_format_utf16_le : parse_format_utf16_be);
+		else 
+			return options | (is_little_endian() ? parse_format_utf32_le : parse_format_utf32_be);
+	}
+
+	unsigned int autodetect_format(unsigned int options, const void* contents, size_t size)
+	{
+		// replace wchar format with utf implementation
+		if ((options & parse_format_mask) == parse_format_wchar) return fix_wchar_format(options);
+
+		// only do autodetection if no explicit format is requested
+		if ((options & parse_format_mask) != parse_format_bom) return options;
+
+		// remove format flags
+		options &= ~parse_format_mask;
+
+		// look for BOM in first few bytes
+		const impl::char8_t* data = static_cast<const impl::char8_t*>(contents);
+
+		if (size > 4 && data[0] == 0 && data[1] == 0 && data[2] == 0xfe && data[3] == 0xff) return options | parse_format_utf32_be;
+		if (size > 4 && data[0] == 0xff && data[1] == 0xfe && data[2] == 0 && data[3] == 0) return options | parse_format_utf32_le;
+		if (size > 2 && data[0] == 0xfe && data[1] == 0xff) return options | parse_format_utf16_be;
+		if (size > 2 && data[0] == 0xff && data[1] == 0xfe) return options | parse_format_utf16_le;
+		if (size > 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) return options | parse_format_utf8;
+
+		// no known BOM detected, use native format
+	#ifdef PUGIXML_WCHAR_MODE
+		return fix_wchar_format(options);
+	#else
+		return options | parse_format_utf8;
+	#endif
 	}
 
 	bool strcpy_insitu(char_t*& dest, bool& allocated, const char_t* source)
@@ -1306,10 +1355,6 @@ namespace
 			
 			char_t* buffer_start = s;
 
-			// UTF-8 BOM
-			if ((unsigned char)*s == 0xEF && (unsigned char)*(s+1) == 0xBB && (unsigned char)*(s+2) == 0xBF)
-				s += 3;
-				
 			char_t ch = 0;
 			xml_node_struct* cursor = xmldoc;
 			char_t* mark = s;
@@ -3156,7 +3201,7 @@ namespace pugi
 			return MAKE_PARSE_RESULT(status_io_error);
 		}
 
-		return load_buffer_insitu_own(s, stream.gcount(), options); // Parse the input string.
+		return load_buffer_inplace_own(s, stream.gcount(), options); // Parse the input string.
 	}
 #endif
 
@@ -3208,7 +3253,7 @@ namespace pugi
 			return MAKE_PARSE_RESULT(status_io_error);
 		}
 		
-		return load_buffer_insitu_own(s, length, options);
+		return load_buffer_inplace_own(s, length, options);
 	}
 
 	xml_parse_result xml_document::load_buffer(const void* contents, size_t size, unsigned int options)
@@ -3220,10 +3265,10 @@ namespace pugi
 
 		memcpy(s, contents, size);
 
-		return load_buffer_insitu_own(s, size, options);
+		return load_buffer_inplace_own(s, size, options);
 	}
 
-	xml_parse_result xml_document::load_buffer_insitu(void* contents, size_t size, unsigned int options)
+	xml_parse_result xml_document::load_buffer_inplace(void* contents, size_t size, unsigned int options)
 	{
 		destroy();
 
@@ -3237,9 +3282,9 @@ namespace pugi
 		return parser.parse(static_cast<char_t*>(contents), size / sizeof(char_t), _root, options); // Parse the input string.
 	}
 		
-	xml_parse_result xml_document::load_buffer_insitu_own(void* contents, size_t size, unsigned int options)
+	xml_parse_result xml_document::load_buffer_inplace_own(void* contents, size_t size, unsigned int options)
 	{
-		xml_parse_result res = load_buffer_insitu(contents, size, options);
+		xml_parse_result res = load_buffer_inplace(contents, size, options);
 
 		_buffer = static_cast<char_t*>(contents);
 

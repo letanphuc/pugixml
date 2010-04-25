@@ -180,17 +180,17 @@ TEST(document_load_buffer)
 	CHECK_NODE(doc, STR("<node />"));
 }
 
-TEST(document_load_buffer_insitu)
+TEST(document_load_buffer_inplace)
 {
 	pugi::char_t text[] = STR("<node/>");
 
 	pugi::xml_document doc;
 
-	CHECK(doc.load_buffer_insitu(text, sizeof(text)));
+	CHECK(doc.load_buffer_inplace(text, sizeof(text)));
 	CHECK_NODE(doc, STR("<node />"));
 }
 
-TEST(document_load_buffer_insitu_own)
+TEST(document_load_buffer_inplace_own)
 {
 	allocation_function alloc = get_memory_allocation_function();
 
@@ -203,7 +203,7 @@ TEST(document_load_buffer_insitu_own)
 
 	pugi::xml_document doc;
 
-	CHECK(doc.load_buffer_insitu_own(text, size));
+	CHECK(doc.load_buffer_inplace_own(text, size));
 	CHECK_NODE(doc, STR("<node />"));
 }
 
