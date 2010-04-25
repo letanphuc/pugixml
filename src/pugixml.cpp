@@ -447,8 +447,13 @@ namespace
 	
 	inline bool is_chartype(char_t c, chartype ct)
 	{
-		// $$$ wrong for wchar_t
+	#ifdef PUGIXML_WCHAR_MODE
+		unsigned int ch = static_cast<unsigned int>(c);
+
+		return !!((ch < 128 ? chartype_table[ch] : chartype_table[128]) & ct);
+	#else
 		return !!(chartype_table[static_cast<unsigned char>(c)] & ct);
+	#endif
 	}
 
 	bool is_little_endian()
@@ -514,6 +519,7 @@ namespace
 		}
 
 		out_length = size / sizeof(char_t);
+
 		return true;
 	}
 
@@ -524,7 +530,7 @@ namespace
 		unsigned int format = get_buffer_format(options, contents, size);
 
 		// fast path: no conversion required
-		if (format == get_format_wchar()) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
+		if (format == get_wchar_format()) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
 
 		// not implemented yet
 		return false;
@@ -3248,10 +3254,10 @@ namespace pugi
 
 		if (!stream.good()) return MAKE_PARSE_RESULT(status_io_error);
 
-		char_t* s = static_cast<char_t*>(global_allocate(length > 0 ? length : 1));
+		char* s = static_cast<char*>(global_allocate(length > 0 ? length : 1));
 		if (!s) return MAKE_PARSE_RESULT(status_out_of_memory);
 
-		stream.read((char*)s, length);
+		stream.read(s, length);
 
 		if (stream.gcount() > length || (length > 0 && stream.gcount() == 0))
 		{
@@ -3294,7 +3300,7 @@ namespace pugi
 			return MAKE_PARSE_RESULT(status_io_error);
 		}
 		
-		char_t* s = static_cast<char_t*>(global_allocate(length > 0 ? length : 1));
+		char* s = static_cast<char*>(global_allocate(length > 0 ? length : 1));
 
 		if (!s)
 		{
