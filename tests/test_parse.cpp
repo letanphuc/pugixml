@@ -280,12 +280,14 @@ TEST(parse_escapes_code)
 TEST(parse_escapes_unicode)
 {
 	xml_document doc;
-	CHECK(doc.load(STR("<node>&#x03B3;&#x03b3;</node>"), parse_minimal | parse_escapes));
+	CHECK(doc.load(STR("<node>&#x03B3;&#x03b3;&#x24B62;</node>"), parse_minimal | parse_escapes));
 
 #ifdef PUGIXML_WCHAR_MODE
-	CHECK_STRING(doc.child_value(STR("node")), L"\x3b3\x3b3");
+	const pugi::char_t* v = doc.child_value(STR("node"));
+
+	CHECK(v[0] == 0x3b3 && v[1] == 0x3b3 && (sizeof(wchar_t) == 2 ? v[2] == 0xd852 && v[3] == 0xdf62 : v[3] == 0x24b62));
 #else
-	CHECK_STRING(doc.child_value(STR("node")), "\xce\xb3\xce\xb3");
+	CHECK_STRING(doc.child_value(STR("node")), "\xce\xb3\xce\xb3\xf0\xa4\xad\xa2");
 #endif
 }
 
