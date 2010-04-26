@@ -71,7 +71,11 @@ TEST(as_utf8)
 	}
 	else
 	{
+	#ifdef U_LITERALS
+		CHECK(as_utf8(L"\uda1d\ude24 \udbc0\udfff") == "\xf2\x97\x98\xa4 \xf4\x80\x8f\xbf");
+	#else
 		CHECK(as_utf8(L"\xda1d\xde24 \xdbc0\xdfff") == "\xf2\x97\x98\xa4 \xf4\x80\x8f\xbf");
+	#endif
 	}
 }
 #endif
