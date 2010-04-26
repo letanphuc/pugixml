@@ -193,7 +193,7 @@ namespace pugi
 
 		template <> struct wchar_selector<4>
 		{
-			typedef char16_t type;
+			typedef char32_t type;
 			typedef utf32_counter counter;
 			typedef utf32_writer writer;
 		};
