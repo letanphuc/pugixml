@@ -32,6 +32,67 @@ namespace pugi
 			return ((value & 0xff) << 24) | ((value & 0xff00) << 8) | ((value & 0xff0000) >> 8) | (value >> 24);
 		}
 
+		struct utf8_counter
+		{
+			typedef size_t value_type;
+
+			static value_type low(value_type result, char32_t ch)
+			{
+				// U+0000..U+007F
+				if (ch < 0x80) return result + 1;
+				// U+0080..U+07FF
+				else if (ch < 0x800) return result + 2;
+				// U+0800..U+FFFF
+				else return result + 3;
+			}
+
+			static value_type high(value_type result, char32_t)
+			{
+				// U+10000..U+10FFFF
+				return result + 4;
+			}
+		};
+
+		struct utf8_writer
+		{
+			typedef char8_t* value_type;
+
+			static value_type low(value_type result, char32_t ch)
+			{
+				// U+0000..U+007F
+				if (ch < 0x80)
+				{
+					*result = static_cast<char8_t>(ch);
+					return result + 1;
+				}
+				// U+0080..U+07FF
+				else if (ch < 0x800)
+				{
+					result[0] = static_cast<char8_t>(0xC0 | (ch >> 6));
+					result[1] = static_cast<char8_t>(0x80 | (ch & 0x3F));
+					return result + 2;
+				}
+				// U+0800..U+FFFF
+				else
+				{
+					result[0] = static_cast<char8_t>(0xE0 | (ch >> 12));
+					result[1] = static_cast<char8_t>(0x80 | ((ch >> 6) & 0x3F));
+					result[2] = static_cast<char8_t>(0x80 | (ch & 0x3F));
+					return result + 3;
+				}
+			}
+
+			static value_type high(value_type result, char32_t ch)
+			{
+				// U+10000..U+10FFFF
+				result[0] = static_cast<char8_t>(0xF0 | (ch >> 18));
+				result[1] = static_cast<char8_t>(0x80 | ((ch >> 12) & 0x3F));
+				result[2] = static_cast<char8_t>(0x80 | ((ch >> 6) & 0x3F));
+				result[3] = static_cast<char8_t>(0x80 | (ch & 0x3F));
+				return result + 4;
+			}
+		};
+
 		struct utf16_counter
 		{
 			typedef size_t value_type;
@@ -176,6 +237,77 @@ namespace pugi
 			{
 				// discard last codepoint
 				*valid_size = size - (data - prev);
+			}
+
+			return result;
+		}
+
+		template <typename Traits, bool swap> static inline typename Traits::value_type decode_utf16_block(const char16_t* data, size_t size, typename Traits::value_type result, size_t* valid_size)
+		{
+			const char16_t* end = data + size;
+			const char16_t* prev = data;
+
+			while (data < end)
+			{
+				prev = data;
+
+				char16_t lead = swap ? endian_swap(*data) : *data;
+
+				// U+0000..U+D7FF
+				if (lead < 0xD800)
+				{
+					result = Traits::low(result, lead);
+					data += 1;
+				}
+				// U+E000..U+FFFF
+				else if ((unsigned)(lead - 0xE000) < 0x2000)
+				{
+					result = Traits::low(result, lead);
+					data += 1;
+				}
+				// surrogate pair lead
+				else if ((unsigned)(lead - 0xD800) < 0x400)
+				{
+					char16_t next = swap ? endian_swap(data[1]) : data[1];
+
+					result = Traits::high(result, 0x10000 + ((lead & 0x3ff) << 10) + (next & 0x3ff));
+					data += 2;
+				}
+				else
+				{
+					data += 1;
+				}
+			}
+
+			if (data != end && valid_size)
+			{
+				// discard last codepoint
+				*valid_size = size - (data - prev);
+			}
+
+			return result;
+		}
+
+		template <typename Traits, bool swap> static inline typename Traits::value_type decode_utf32_block(const char32_t* data, size_t size, typename Traits::value_type result, size_t* valid_size)
+		{
+			const char32_t* end = data + size;
+
+			while (data < end)
+			{
+				char32_t lead = swap ? endian_swap(*data) : *data;
+
+				// U+0000..U+FFFF
+				if (lead < 0x10000)
+				{
+					result = Traits::low(result, lead);
+					data += 1;
+				}
+				// U+10000..U+10FFFF
+				else
+				{
+					result = Traits::high(result, lead);
+					data += 1;
+				}
 			}
 
 			return result;

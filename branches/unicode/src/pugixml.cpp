@@ -563,6 +563,44 @@ namespace
 		return true;
 	}
 
+	template <bool swap> bool convert_buffer_utf16(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size)
+	{
+		const impl::char16_t* data = static_cast<const impl::char16_t*>(contents);
+		size_t length = size / sizeof(impl::char16_t);
+
+		// first pass: get length in wchar_t units, correct input size if input sequence ends prematurely
+		out_length = impl::decode_utf16_block<impl::wchar_counter, swap>(data, length, 0, &length);
+
+		// allocate buffer of suitable length and set last two symbols to zero (no garbage if input sequence ends prematurely)
+		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
+		if (!out_buffer) return false;
+
+		out_buffer[out_length > 0 ? out_length - 1 : 0] = out_buffer[out_length > 1 ? out_length - 2 : 0] = 0;
+
+		// second pass: convert utf16 input to wchar_t
+		impl::decode_utf16_block<impl::wchar_writer, swap>(data, length, reinterpret_cast<impl::wchar_writer::value_type>(out_buffer), 0);
+
+		return true;
+	}
+
+	template <bool swap> bool convert_buffer_utf32(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size)
+	{
+		const impl::char32_t* data = static_cast<const impl::char32_t*>(contents);
+		size_t length = size / sizeof(impl::char32_t);
+
+		// first pass: get length in wchar_t units
+		out_length = impl::decode_utf32_block<impl::wchar_counter, swap>(data, length, 0, 0);
+
+		// allocate buffer of suitable length
+		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
+		if (!out_buffer) return false;
+
+		// second pass: convert utf32 input to wchar_t
+		impl::decode_utf32_block<impl::wchar_writer, swap>(data, length, reinterpret_cast<impl::wchar_writer::value_type>(out_buffer), 0);
+
+		return true;
+	}
+
 	bool convert_buffer(char_t*& out_buffer, size_t& out_length, unsigned int options, const void* contents, size_t size, bool is_mutable)
 	{
 		// get actual format
@@ -580,10 +618,67 @@ namespace
 		// source format is utf8
 		if (format == parse_format_utf8) return convert_buffer_utf8(out_buffer, out_length, contents, size);
 
-		// not implemented yet
+		// source format is utf16
+		if (format == parse_format_utf16_be || format == parse_format_utf16_le)
+		{
+			unsigned int native_format = is_little_endian() ? parse_format_utf16_le : parse_format_utf16_be;
+
+			return (native_format == format) ? convert_buffer_utf16<false>(out_buffer, out_length, contents, size) : convert_buffer_utf16<true>(out_buffer, out_length, contents, size);
+		}
+
+		// source format is utf32
+		if (format == parse_format_utf32_be || format == parse_format_utf32_le)
+		{
+			unsigned int native_format = is_little_endian() ? parse_format_utf32_le : parse_format_utf32_be;
+
+			return (native_format == format) ? convert_buffer_utf32<false>(out_buffer, out_length, contents, size) : convert_buffer_utf32<true>(out_buffer, out_length, contents, size);
+		}
+
+		// invalid format combination (this can't happen)
+		assert(false);
+
 		return false;
 	}
 #else
+	template <bool swap> bool convert_buffer_utf16(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size)
+	{
+		const impl::char16_t* data = static_cast<const impl::char16_t*>(contents);
+		size_t length = size / sizeof(impl::char16_t);
+
+		// first pass: get length in utf8 units, correct input size if input sequence ends prematurely
+		out_length = impl::decode_utf16_block<impl::utf8_counter, swap>(data, length, 0, &length);
+
+		// allocate buffer of suitable length and set last four symbols to zero (no garbage if input sequence ends prematurely)
+		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
+		if (!out_buffer) return false;
+
+		out_buffer[out_length > 0 ? out_length - 1 : 0] = out_buffer[out_length > 1 ? out_length - 2 : 0] = 0;
+		out_buffer[out_length > 2 ? out_length - 3 : 0] = out_buffer[out_length > 3 ? out_length - 4 : 0] = 0;
+
+		// second pass: convert utf16 input to utf8
+		impl::decode_utf16_block<impl::utf8_writer, swap>(data, length, reinterpret_cast<impl::char8_t*>(out_buffer), 0);
+
+		return true;
+	}
+
+	template <bool swap> bool convert_buffer_utf32(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size)
+	{
+		const impl::char32_t* data = static_cast<const impl::char32_t*>(contents);
+		size_t length = size / sizeof(impl::char32_t);
+
+		// first pass: get length in utf8 units
+		out_length = impl::decode_utf32_block<impl::utf8_counter, swap>(data, length, 0, 0);
+
+		// allocate buffer of suitable length
+		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
+		if (!out_buffer) return false;
+
+		// second pass: convert utf32 input to utf8
+		impl::decode_utf32_block<impl::utf8_writer, swap>(data, length, reinterpret_cast<impl::char8_t*>(out_buffer), 0);
+
+		return true;
+	}
+
 	bool convert_buffer(char_t*& out_buffer, size_t& out_length, unsigned int options, const void* contents, size_t size, bool is_mutable)
 	{
 		// get actual format
@@ -592,7 +687,25 @@ namespace
 		// fast path: no conversion required
 		if (format == parse_format_utf8) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
 
-		// not implemented yet
+		// source format is utf16
+		if (format == parse_format_utf16_be || format == parse_format_utf16_le)
+		{
+			unsigned int native_format = is_little_endian() ? parse_format_utf16_le : parse_format_utf16_be;
+
+			return (native_format == format) ? convert_buffer_utf16<false>(out_buffer, out_length, contents, size) : convert_buffer_utf16<true>(out_buffer, out_length, contents, size);
+		}
+
+		// source format is utf32
+		if (format == parse_format_utf32_be || format == parse_format_utf32_le)
+		{
+			unsigned int native_format = is_little_endian() ? parse_format_utf32_le : parse_format_utf32_be;
+
+			return (native_format == format) ? convert_buffer_utf32<false>(out_buffer, out_length, contents, size) : convert_buffer_utf32<true>(out_buffer, out_length, contents, size);
+		}
+
+		// invalid format combination (this can't happen)
+		assert(false);
+
 		return false;
 	}
 #endif
