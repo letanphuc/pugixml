@@ -254,8 +254,10 @@ namespace pugi
 			return result;
 		}
 
-		template <typename Traits, bool swap> static inline typename Traits::value_type decode_utf16_block(const char16_t* data, size_t size, typename Traits::value_type result, size_t* valid_size)
+		template <typename Traits, typename opt1> static inline typename Traits::value_type decode_utf16_block(const char16_t* data, size_t size, typename Traits::value_type result, size_t* valid_size, opt1)
 		{
+			const bool swap = opt1::o1;
+
 			const char16_t* end = data + size;
 			const char16_t* prev = data;
 
@@ -300,8 +302,10 @@ namespace pugi
 			return result;
 		}
 
-		template <typename Traits, bool swap> static inline typename Traits::value_type decode_utf32_block(const char32_t* data, size_t size, typename Traits::value_type result)
+		template <typename Traits, typename opt1> static inline typename Traits::value_type decode_utf32_block(const char32_t* data, size_t size, typename Traits::value_type result, opt1)
 		{
+			const bool swap = opt1::o1;
+
 			const char32_t* end = data + size;
 
 			while (data < end)

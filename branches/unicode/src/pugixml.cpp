@@ -448,6 +448,35 @@ namespace
 	#endif
 	}
 
+	template <bool _1> struct opt1_to_type
+	{
+		static const bool o1;
+	};
+
+	template <bool _1> const bool opt1_to_type<_1>::o1 = _1;
+
+	template <bool _1, bool _2> struct opt2_to_type
+	{
+		static const bool o1;
+		static const bool o2;
+	};
+
+	template <bool _1, bool _2> const bool opt2_to_type<_1, _2>::o1 = _1;
+	template <bool _1, bool _2> const bool opt2_to_type<_1, _2>::o2 = _2;
+
+	template <bool _1, bool _2, bool _3, bool _4> struct opt4_to_type
+	{
+		static const bool o1;
+		static const bool o2;
+		static const bool o3;
+		static const bool o4;
+	};
+
+	template <bool _1, bool _2, bool _3, bool _4> const bool opt4_to_type<_1, _2, _3, _4>::o1 = _1;
+	template <bool _1, bool _2, bool _3, bool _4> const bool opt4_to_type<_1, _2, _3, _4>::o2 = _2;
+	template <bool _1, bool _2, bool _3, bool _4> const bool opt4_to_type<_1, _2, _3, _4>::o3 = _3;
+	template <bool _1, bool _2, bool _3, bool _4> const bool opt4_to_type<_1, _2, _3, _4>::o4 = _4;
+
 	bool is_little_endian()
 	{
 		unsigned int ui = 1;
@@ -555,13 +584,13 @@ namespace
 		return true;
 	}
 
-	template <bool swap> bool convert_buffer_utf16(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size)
+	template <typename opt1> bool convert_buffer_utf16(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size, opt1)
 	{
 		const impl::char16_t* data = static_cast<const impl::char16_t*>(contents);
 		size_t length = size / sizeof(impl::char16_t);
 
 		// first pass: get length in wchar_t units, correct input size if input sequence ends prematurely
-		out_length = impl::decode_utf16_block<impl::wchar_counter, swap>(data, length, 0, &length);
+		out_length = impl::decode_utf16_block<impl::wchar_counter>(data, length, 0, &length, opt1());
 
 		// allocate buffer of suitable length and set last two symbols to zero (no garbage if input sequence ends prematurely)
 		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
@@ -570,25 +599,25 @@ namespace
 		out_buffer[out_length > 0 ? out_length - 1 : 0] = out_buffer[out_length > 1 ? out_length - 2 : 0] = 0;
 
 		// second pass: convert utf16 input to wchar_t
-		impl::decode_utf16_block<impl::wchar_writer, swap>(data, length, reinterpret_cast<impl::wchar_writer::value_type>(out_buffer), 0);
+		impl::decode_utf16_block<impl::wchar_writer>(data, length, reinterpret_cast<impl::wchar_writer::value_type>(out_buffer), 0, opt1());
 
 		return true;
 	}
 
-	template <bool swap> bool convert_buffer_utf32(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size)
+	template <typename opt1> bool convert_buffer_utf32(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size, opt1)
 	{
 		const impl::char32_t* data = static_cast<const impl::char32_t*>(contents);
 		size_t length = size / sizeof(impl::char32_t);
 
 		// first pass: get length in wchar_t units
-		out_length = impl::decode_utf32_block<impl::wchar_counter, swap>(data, length, 0);
+		out_length = impl::decode_utf32_block<impl::wchar_counter>(data, length, 0, opt1());
 
 		// allocate buffer of suitable length
 		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
 		if (!out_buffer) return false;
 
 		// second pass: convert utf32 input to wchar_t
-		impl::decode_utf32_block<impl::wchar_writer, swap>(data, length, reinterpret_cast<impl::wchar_writer::value_type>(out_buffer));
+		impl::decode_utf32_block<impl::wchar_writer>(data, length, reinterpret_cast<impl::wchar_writer::value_type>(out_buffer), opt1());
 
 		return true;
 	}
@@ -615,7 +644,9 @@ namespace
 		{
 			unsigned int native_format = is_little_endian() ? parse_format_utf16_le : parse_format_utf16_be;
 
-			return (native_format == format) ? convert_buffer_utf16<false>(out_buffer, out_length, contents, size) : convert_buffer_utf16<true>(out_buffer, out_length, contents, size);
+			return (native_format == format) ?
+				convert_buffer_utf16(out_buffer, out_length, contents, size, opt1_to_type<false>()) :
+				convert_buffer_utf16(out_buffer, out_length, contents, size, opt1_to_type<true>());
 		}
 
 		// source format is utf32
@@ -623,7 +654,9 @@ namespace
 		{
 			unsigned int native_format = is_little_endian() ? parse_format_utf32_le : parse_format_utf32_be;
 
-			return (native_format == format) ? convert_buffer_utf32<false>(out_buffer, out_length, contents, size) : convert_buffer_utf32<true>(out_buffer, out_length, contents, size);
+			return (native_format == format) ?
+				convert_buffer_utf32(out_buffer, out_length, contents, size, opt1_to_type<false>()) :
+				convert_buffer_utf32(out_buffer, out_length, contents, size, opt1_to_type<true>());
 		}
 
 		// invalid format combination (this can't happen)
@@ -632,13 +665,13 @@ namespace
 		return false;
 	}
 #else
-	template <bool swap> bool convert_buffer_utf16(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size)
+	template <typename opt1> bool convert_buffer_utf16(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size, opt1)
 	{
 		const impl::char16_t* data = static_cast<const impl::char16_t*>(contents);
 		size_t length = size / sizeof(impl::char16_t);
 
 		// first pass: get length in utf8 units, correct input size if input sequence ends prematurely
-		out_length = impl::decode_utf16_block<impl::utf8_counter, swap>(data, length, 0, &length);
+		out_length = impl::decode_utf16_block<impl::utf8_counter>(data, length, 0, &length, opt1());
 
 		// allocate buffer of suitable length and set last four symbols to zero (no garbage if input sequence ends prematurely)
 		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
@@ -648,25 +681,25 @@ namespace
 		out_buffer[out_length > 2 ? out_length - 3 : 0] = out_buffer[out_length > 3 ? out_length - 4 : 0] = 0;
 
 		// second pass: convert utf16 input to utf8
-		impl::decode_utf16_block<impl::utf8_writer, swap>(data, length, reinterpret_cast<impl::char8_t*>(out_buffer), 0);
+		impl::decode_utf16_block<impl::utf8_writer>(data, length, reinterpret_cast<impl::char8_t*>(out_buffer), 0, opt1());
 
 		return true;
 	}
 
-	template <bool swap> bool convert_buffer_utf32(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size)
+	template <typename opt1> bool convert_buffer_utf32(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size, opt1)
 	{
 		const impl::char32_t* data = static_cast<const impl::char32_t*>(contents);
 		size_t length = size / sizeof(impl::char32_t);
 
 		// first pass: get length in utf8 units
-		out_length = impl::decode_utf32_block<impl::utf8_counter, swap>(data, length, 0);
+		out_length = impl::decode_utf32_block<impl::utf8_counter>(data, length, 0, opt1());
 
 		// allocate buffer of suitable length
 		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
 		if (!out_buffer) return false;
 
 		// second pass: convert utf32 input to utf8
-		impl::decode_utf32_block<impl::utf8_writer, swap>(data, length, reinterpret_cast<impl::char8_t*>(out_buffer));
+		impl::decode_utf32_block<impl::utf8_writer>(data, length, reinterpret_cast<impl::char8_t*>(out_buffer), opt1());
 
 		return true;
 	}
@@ -684,7 +717,9 @@ namespace
 		{
 			unsigned int native_format = is_little_endian() ? parse_format_utf16_le : parse_format_utf16_be;
 
-			return (native_format == format) ? convert_buffer_utf16<false>(out_buffer, out_length, contents, size) : convert_buffer_utf16<true>(out_buffer, out_length, contents, size);
+			return (native_format == format) ?
+				convert_buffer_utf16(out_buffer, out_length, contents, size, opt1_to_type<false>()) :
+				convert_buffer_utf16(out_buffer, out_length, contents, size, opt1_to_type<true>());
 		}
 
 		// source format is utf32
@@ -692,7 +727,9 @@ namespace
 		{
 			unsigned int native_format = is_little_endian() ? parse_format_utf32_le : parse_format_utf32_be;
 
-			return (native_format == format) ? convert_buffer_utf32<false>(out_buffer, out_length, contents, size) : convert_buffer_utf32<true>(out_buffer, out_length, contents, size);
+			return (native_format == format) ?
+				convert_buffer_utf32(out_buffer, out_length, contents, size, opt1_to_type<false>()) :
+				convert_buffer_utf32(out_buffer, out_length, contents, size, opt1_to_type<true>());
 		}
 
 		// invalid format combination (this can't happen)
@@ -727,35 +764,6 @@ namespace
 			return true;
 		}
 	}
-
-	template <bool _1> struct opt1_to_type
-	{
-		static const bool o1;
-	};
-
-	template <bool _1> const bool opt1_to_type<_1>::o1 = _1;
-
-	template <bool _1, bool _2> struct opt2_to_type
-	{
-		static const bool o1;
-		static const bool o2;
-	};
-
-	template <bool _1, bool _2> const bool opt2_to_type<_1, _2>::o1 = _1;
-	template <bool _1, bool _2> const bool opt2_to_type<_1, _2>::o2 = _2;
-
-	template <bool _1, bool _2, bool _3, bool _4> struct opt4_to_type
-	{
-		static const bool o1;
-		static const bool o2;
-		static const bool o3;
-		static const bool o4;
-	};
-
-	template <bool _1, bool _2, bool _3, bool _4> const bool opt4_to_type<_1, _2, _3, _4>::o1 = _1;
-	template <bool _1, bool _2, bool _3, bool _4> const bool opt4_to_type<_1, _2, _3, _4>::o2 = _2;
-	template <bool _1, bool _2, bool _3, bool _4> const bool opt4_to_type<_1, _2, _3, _4>::o3 = _3;
-	template <bool _1, bool _2, bool _3, bool _4> const bool opt4_to_type<_1, _2, _3, _4>::o4 = _4;
 
 	struct gap
 	{
@@ -3467,8 +3475,8 @@ namespace pugi
 
 		// first pass: get length in utf8 characters, discard invalid input
 		size_t size = sizeof(wchar_t) == 2 ?
-			impl::decode_utf16_block<impl::utf8_counter, false>(reinterpret_cast<const impl::char16_t*>(str), length, 0, &length) :
-			impl::decode_utf32_block<impl::utf8_counter, false>(reinterpret_cast<const impl::char32_t*>(str), length, 0);
+			impl::decode_utf16_block<impl::utf8_counter>(reinterpret_cast<const impl::char16_t*>(str), length, 0, &length, opt1_to_type<false>()) :
+			impl::decode_utf32_block<impl::utf8_counter>(reinterpret_cast<const impl::char32_t*>(str), length, 0, opt1_to_type<false>());
 
 		// allocate resulting string
 		std::string result;
@@ -3478,8 +3486,8 @@ namespace pugi
 		impl::char8_t* dest = size > 0 ? reinterpret_cast<impl::char8_t*>(&result[0]) : 0;
 
 		sizeof(wchar_t) == 2 ?
-			impl::decode_utf16_block<impl::utf8_writer, false>(reinterpret_cast<const impl::char16_t*>(str), length, dest, 0) :
-			impl::decode_utf32_block<impl::utf8_writer, false>(reinterpret_cast<const impl::char32_t*>(str), length, dest);
+			impl::decode_utf16_block<impl::utf8_writer>(reinterpret_cast<const impl::char16_t*>(str), length, dest, 0, opt1_to_type<false>()) :
+			impl::decode_utf32_block<impl::utf8_writer>(reinterpret_cast<const impl::char32_t*>(str), length, dest, opt1_to_type<false>());
 	  	
 	  	return result;
 	}
