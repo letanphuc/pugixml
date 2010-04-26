@@ -18,6 +18,13 @@ $fast = (shift eq 'fast');
 @configurations = (debug, release);
 @defines = (PUGIXML_NO_XPATH, PUGIXML_NO_EXCEPTIONS, PUGIXML_NO_STL, PUGIXML_WCHAR_MODE);
 @definesabbr = (noxpath, noexcept, nostl, wchar);
+
+if ($fast)
+{
+	@defines = (PUGIXML_WCHAR_MODE);
+	@definesabbr = (wchar);
+}
+
 @definesets = permute(@defines);
 
 $fail = 0;
@@ -86,8 +93,6 @@ foreach $toolset (@toolsets)
 			}
 
 			$results{"$configuration $defineabbr"}{$toolset} = $report;
-
-			last if ($fast);
 		}
 
 		last if ($fast);
