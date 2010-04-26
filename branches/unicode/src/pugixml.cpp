@@ -23,10 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-
-#ifdef PUGIXML_WCHAR_MODE
-#	include <wchar.h>
-#endif
+#include <wchar.h>
 
 #ifndef PUGIXML_NO_STL
 #	include <istream>
@@ -534,7 +531,7 @@ namespace
 
 		if (!out_buffer) return false;
 
-		impl::convert_utf_endian_swap(out_buffer, data, out_length);
+		impl::convert_wchar_endian_swap(out_buffer, data, out_length);
 
 		return true;
 	}
