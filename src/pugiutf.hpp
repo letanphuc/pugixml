@@ -288,7 +288,7 @@ namespace pugi
 			return result;
 		}
 
-		template <typename Traits, bool swap> static inline typename Traits::value_type decode_utf32_block(const char32_t* data, size_t size, typename Traits::value_type result, size_t* valid_size)
+		template <typename Traits, bool swap> static inline typename Traits::value_type decode_utf32_block(const char32_t* data, size_t size, typename Traits::value_type result)
 		{
 			const char32_t* end = data + size;
 
@@ -311,36 +311,6 @@ namespace pugi
 			}
 
 			return result;
-		}
-
-		inline size_t length_utf8_to_utf16(const char8_t* data, size_t size, size_t* valid_size)
-		{
-			return decode_utf8_block<utf16_counter>(data, size, 0, valid_size);
-		}
-
-		inline void convert_utf8_to_utf16(char16_t* result, const char8_t* data, size_t size)
-		{
-			decode_utf8_block<utf16_writer>(data, size, result, 0);
-		}
-
-		inline size_t length_utf8_to_utf32(const char8_t* data, size_t size, size_t* valid_size)
-		{
-			return decode_utf8_block<utf32_counter>(data, size, 0, valid_size);
-		}
-
-		inline void convert_utf8_to_utf32(char32_t* result, const char8_t* data, size_t size)
-		{
-			decode_utf8_block<utf32_writer>(data, size, result, 0);
-		}
-
-		inline size_t length_utf8_to_wchar(const char8_t* data, size_t size, size_t* valid_size)
-		{
-			return decode_utf8_block<wchar_counter>(data, size, 0, valid_size);
-		}
-
-		inline void convert_utf8_to_wchar(wchar_t* result, const char8_t* data, size_t size)
-		{
-			decode_utf8_block<wchar_writer>(data, size, reinterpret_cast<wchar_writer::value_type>(result), 0);
 		}
 
 		template <typename T> inline void convert_utf_endian_swap(T* result, const T* data, size_t length)

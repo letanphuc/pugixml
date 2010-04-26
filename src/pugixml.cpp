@@ -549,7 +549,7 @@ namespace
 		const impl::char8_t* data = static_cast<const impl::char8_t*>(contents);
 
 		// first pass: get length in wchar_t units, correct input size if input sequence ends prematurely
-		out_length = impl::length_utf8_to_wchar(data, size, &size);
+		out_length = impl::decode_utf8_block<impl::wchar_counter>(data, size, 0, &size);
 
 		// allocate buffer of suitable length and set last two symbols to zero (no garbage if input sequence ends prematurely)
 		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
@@ -558,7 +558,7 @@ namespace
 		out_buffer[out_length > 0 ? out_length - 1 : 0] = out_buffer[out_length > 1 ? out_length - 2 : 0] = 0;
 
 		// second pass: convert utf8 input to wchar_t
-		impl::convert_utf8_to_wchar(out_buffer, data, size);
+		impl::decode_utf8_block<impl::wchar_writer>(data, size, reinterpret_cast<impl::wchar_writer::value_type>(out_buffer), 0);
 
 		return true;
 	}
@@ -589,14 +589,14 @@ namespace
 		size_t length = size / sizeof(impl::char32_t);
 
 		// first pass: get length in wchar_t units
-		out_length = impl::decode_utf32_block<impl::wchar_counter, swap>(data, length, 0, 0);
+		out_length = impl::decode_utf32_block<impl::wchar_counter, swap>(data, length, 0);
 
 		// allocate buffer of suitable length
 		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
 		if (!out_buffer) return false;
 
 		// second pass: convert utf32 input to wchar_t
-		impl::decode_utf32_block<impl::wchar_writer, swap>(data, length, reinterpret_cast<impl::wchar_writer::value_type>(out_buffer), 0);
+		impl::decode_utf32_block<impl::wchar_writer, swap>(data, length, reinterpret_cast<impl::wchar_writer::value_type>(out_buffer));
 
 		return true;
 	}
@@ -667,14 +667,14 @@ namespace
 		size_t length = size / sizeof(impl::char32_t);
 
 		// first pass: get length in utf8 units
-		out_length = impl::decode_utf32_block<impl::utf8_counter, swap>(data, length, 0, 0);
+		out_length = impl::decode_utf32_block<impl::utf8_counter, swap>(data, length, 0);
 
 		// allocate buffer of suitable length
 		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
 		if (!out_buffer) return false;
 
 		// second pass: convert utf32 input to utf8
-		impl::decode_utf32_block<impl::utf8_writer, swap>(data, length, reinterpret_cast<impl::char8_t*>(out_buffer), 0);
+		impl::decode_utf32_block<impl::utf8_writer, swap>(data, length, reinterpret_cast<impl::char8_t*>(out_buffer));
 
 		return true;
 	}
