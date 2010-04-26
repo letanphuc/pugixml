@@ -962,9 +962,9 @@ namespace
 				}
 
 			#ifdef PUGIXML_WCHAR_MODE
-				*s++ = (wchar_t)ucsc; // $$$ surrogates handling
+				s = reinterpret_cast<char_t*>(impl::wchar_writer::any(reinterpret_cast<impl::wchar_writer::value_type>(s), ucsc));
 			#else
-				s = strutf16_utf8(s, ucsc);
+				s = reinterpret_cast<char_t*>(impl::utf8_writer::any(reinterpret_cast<impl::char8_t*>(s), ucsc));
 			#endif
 					
 				g.push(s, stre - s);

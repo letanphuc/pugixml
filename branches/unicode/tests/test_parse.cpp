@@ -285,7 +285,9 @@ TEST(parse_escapes_unicode)
 #ifdef PUGIXML_WCHAR_MODE
 	const pugi::char_t* v = doc.child_value(STR("node"));
 
-	CHECK(v[0] == 0x3b3 && v[1] == 0x3b3 && (sizeof(wchar_t) == 2 ? v[2] == 0xd852 && v[3] == 0xdf62 : v[3] == 0x24b62));
+	unsigned int v3 = v[3];
+
+	CHECK(v[0] == 0x3b3 && v[1] == 0x3b3 && (sizeof(wchar_t) == 2 ? v[2] == 0xd852 && v[3] == 0xdf62 : v3 == 0x24b62));
 #else
 	CHECK_STRING(doc.child_value(STR("node")), "\xce\xb3\xce\xb3\xf0\xa4\xad\xa2");
 #endif

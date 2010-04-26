@@ -91,6 +91,11 @@ namespace pugi
 				result[3] = static_cast<char8_t>(0x80 | (ch & 0x3F));
 				return result + 4;
 			}
+
+			static value_type any(value_type result, char32_t ch)
+			{
+				return (ch < 0x10000) ? low(result, ch) : high(result, ch);
+			}
 		};
 
 		struct utf16_counter
@@ -129,6 +134,11 @@ namespace pugi
 
 				return result + 2;
 			}
+
+			static value_type any(value_type result, char32_t ch)
+			{
+				return (ch < 0x10000) ? low(result, ch) : high(result, ch);
+			}
 		};
 
 		struct utf32_counter
@@ -158,6 +168,13 @@ namespace pugi
 			}
 
 			static value_type high(value_type result, char32_t ch)
+			{
+				*result = ch;
+
+				return result + 1;
+			}
+
+			static value_type any(value_type result, char32_t ch)
 			{
 				*result = ch;
 
