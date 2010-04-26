@@ -85,7 +85,7 @@ namespace
 	#ifdef PUGIXML_WCHAR_MODE
 		unsigned int ch = static_cast<unsigned int>(c);
 
-		return !!((ch < 128 ? chartype_table[ch] : chartype_table[128]) & ct);
+		return !!((ch < 128 ? chartypex_table[ch] : chartypex_table[128]) & ct);
 	#else
 		return !!(chartypex_table[static_cast<unsigned char>(c)] & ct);
 	#endif
