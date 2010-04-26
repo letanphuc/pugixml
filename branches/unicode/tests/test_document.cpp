@@ -80,9 +80,6 @@ TEST(document_load_string)
 	CHECK_NODE(doc, STR("<node />"));
 }
 
-#ifndef PUGIXML_WCHAR_MODE
-// $$$ tests are not active right now (no utf8->wchar_t conversion implemented)
-// also we'll require more load_file tests (all utf variants)
 TEST(document_load_file)
 {
 	pugi::xml_document doc;
@@ -112,7 +109,6 @@ TEST(document_load_file_large)
 
 	CHECK_NODE(doc, str.c_str());
 }
-#endif
 
 TEST(document_load_file_error)
 {
@@ -172,7 +168,7 @@ TEST_XML(document_save_file, "<node/>")
 
 TEST(document_load_buffer)
 {
-	const pugi::char_t text[] = STR("<node/>");
+	const pugi::char_t text[] = STR("<?xml?><node/>");
 
 	pugi::xml_document doc;
 
@@ -182,7 +178,7 @@ TEST(document_load_buffer)
 
 TEST(document_load_buffer_inplace)
 {
-	pugi::char_t text[] = STR("<node/>");
+	pugi::char_t text[] = STR("<?xml?><node/>");
 
 	pugi::xml_document doc;
 
@@ -194,12 +190,12 @@ TEST(document_load_buffer_inplace_own)
 {
 	allocation_function alloc = get_memory_allocation_function();
 
-	size_t size = strlen("<node/>") * sizeof(pugi::char_t);
+	size_t size = strlen("<?xml?><node/>") * sizeof(pugi::char_t);
 
 	pugi::char_t* text = static_cast<pugi::char_t*>(alloc(size));
 	CHECK(text);
 
-	memcpy(text, STR("<node/>"), size);
+	memcpy(text, STR("<?xml?><node/>"), size);
 
 	pugi::xml_document doc;
 
@@ -242,4 +238,98 @@ TEST(document_load_fail)
 	xml_document doc;
 	CHECK(!doc.load(STR("<foo><bar/>")));
 	CHECK(doc.child(STR("foo")).child(STR("bar")));
+}
+
+inline void check_utftest_document(const xml_document& doc)
+{
+	// ascii text
+	CHECK_STRING(doc.last_child().first_child().name(), STR("English"));
+
+	// check that we have parsed some non-ascii text
+	CHECK((unsigned)doc.last_child().last_child().name()[0] >= 0x80);
+
+	// check magic string
+	const pugi::char_t* v = doc.last_child().child(STR("Heavy")).previous_sibling().child_value();
+
+#ifdef PUGIXML_WCHAR_MODE
+	CHECK(v[0] == 0x4e16 && v[1] == 0x754c && v[2] == 0x6709 && v[3] == 0x5f88 && v[4] == 0x591a && v[5] == 0x8bed && v[6] == 0x8a00);
+
+	// last character is a surrogate pair
+	CHECK(sizeof(wchar_t) == 2 ? (v[7] == 0xd852 && v[8] == 0xdf62) : (v[7] == 0x24b62));
+#else
+	// unicode string
+	CHECK_STRING(v, "\xe4\xb8\x96\xe7\x95\x8c\xe6\x9c\x89\xe5\xbe\x88\xe5\xa4\x9a\xe8\xaf\xad\xe8\xa8\x80\xf0\xa4\xad\xa2");
+#endif
+}
+
+TEST(document_load_file_convert_auto)
+{
+	const char* files[] =
+	{
+		"tests/data/utftest_utf16_be.xml",
+		"tests/data/utftest_utf16_be_bom.xml",
+		"tests/data/utftest_utf16_le.xml",
+		"tests/data/utftest_utf16_le_bom.xml",
+		"tests/data/utftest_utf32_be.xml",
+		"tests/data/utftest_utf32_be_bom.xml",
+		"tests/data/utftest_utf32_le.xml",
+		"tests/data/utftest_utf32_le_bom.xml",
+		"tests/data/utftest_utf8.xml",
+		"tests/data/utftest_utf8_bom.xml"
+	};
+
+	for (unsigned int i = 0; i < sizeof(files) / sizeof(files[0]); ++i)
+	{
+		xml_document doc;
+		CHECK(doc.load_file(files[i]));
+		check_utftest_document(doc);
+	}
+}
+
+TEST(document_load_file_convert_specific)
+{
+	const char* files[] =
+	{
+		"tests/data/utftest_utf16_be.xml",
+		"tests/data/utftest_utf16_be_bom.xml",
+		"tests/data/utftest_utf16_le.xml",
+		"tests/data/utftest_utf16_le_bom.xml",
+		"tests/data/utftest_utf32_be.xml",
+		"tests/data/utftest_utf32_be_bom.xml",
+		"tests/data/utftest_utf32_le.xml",
+		"tests/data/utftest_utf32_le_bom.xml",
+		"tests/data/utftest_utf8.xml",
+		"tests/data/utftest_utf8_bom.xml"
+	};
+
+	unsigned int formats[] =
+	{
+		parse_format_utf16_be, parse_format_utf16_be,
+		parse_format_utf16_le, parse_format_utf16_le,
+		parse_format_utf32_be, parse_format_utf32_be,
+		parse_format_utf32_le, parse_format_utf32_le,
+		parse_format_utf8, parse_format_utf8
+	};
+
+	for (unsigned int i = 0; i < sizeof(files) / sizeof(files[0]); ++i)
+	{
+		for (unsigned int j = 0; j < sizeof(files) / sizeof(files[0]); ++j)
+		{
+			unsigned int format = formats[j];
+
+			xml_document doc;
+			xml_parse_result res = doc.load_file(files[i], format);
+
+			if (format == formats[i])
+			{
+				CHECK(res);
+				check_utftest_document(doc);
+			}
+			else
+			{
+				// should not get past first tag
+				CHECK(!doc.first_child());
+			}
+		}
+	}
 }
