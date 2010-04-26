@@ -29,7 +29,7 @@ TEST(as_utf16)
 	// valid 4-byte input
 	std::wstring b4 = as_utf16("\xf2\x97\x98\xa4 \xf4\x80\x8f\xbf");
 
-	size_t wcharsize = sizeof(wchar_t); // to avoid C4127 on MSVC
+	size_t wcharsize = sizeof(wchar_t);
 
 	if (wcharsize == 4)
 	{
@@ -57,7 +57,7 @@ TEST(as_utf8)
 #endif
 	
 	// valid 4-byte output
-	size_t wcharsize = sizeof(wchar_t); // to avoid C4127 on MSVC
+	size_t wcharsize = sizeof(wchar_t);
 
 	if (wcharsize == 4)
 	{
