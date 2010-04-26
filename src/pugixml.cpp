@@ -407,11 +407,6 @@ namespace
 {	
 	using namespace pugi;
 
-	const unsigned char UTF8_BYTE_MASK = 0xBF;
-	const unsigned char UTF8_BYTE_MARK = 0x80;
-	const unsigned char UTF8_BYTE_MASK_READ = 0x3F;
-	const unsigned char UTF8_FIRST_BYTE_MARK[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
-
 	enum chartype
 	{
 		ct_parse_pcdata = 1,	// \0, &, \r, <
@@ -734,118 +729,6 @@ namespace
 
 			return true;
 		}
-	}
-
-	// Get the size that is needed for strutf16_utf8 applied to all s characters
-	size_t strutf16_utf8_size(const wchar_t* s)
-	{
-		size_t length = 0;
-
-		for (; *s; ++s)
-		{
-			unsigned int ch = *s;
-
-			if (ch < 0x80) length += 1;
-			else if (ch < 0x800) length += 2;
-			else if (ch < 0x10000) length += 3;
-			else if (ch < 0x200000) length += 4;
-		}
-
-		return length;
-	}
-
-	// Write utf16 char to stream, return position after the last written char
-	// \return position after last char
-	char* strutf16_utf8(char* s, unsigned int ch)
-	{
-		unsigned int length;
-
-		if (ch < 0x80) length = 1;
-		else if (ch < 0x800) length = 2;
-		else if (ch < 0x10000) length = 3;
-		else if (ch < 0x200000) length = 4;
-		else return s;
-	
-		s += length;
-
-		// Scary scary fall throughs.
-		switch (length)
-		{
-			case 4:
-				*--s = (char)((ch | UTF8_BYTE_MARK) & UTF8_BYTE_MASK); 
-				ch >>= 6;
-			case 3:
-				*--s = (char)((ch | UTF8_BYTE_MARK) & UTF8_BYTE_MASK); 
-				ch >>= 6;
-			case 2:
-				*--s = (char)((ch | UTF8_BYTE_MARK) & UTF8_BYTE_MASK); 
-				ch >>= 6;
-			case 1:
-				*--s = (char)(ch | UTF8_FIRST_BYTE_MARK[length]);
-		}
-		
-		return s + length;
-	}
-
-	// Get the size that is needed for strutf8_utf16 applied to all s characters
-	size_t strutf8_utf16_size(const char* s)
-	{
-		size_t length = 0;
-
-		for (; *s; ++s)
-		{
-			unsigned char ch = static_cast<unsigned char>(*s);
-
-			if (ch < 0x80 || (ch >= 0xC0 && ch < 0xFC)) ++length;
-		}
-
-		return length;
-	}
-
-	// Read utf16 char from utf8 stream, return position after the last read char
-	// \return position after the last char
-	const char* strutf8_utf16(const char* s, unsigned int& ch)
-	{
-		unsigned int length;
-
-		const unsigned char* str = reinterpret_cast<const unsigned char*>(s);
-
-		if (*str < UTF8_BYTE_MARK)
-		{
-			ch = *str;
-			return s + 1;
-		}
-		else if (*str < 0xC0)
-		{
-			ch = ' ';
-			return s + 1;
-		}
-		else if (*str < 0xE0) length = 2;
-		else if (*str < 0xF0) length = 3;
-		else if (*str < 0xF8) length = 4;
-		else
-		{
-			ch = ' ';
-			return s + 1;
-		}
-
-		ch = (*str++ & ~UTF8_FIRST_BYTE_MARK[length]);
-	
-		// Scary scary fall throughs.
-		switch (length) 
-		{
-			case 4:
-				ch <<= 6;
-				ch += (*str++ & UTF8_BYTE_MASK_READ);
-			case 3:
-				ch <<= 6;
-				ch += (*str++ & UTF8_BYTE_MASK_READ);
-			case 2:
-				ch <<= 6;
-				ch += (*str++ & UTF8_BYTE_MASK_READ);
-		}
-		
-		return reinterpret_cast<const char*>(str);
 	}
 
 	template <bool _1> struct opt1_to_type
@@ -3581,30 +3464,43 @@ namespace pugi
 #ifndef PUGIXML_NO_STL
 	std::string PUGIXML_FUNCTION as_utf8(const wchar_t* str)
 	{
+		STATIC_ASSERT(sizeof(wchar_t) == 2 || sizeof(wchar_t) == 4);
+
+		size_t length = wcslen(str);
+
+		// first pass: get length in utf8 characters, discard invalid input
+		size_t size = sizeof(wchar_t) == 2 ?
+			impl::decode_utf16_block<impl::utf8_counter, false>(reinterpret_cast<const impl::char16_t*>(str), length, 0, &length) :
+			impl::decode_utf32_block<impl::utf8_counter, false>(reinterpret_cast<const impl::char32_t*>(str), length, 0);
+
+		// allocate resulting string
 		std::string result;
-		result.reserve(strutf16_utf8_size(str));
-	  
-		for (; *str; ++str)
-		{
-			char buffer[6];
-	  	
-			result.append(buffer, strutf16_utf8(buffer, *str));
-		}
+		result.resize(size);
+
+		// second pass: convert to utf8
+		impl::char8_t* dest = size > 0 ? reinterpret_cast<impl::char8_t*>(&result[0]) : 0;
+
+		sizeof(wchar_t) == 2 ?
+			impl::decode_utf16_block<impl::utf8_writer, false>(reinterpret_cast<const impl::char16_t*>(str), length, dest, 0) :
+			impl::decode_utf32_block<impl::utf8_writer, false>(reinterpret_cast<const impl::char32_t*>(str), length, dest);
 	  	
 	  	return result;
 	}
 	
 	std::wstring PUGIXML_FUNCTION as_utf16(const char* str)
 	{
-		std::wstring result;
-		result.reserve(strutf8_utf16_size(str));
+		const impl::char8_t* data = reinterpret_cast<const impl::char8_t*>(str);
+		size_t size = strlen(str);
 
-		for (; *str;)
-		{
-			unsigned int ch = 0;
-			str = strutf8_utf16(str, ch);
-			result += (wchar_t)ch;
-		}
+		// first pass: get length in wchar_t, discard invalid input
+		size_t length = impl::decode_utf8_block<impl::wchar_counter>(data, size, 0, &size);
+
+		// allocate resulting string
+		std::wstring result;
+		result.resize(length);
+
+		// second pass: convert to wchar_t
+		if (length > 0) impl::decode_utf8_block<impl::wchar_writer>(data, size, reinterpret_cast<impl::wchar_writer::value_type>(&result[0]), 0);
 
 		return result;
 	}
