@@ -484,49 +484,49 @@ namespace
 		return *reinterpret_cast<unsigned char*>(&ui) == 1;
 	}
 
-	unsigned int get_wchar_format()
+	unsigned int get_wchar_encoding()
 	{
 		STATIC_ASSERT(sizeof(wchar_t) == 2 || sizeof(wchar_t) == 4);
 
 		if (sizeof(wchar_t) == 2)
-			return is_little_endian() ? parse_format_utf16_le : parse_format_utf16_be;
+			return is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
 		else 
-			return is_little_endian() ? parse_format_utf32_le : parse_format_utf32_be;
+			return is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
 	}
 
-	unsigned int get_buffer_format(unsigned int options, const void* contents, size_t size)
+	unsigned int get_buffer_encoding(unsigned int options, const void* contents, size_t size)
 	{
-		// replace wchar format with utf implementation
-		if ((options & parse_format_mask) == parse_format_wchar) return get_wchar_format();
+		// replace wchar encoding with utf implementation
+		if ((options & encoding_mask) == encoding_wchar) return get_wchar_encoding();
 
-		// replace utf16 format with utf16 with specific endianness
-		if ((options & parse_format_mask) == parse_format_utf16) return is_little_endian() ? parse_format_utf16_le : parse_format_utf16_be;
+		// replace utf16 encoding with utf16 with specific endianness
+		if ((options & encoding_mask) == encoding_utf16) return is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
 
-		// replace utf32 format with utf32 with specific endianness
-		if ((options & parse_format_mask) == parse_format_utf32) return is_little_endian() ? parse_format_utf32_le : parse_format_utf32_be;
+		// replace utf32 encoding with utf32 with specific endianness
+		if ((options & encoding_mask) == encoding_utf32) return is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
 
-		// only do autodetection if no explicit format is requested
-		if ((options & parse_format_mask) != parse_format_auto) return options & parse_format_mask;
+		// only do autodetection if no explicit encoding is requested
+		if ((options & encoding_mask) != encoding_auto) return options & encoding_mask;
 
-		// try to guess format (based on XML specification, Appendix F.1)
+		// try to guess encoding (based on XML specification, Appendix F.1)
 		const impl::char8_t* data = static_cast<const impl::char8_t*>(contents);
 
 		// look for BOM in first few bytes
-		if (size > 4 && data[0] == 0 && data[1] == 0 && data[2] == 0xfe && data[3] == 0xff) return parse_format_utf32_be;
-		if (size > 4 && data[0] == 0xff && data[1] == 0xfe && data[2] == 0 && data[3] == 0) return parse_format_utf32_le;
-		if (size > 2 && data[0] == 0xfe && data[1] == 0xff) return parse_format_utf16_be;
-		if (size > 2 && data[0] == 0xff && data[1] == 0xfe) return parse_format_utf16_le;
-		if (size > 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) return parse_format_utf8;
+		if (size > 4 && data[0] == 0 && data[1] == 0 && data[2] == 0xfe && data[3] == 0xff) return encoding_utf32_be;
+		if (size > 4 && data[0] == 0xff && data[1] == 0xfe && data[2] == 0 && data[3] == 0) return encoding_utf32_le;
+		if (size > 2 && data[0] == 0xfe && data[1] == 0xff) return encoding_utf16_be;
+		if (size > 2 && data[0] == 0xff && data[1] == 0xfe) return encoding_utf16_le;
+		if (size > 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) return encoding_utf8;
 
 		// look for <, <? or <?xm in various encodings
-		if (size > 4 && data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 0x3c) return parse_format_utf32_be;
-		if (size > 4 && data[0] == 0x3c && data[1] == 0 && data[2] == 0 && data[3] == 0) return parse_format_utf32_le;
-		if (size > 4 && data[0] == 0 && data[1] == 0x3c && data[2] == 0 && data[3] == 0x3f) return parse_format_utf16_be;
-		if (size > 4 && data[0] == 0x3c && data[1] == 0 && data[2] == 0x3f && data[3] == 0) return parse_format_utf16_le;
-		if (size > 4 && data[0] == 0x3c && data[1] == 0x3f && data[2] == 0x78 && data[3] == 0x6d) return parse_format_utf8;
+		if (size > 4 && data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 0x3c) return encoding_utf32_be;
+		if (size > 4 && data[0] == 0x3c && data[1] == 0 && data[2] == 0 && data[3] == 0) return encoding_utf32_le;
+		if (size > 4 && data[0] == 0 && data[1] == 0x3c && data[2] == 0 && data[3] == 0x3f) return encoding_utf16_be;
+		if (size > 4 && data[0] == 0x3c && data[1] == 0 && data[2] == 0x3f && data[3] == 0) return encoding_utf16_le;
+		if (size > 4 && data[0] == 0x3c && data[1] == 0x3f && data[2] == 0x78 && data[3] == 0x6d) return encoding_utf8;
 
 		// no known BOM detected, assume UTF8
-		return parse_format_utf8;
+		return encoding_utf8;
 	}
 
 	bool get_mutable_buffer(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size, bool is_mutable)
@@ -551,10 +551,10 @@ namespace
 	}
 
 #ifdef PUGIXML_WCHAR_MODE
-	inline bool need_endian_swap_utf(unsigned int lf, unsigned int rf)
+	inline bool need_endian_swap_utf(unsigned int le, unsigned int re)
 	{
-		return (lf == parse_format_utf16_be && rf == parse_format_utf16_le) || (lf == parse_format_utf16_le && rf == parse_format_utf16_be) ||
-		       (lf == parse_format_utf32_be && rf == parse_format_utf32_le) || (lf == parse_format_utf32_le && rf == parse_format_utf32_be);
+		return (le == encoding_utf16_be && re == encoding_utf16_le) || (le == encoding_utf16_le && re == encoding_utf16_be) ||
+		       (le == encoding_utf32_be && re == encoding_utf32_le) || (le == encoding_utf32_le && re == encoding_utf32_be);
 	}
 
 	bool convert_buffer_endian_swap(char_t*& out_buffer, size_t& out_length, const void* contents, size_t size, bool is_mutable)
@@ -630,42 +630,42 @@ namespace
 
 	bool convert_buffer(char_t*& out_buffer, size_t& out_length, unsigned int options, const void* contents, size_t size, bool is_mutable)
 	{
-		// get actual format
-		unsigned int format = get_buffer_format(options, contents, size);
+		// get actual encoding
+		unsigned int encoding = get_buffer_encoding(options, contents, size);
 
-		// get native format
-		unsigned int wchar_format = get_wchar_format();
+		// get native encoding
+		unsigned int wchar_encoding = get_wchar_encoding();
 
 		// fast path: no conversion required
-		if (format == wchar_format) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
+		if (encoding == wchar_encoding) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
 
 		// only endian-swapping is required
-		if (need_endian_swap_utf(format, wchar_format)) return convert_buffer_endian_swap(out_buffer, out_length, contents, size, is_mutable);
+		if (need_endian_swap_utf(encoding, wchar_encoding)) return convert_buffer_endian_swap(out_buffer, out_length, contents, size, is_mutable);
 
-		// source format is utf8
-		if (format == parse_format_utf8) return convert_buffer_utf8(out_buffer, out_length, contents, size);
+		// source encoding is utf8
+		if (encoding == encoding_utf8) return convert_buffer_utf8(out_buffer, out_length, contents, size);
 
-		// source format is utf16
-		if (format == parse_format_utf16_be || format == parse_format_utf16_le)
+		// source encoding is utf16
+		if (encoding == encoding_utf16_be || encoding == encoding_utf16_le)
 		{
-			unsigned int native_format = is_little_endian() ? parse_format_utf16_le : parse_format_utf16_be;
+			unsigned int native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
 
-			return (native_format == format) ?
+			return (native_encoding == encoding) ?
 				convert_buffer_utf16(out_buffer, out_length, contents, size, opt1_to_type<false>()) :
 				convert_buffer_utf16(out_buffer, out_length, contents, size, opt1_to_type<true>());
 		}
 
-		// source format is utf32
-		if (format == parse_format_utf32_be || format == parse_format_utf32_le)
+		// source encoding is utf32
+		if (encoding == encoding_utf32_be || encoding == encoding_utf32_le)
 		{
-			unsigned int native_format = is_little_endian() ? parse_format_utf32_le : parse_format_utf32_be;
+			unsigned int native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
 
-			return (native_format == format) ?
+			return (native_encoding == encoding) ?
 				convert_buffer_utf32(out_buffer, out_length, contents, size, opt1_to_type<false>()) :
 				convert_buffer_utf32(out_buffer, out_length, contents, size, opt1_to_type<true>());
 		}
 
-		// invalid format combination (this can't happen)
+		// invalid encoding combination (this can't happen)
 		assert(false);
 
 		return false;
@@ -712,33 +712,33 @@ namespace
 
 	bool convert_buffer(char_t*& out_buffer, size_t& out_length, unsigned int options, const void* contents, size_t size, bool is_mutable)
 	{
-		// get actual format
-		unsigned int format = get_buffer_format(options, contents, size);
+		// get actual encoding
+		unsigned int encoding = get_buffer_encoding(options, contents, size);
 
 		// fast path: no conversion required
-		if (format == parse_format_utf8) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
+		if (encoding == encoding_utf8) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
 
-		// source format is utf16
-		if (format == parse_format_utf16_be || format == parse_format_utf16_le)
+		// source encoding is utf16
+		if (encoding == encoding_utf16_be || encoding == encoding_utf16_le)
 		{
-			unsigned int native_format = is_little_endian() ? parse_format_utf16_le : parse_format_utf16_be;
+			unsigned int native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
 
-			return (native_format == format) ?
+			return (native_encoding == encoding) ?
 				convert_buffer_utf16(out_buffer, out_length, contents, size, opt1_to_type<false>()) :
 				convert_buffer_utf16(out_buffer, out_length, contents, size, opt1_to_type<true>());
 		}
 
-		// source format is utf32
-		if (format == parse_format_utf32_be || format == parse_format_utf32_le)
+		// source encoding is utf32
+		if (encoding == encoding_utf32_be || encoding == encoding_utf32_le)
 		{
-			unsigned int native_format = is_little_endian() ? parse_format_utf32_le : parse_format_utf32_be;
+			unsigned int native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
 
-			return (native_format == format) ?
+			return (native_encoding == encoding) ?
 				convert_buffer_utf32(out_buffer, out_length, contents, size, opt1_to_type<false>()) :
 				convert_buffer_utf32(out_buffer, out_length, contents, size, opt1_to_type<true>());
 		}
 
-		// invalid format combination (this can't happen)
+		// invalid encoding combination (this can't happen)
 		assert(false);
 
 		return false;
@@ -3364,11 +3364,11 @@ namespace pugi
 	{
 		destroy();
 		
-		// Force native format (skip autodetection)
+		// Force native encoding (skip autodetection)
 	#ifdef PUGIXML_WCHAR_MODE
-		options = (options & ~parse_format_mask) | parse_format_wchar;
+		options = (options & ~encoding_mask) | encoding_wchar;
 	#else
-		options = (options & ~parse_format_mask) | parse_format_utf8;
+		options = (options & ~encoding_mask) | encoding_utf8;
 	#endif
 
 		return load_buffer(contents, impl::strlen(contents) * sizeof(char_t), options);

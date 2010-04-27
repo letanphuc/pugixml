@@ -305,25 +305,25 @@ TEST(document_load_file_convert_specific)
 		"tests/data/utftest_utf8_bom.xml"
 	};
 
-	unsigned int formats[] =
+	unsigned int encodings[] =
 	{
-		parse_format_utf16_be, parse_format_utf16_be,
-		parse_format_utf16_le, parse_format_utf16_le,
-		parse_format_utf32_be, parse_format_utf32_be,
-		parse_format_utf32_le, parse_format_utf32_le,
-		parse_format_utf8, parse_format_utf8
+		encoding_utf16_be, encoding_utf16_be,
+		encoding_utf16_le, encoding_utf16_le,
+		encoding_utf32_be, encoding_utf32_be,
+		encoding_utf32_le, encoding_utf32_le,
+		encoding_utf8, encoding_utf8
 	};
 
 	for (unsigned int i = 0; i < sizeof(files) / sizeof(files[0]); ++i)
 	{
 		for (unsigned int j = 0; j < sizeof(files) / sizeof(files[0]); ++j)
 		{
-			unsigned int format = formats[j];
+			unsigned int encoding = encodings[j];
 
 			xml_document doc;
-			xml_parse_result res = doc.load_file(files[i], format);
+			xml_parse_result res = doc.load_file(files[i], encoding);
 
-			if (format == formats[i])
+			if (encoding == encodings[i])
 			{
 				CHECK(res);
 				check_utftest_document(doc);
@@ -358,10 +358,10 @@ TEST(document_load_file_convert_native_endianness)
 		}
 	};
 
-	unsigned int formats[] =
+	unsigned int encodings[] =
 	{
-		parse_format_utf16, parse_format_utf16,
-		parse_format_utf32, parse_format_utf32
+		encoding_utf16, encoding_utf16,
+		encoding_utf32, encoding_utf32
 	};
 
 	for (unsigned int i = 0; i < sizeof(files[0]) / sizeof(files[0][0]); ++i)
@@ -369,16 +369,16 @@ TEST(document_load_file_convert_native_endianness)
 		const char* right_file = files[little_endian][i];
 		const char* wrong_file = files[!little_endian][i];
 
-		for (unsigned int j = 0; j < sizeof(formats) / sizeof(formats[0]); ++j)
+		for (unsigned int j = 0; j < sizeof(encodings) / sizeof(encodings[0]); ++j)
 		{
-			unsigned int format = formats[j];
+			unsigned int encoding = encodings[j];
 
 			// check file with right endianness
 			{
 				xml_document doc;
-				xml_parse_result res = doc.load_file(right_file, format);
+				xml_parse_result res = doc.load_file(right_file, encoding);
 
-				if (format == formats[i])
+				if (encoding == encodings[i])
 				{
 					CHECK(res);
 					check_utftest_document(doc);
@@ -393,7 +393,7 @@ TEST(document_load_file_convert_native_endianness)
 			// check file with wrong endianness
 			{
 				xml_document doc;
-				doc.load_file(wrong_file, format);
+				doc.load_file(wrong_file, encoding);
 				CHECK(!doc.first_child());
 			}
 		}
