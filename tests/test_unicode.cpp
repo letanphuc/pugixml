@@ -2,15 +2,6 @@
 
 // letters taken from http://www.utf8-chartable.de/
 
-#ifdef __DMC__
-#define U_LITERALS // DMC does not understand \x01234 (it parses first three digits), but understands \u01234
-#endif
-
-inline wchar_t wchar_cast(unsigned int value)
-{
-	return static_cast<wchar_t>(value); // to avoid C4310 on MSVC
-}
-
 #ifndef PUGIXML_NO_STL
 TEST(as_utf16)
 {

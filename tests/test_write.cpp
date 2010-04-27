@@ -61,6 +61,7 @@ struct test_writer: xml_writer
 
 	virtual void write(const void* data, size_t size)
 	{
+		CHECK(size % sizeof(pugi::char_t) == 0);
 		contents += std::basic_string<pugi::char_t>(static_cast<const pugi::char_t*>(data), static_cast<const pugi::char_t*>(data) + size / sizeof(pugi::char_t));
 	}
 };
@@ -95,3 +96,87 @@ TEST_XML(write_huge_chunk, "<node/>")
 
 	CHECK(writer.contents == STR("<") + name + STR(" />\n"));
 }
+
+struct test_narrow_writer: xml_writer
+{
+	std::string contents;
+
+	virtual void write(const void* data, size_t size)
+	{
+		contents += std::string(static_cast<const char*>(data), static_cast<const char*>(data) + size);
+	}
+};
+
+struct test_wide_writer: xml_writer
+{
+	std::wstring contents;
+
+	virtual void write(const void* data, size_t size)
+	{
+		CHECK(size % sizeof(wchar_t) == 0);
+		contents += std::wstring(static_cast<const wchar_t*>(data), static_cast<const wchar_t*>(data) + size / sizeof(wchar_t));
+	}
+};
+
+std::string write_narrow(xml_node node, unsigned int flags)
+{
+	test_narrow_writer writer;
+
+	node.print(writer, STR(""), flags);
+
+	return writer.contents;
+}
+
+void test_write_narrow(xml_node node, unsigned int flags, const char* expected, size_t length)
+{
+	std::string result = write_narrow(node, flags);
+
+	// check result
+	CHECK(result == std::string(expected, expected + length));
+
+	// check comparison operator (incorrect implementation can theoretically early-out on zero terminators...)
+	CHECK(result != std::string(expected, expected + length - 1) + "?");
+}
+
+std::wstring write_wide(xml_node node, unsigned int flags)
+{
+	test_wide_writer writer;
+
+	node.print(writer, STR(""), flags);
+
+	return writer.contents;
+}
+
+TEST(write_encodings)
+{
+	unsigned int ui = 1;
+	bool little_endian = *reinterpret_cast<char*>(&ui) == 1;
+
+	static char s_utf8[] = "<\x54\xC2\xA2\xE2\x82\xAC\xF0\xA4\xAD\xA2/>";
+
+	xml_document doc;
+	CHECK(doc.load_buffer(s_utf8, sizeof(s_utf8), encoding_utf8));
+
+	CHECK(write_narrow(doc, encoding_utf8) == "<\x54\xC2\xA2\xE2\x82\xAC\xF0\xA4\xAD\xA2 />\n");
+
+	test_write_narrow(doc, encoding_utf32_le, "<\x00\x00\x00\x54\x00\x00\x00\xA2\x00\x00\x00\xAC\x20\x00\x00\x62\x4B\x02\x00 \x00\x00\x00/\x00\x00\x00>\x00\x00\x00\n\x00\x00\x00", 36);
+	test_write_narrow(doc, encoding_utf32_be, "\x00\x00\x00<\x00\x00\x00\x54\x00\x00\x00\xA2\x00\x00\x20\xAC\x00\x02\x4B\x62\x00\x00\x00 \x00\x00\x00/\x00\x00\x00>\x00\x00\x00\n", 36);
+	CHECK(write_narrow(doc, encoding_utf32) == write_narrow(doc, little_endian ? encoding_utf32_le : encoding_utf32_be));
+
+	test_write_narrow(doc, encoding_utf16_le, "<\x00\x54\x00\xA2\x00\xAC\x20\x52\xd8\x62\xdf \x00/\x00>\x00\n\x00", 20);
+	test_write_narrow(doc, encoding_utf16_be, "\x00<\x00\x54\x00\xA2\x20\xAC\xd8\x52\xdf\x62\x00 \x00/\x00>\x00\n", 20);
+	CHECK(write_narrow(doc, encoding_utf16) == write_narrow(doc, little_endian ? encoding_utf16_le : encoding_utf16_be));
+
+	size_t wcharsize = sizeof(wchar_t);
+	std::wstring v = write_wide(doc, encoding_wchar);
+
+	if (wcharsize == 4)
+	{
+		CHECK(v.size() == 9 && v[0] == '<' && v[1] == 0x54 && v[2] == 0xA2 && v[3] == 0x20AC && v[4] == wchar_cast(0x24B62) && v[5] == ' ' && v[6] == '/' && v[7] == '>' && v[8] == '\n');
+	}
+	else
+	{
+		CHECK(v.size() == 10 && v[0] == '<' && v[1] == 0x54 && v[2] == 0xA2 && v[3] == 0x20AC && v[4] == 0xd852 && v[5] == 0xdf62 && v[6] == ' ' && v[7] == '/' && v[8] == '>' && v[9] == '\n');
+	}
+}
+
