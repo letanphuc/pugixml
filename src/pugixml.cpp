@@ -499,6 +499,12 @@ namespace
 		// replace wchar format with utf implementation
 		if ((options & parse_format_mask) == parse_format_wchar) return get_wchar_format();
 
+		// replace utf16 format with utf16 with specific endianness
+		if ((options & parse_format_mask) == parse_format_utf16) return is_little_endian() ? parse_format_utf16_le : parse_format_utf16_be;
+
+		// replace utf32 format with utf32 with specific endianness
+		if ((options & parse_format_mask) == parse_format_utf32) return is_little_endian() ? parse_format_utf32_le : parse_format_utf32_be;
+
 		// only do autodetection if no explicit format is requested
 		if ((options & parse_format_mask) != parse_format_auto) return options & parse_format_mask;
 
