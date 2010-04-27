@@ -1856,14 +1856,6 @@ namespace
 					writer.write('&', 'q', 'u', 'o', 't', ';');
 					++s;
 					break;
-				case '\r':
-					writer.write('&', '#', '1', '3', ';');
-					++s;
-					break;
-				case '\n':
-					writer.write('&', '#', '1', '0', ';');
-					++s;
-					break;
 				default: // s is not a usual symbol
 				{
 					unsigned int ch = (unsigned int)*s++;
