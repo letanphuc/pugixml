@@ -1753,13 +1753,67 @@ namespace
 			write(data, impl::strlen(data));
 		}
 
-		void write(char_t data)
+		void write(char_t d0)
 		{
-			const size_t bufcapacity = sizeof(buffer) / sizeof(buffer[0]);
+			if (bufsize + 1 > sizeof(buffer) / sizeof(buffer[0])) flush();
 
-			if (bufsize + 1 > bufcapacity) flush();
+			buffer[bufsize + 0] = d0;
+			bufsize += 1;
+		}
 
-			buffer[bufsize++] = data;
+		void write(char_t d0, char_t d1)
+		{
+			if (bufsize + 2 > sizeof(buffer) / sizeof(buffer[0])) flush();
+
+			buffer[bufsize + 0] = d0;
+			buffer[bufsize + 1] = d1;
+			bufsize += 2;
+		}
+
+		void write(char_t d0, char_t d1, char_t d2)
+		{
+			if (bufsize + 3 > sizeof(buffer) / sizeof(buffer[0])) flush();
+
+			buffer[bufsize + 0] = d0;
+			buffer[bufsize + 1] = d1;
+			buffer[bufsize + 2] = d2;
+			bufsize += 3;
+		}
+
+		void write(char_t d0, char_t d1, char_t d2, char_t d3)
+		{
+			if (bufsize + 4 > sizeof(buffer) / sizeof(buffer[0])) flush();
+
+			buffer[bufsize + 0] = d0;
+			buffer[bufsize + 1] = d1;
+			buffer[bufsize + 2] = d2;
+			buffer[bufsize + 3] = d3;
+			bufsize += 4;
+		}
+
+		void write(char_t d0, char_t d1, char_t d2, char_t d3, char_t d4)
+		{
+			if (bufsize + 5 > sizeof(buffer) / sizeof(buffer[0])) flush();
+
+			buffer[bufsize + 0] = d0;
+			buffer[bufsize + 1] = d1;
+			buffer[bufsize + 2] = d2;
+			buffer[bufsize + 3] = d3;
+			buffer[bufsize + 4] = d4;
+			bufsize += 5;
+		}
+
+		void write(char_t d0, char_t d1, char_t d2, char_t d3, char_t d4, char_t d5)
+		{
+			if (bufsize + 6 > sizeof(buffer) / sizeof(buffer[0])) flush();
+
+			buffer[bufsize + 0] = d0;
+			buffer[bufsize + 1] = d1;
+			buffer[bufsize + 2] = d2;
+			buffer[bufsize + 3] = d3;
+			buffer[bufsize + 4] = d4;
+			buffer[bufsize + 5] = d5;
+			bufsize += 6;
 		}
 
 		xml_writer& writer;
@@ -1787,38 +1841,35 @@ namespace
 			{
 				case 0: break;
 				case '&':
-					writer.write(PUGIXML_TEXT("&amp;"));
+					writer.write('&', 'a', 'm', 'p', ';');
 					++s;
 					break;
 				case '<':
-					writer.write(PUGIXML_TEXT("&lt;"));
+					writer.write('&', 'l', 't', ';');
 					++s;
 					break;
 				case '>':
-					writer.write(PUGIXML_TEXT("&gt;"));
+					writer.write('&', 'g', 't', ';');
 					++s;
 					break;
 				case '"':
-					writer.write(PUGIXML_TEXT("&quot;"));
+					writer.write('&', 'q', 'u', 'o', 't', ';');
 					++s;
 					break;
 				case '\r':
-					writer.write(PUGIXML_TEXT("&#13;"));
+					writer.write('&', '#', '1', '3', ';');
 					++s;
 					break;
 				case '\n':
-					writer.write(PUGIXML_TEXT("&#10;"));
+					writer.write('&', '#', '1', '0', ';');
 					++s;
 					break;
 				default: // s is not a usual symbol
 				{
-					// $$$ wrong for wchar_t
-					unsigned int ch = (unsigned char)*s++;
+					unsigned int ch = (unsigned int)*s++;
+					assert(ch < 32);
 
-					char buf[8];
-					sprintf(buf, "&#%u;", ch);
-
-					for (char* pos = buf; *pos; ++pos) writer.write(*pos);
+					writer.write('&', '#', (ch / 10) + '0', (ch % 10) + '0', ';');
 				}
 			}
 		}
@@ -1847,8 +1898,7 @@ namespace
 			{
 				writer.write(' ');
 				writer.write(a.name());
-				writer.write('=');
-				writer.write('"');
+				writer.write('=', '"');
 
 				text_output_escaped(writer, a.value(), opt1_to_type<1>());
 
@@ -1858,7 +1908,7 @@ namespace
 			if (flags & format_raw)
 			{
 				if (!node.first_child())
-					writer.write(PUGIXML_TEXT(" />"));
+					writer.write(' ', '/', '>');
 				else
 				{
 					writer.write('>');
@@ -1866,30 +1916,26 @@ namespace
 					for (xml_node n = node.first_child(); n; n = n.next_sibling())
 						node_output(writer, n, indent, flags, depth + 1);
 
-					writer.write('<');
-					writer.write('/');
+					writer.write('<', '/');
 					writer.write(node.name());
 					writer.write('>');
 				}
 			}
 			else if (!node.first_child())
-				writer.write(PUGIXML_TEXT(" />\n"));
+				writer.write(' ', '/', '>', '\n');
 			else if (node.first_child() == node.last_child() && node.first_child().type() == node_pcdata)
 			{
 				writer.write('>');
 
 				text_output_escaped(writer, node.first_child().value(), opt1_to_type<0>());
 
-				writer.write('<');
-				writer.write('/');
+				writer.write('<', '/');
 				writer.write(node.name());
-				writer.write('>');
-				writer.write('\n');
+				writer.write('>', '\n');
 			}
 			else
 			{
-				writer.write('>');
-				writer.write('\n');
+				writer.write('>', '\n');
 				
 				for (xml_node n = node.first_child(); n; n = n.next_sibling())
 					node_output(writer, n, indent, flags, depth + 1);
@@ -1897,11 +1943,9 @@ namespace
 				if ((flags & format_indent) != 0 && (flags & format_raw) == 0)
 					for (unsigned int i = 0; i < depth; ++i) writer.write(indent);
 				
-				writer.write('<');
-				writer.write('/');
+				writer.write('<', '/');
 				writer.write(node.name());
-				writer.write('>');
-				writer.write('\n');
+				writer.write('>', '\n');
 			}
 
 			break;
@@ -1913,49 +1957,49 @@ namespace
 			break;
 
 		case node_cdata:
-			writer.write(PUGIXML_TEXT("<![CDATA["));
+			writer.write('<', '!', '[', 'C', 'D');
+			writer.write('A', 'T', 'A', '[');
 			writer.write(node.value());
-			writer.write(PUGIXML_TEXT("]]>"));
+			writer.write(']', ']', '>');
 			if ((flags & format_raw) == 0) writer.write('\n');
 			break;
 
 		case node_comment:
-			writer.write(PUGIXML_TEXT("<!--"));
+			writer.write('<', '!', '-', '-');
 			writer.write(node.value());
-			writer.write(PUGIXML_TEXT("-->"));
+			writer.write('-', '-', '>');
 			if ((flags & format_raw) == 0) writer.write('\n');
 			break;
 
 		case node_pi:
-			writer.write(PUGIXML_TEXT("<?"));
+			writer.write('<', '?');
 			writer.write(node.name());
 			if (node.value()[0])
 			{
 				writer.write(' ');
 				writer.write(node.value());
 			}
-			writer.write(PUGIXML_TEXT("?>"));
+			writer.write('?', '>');
 			if ((flags & format_raw) == 0) writer.write('\n');
 			break;
 		
 		case node_declaration:
 		{
-			writer.write(PUGIXML_TEXT("<?"));
+			writer.write('<', '?');
 			writer.write(node.name());
 
 			for (xml_attribute a = node.first_attribute(); a; a = a.next_attribute())
 			{
 				writer.write(' ');
 				writer.write(a.name());
-				writer.write('=');
-				writer.write('"');
+				writer.write('=', '"');
 
 				text_output_escaped(writer, a.value(), opt1_to_type<1>());
 
 				writer.write('"');
 			}
 
-			writer.write(PUGIXML_TEXT("?>"));
+			writer.write('?', '>');
 			if ((flags & format_raw) == 0) writer.write('\n');
 			break;
 		}
