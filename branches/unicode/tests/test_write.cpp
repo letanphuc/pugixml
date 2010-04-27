@@ -52,7 +52,7 @@ TEST_XML(write_escape, "<node attr=''>text</node>")
 	doc.child(STR("node")).attribute(STR("attr")) = STR("<>'\"&\x04\r\n\t");
 	doc.child(STR("node")).first_child().set_value(STR("<>'\"&\x04\r\n\t"));
 
-	CHECK_NODE(doc, STR("<node attr=\"&lt;&gt;'&quot;&amp;&#4;&#13;&#10;\t\">&lt;&gt;'\"&amp;&#4;\r\n\t</node>"));
+	CHECK_NODE(doc, STR("<node attr=\"&lt;&gt;'&quot;&amp;&#04;&#13;&#10;\t\">&lt;&gt;'\"&amp;&#04;\r\n\t</node>"));
 }
 
 struct test_writer: xml_writer
