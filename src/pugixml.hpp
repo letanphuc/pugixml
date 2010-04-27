@@ -208,25 +208,25 @@ namespace pugi
 	const unsigned int parse_declaration		= 0x0100;
 
 	/**
-	 * These flags determine the format of input data for XML document. Default mode is parse_format_bom,
-	 * which means that document format is autodetected from BOM and necessary format conversions are
-	 * applied. You can override this mode by using any of the specific formats.
+	 * These flags determine the encoding of input data for XML document. Default mode is encoding_auto,
+	 * which means that document encoding is autodetected from BOM and necessary encoding conversions are
+	 * applied. You can override this mode by using any of the specific encodings.
 	 */
-	const unsigned int parse_format_auto        = 0x0000; //!< Auto-detect input format using BOM or </<? detection; use UTF8 if BOM is not found
+	const unsigned int encoding_auto        = 0x0000; //!< Auto-detect input encoding using BOM or </<? detection; use UTF8 if BOM is not found
 
-	const unsigned int parse_format_utf8        = 0x1000; //!< Force input format to UTF8
+	const unsigned int encoding_utf8        = 0x1000; //!< UTF8 encoding
 
-	const unsigned int parse_format_utf16_le    = 0x2000; //!< Force input format to little-endian UTF16
-	const unsigned int parse_format_utf16_be    = 0x3000; //!< Force input format to big-endian UTF16
-	const unsigned int parse_format_utf16       = 0x4000; //!< Force input format to UTF16 with native endianness
+	const unsigned int encoding_utf16_le    = 0x2000; //!< Little-endian UTF16
+	const unsigned int encoding_utf16_be    = 0x3000; //!< Big-endian UTF16
+	const unsigned int encoding_utf16       = 0x4000; //!< UTF16 with native endianness
 
-	const unsigned int parse_format_utf32_le    = 0x5000; //!< Force input format to little-endian UTF32
-	const unsigned int parse_format_utf32_be    = 0x6000; //!< Force input format to big-endian UTF32
-	const unsigned int parse_format_utf32       = 0x7000; //!< Force input format to UTF32 with native endianness
+	const unsigned int encoding_utf32_le    = 0x5000; //!< Little-endian UTF32
+	const unsigned int encoding_utf32_be    = 0x6000; //!< Big-endian UTF32
+	const unsigned int encoding_utf32       = 0x7000; //!< UTF32 with native endianness
 
-	const unsigned int parse_format_wchar       = 0x8000; //!< Force input format to wchar_t
+	const unsigned int encoding_wchar       = 0x8000; //!< The same encoding wchar_t has (either UTF16 or UTF32)
 
-	const unsigned int parse_format_mask = 0xf000; //!< \internal bitmask for format flags
+	const unsigned int encoding_mask        = 0xf000; //!< \internal bitmask for encoding
 
 	/**
      * This is the default set of flags. It includes parsing CDATA sections (comments/PIs are not
@@ -234,7 +234,7 @@ namespace pugi
      * with spaces in attribute values and performing EOL handling. Note, that PCDATA sections
      * consisting only of whitespace characters are not parsed (by default) for performance reasons.
      */
-	const unsigned int parse_default			= parse_cdata | parse_escapes | parse_wconv_attribute | parse_eol | parse_format_auto;
+	const unsigned int parse_default			= parse_cdata | parse_escapes | parse_wconv_attribute | parse_eol | encoding_auto;
 
 	// Formatting flags
 	
@@ -1790,7 +1790,7 @@ namespace pugi
 #endif
 
 		/**
-		 * Load document from string. String has to be zero-terminated. No format conversions are applied.
+		 * Load document from string. String has to be zero-terminated. No encoding conversions are applied.
 		 *
 		 * \param contents - input string
 		 * \param options - parsing options
