@@ -336,3 +336,66 @@ TEST(document_load_file_convert_specific)
 		}
 	}
 }
+
+TEST(document_load_file_convert_native_endianness)
+{
+	unsigned int ui = 1;
+	bool little_endian = *reinterpret_cast<char*>(&ui) == 1;
+
+	const char* files[2][4] =
+	{
+		{
+			"tests/data/utftest_utf16_be.xml",
+			"tests/data/utftest_utf16_be_bom.xml",
+			"tests/data/utftest_utf32_be.xml",
+			"tests/data/utftest_utf32_be_bom.xml",
+		},
+		{
+			"tests/data/utftest_utf16_le.xml",
+			"tests/data/utftest_utf16_le_bom.xml",
+			"tests/data/utftest_utf32_le.xml",
+			"tests/data/utftest_utf32_le_bom.xml",
+		}
+	};
+
+	unsigned int formats[] =
+	{
+		parse_format_utf16, parse_format_utf16,
+		parse_format_utf32, parse_format_utf32
+	};
+
+	for (unsigned int i = 0; i < sizeof(files[0]) / sizeof(files[0][0]); ++i)
+	{
+		const char* right_file = files[little_endian][i];
+		const char* wrong_file = files[!little_endian][i];
+
+		for (unsigned int j = 0; j < sizeof(formats) / sizeof(formats[0]); ++j)
+		{
+			unsigned int format = formats[j];
+
+			// check file with right endianness
+			{
+				xml_document doc;
+				xml_parse_result res = doc.load_file(right_file, format);
+
+				if (format == formats[i])
+				{
+					CHECK(res);
+					check_utftest_document(doc);
+				}
+				else
+				{
+					// should not get past first tag
+					CHECK(!doc.first_child());
+				}
+			}
+
+			// check file with wrong endianness
+			{
+				xml_document doc;
+				doc.load_file(wrong_file, format);
+				CHECK(!doc.first_child());
+			}
+		}
+	}
+}
