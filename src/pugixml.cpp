@@ -1867,7 +1867,7 @@ namespace
 					unsigned int ch = (unsigned int)*s++;
 					assert(ch < 32);
 
-					writer.write('&', '#', (ch / 10) + '0', (ch % 10) + '0', ';');
+					writer.write('&', '#', static_cast<char_t>((ch / 10) + '0'), static_cast<char_t>((ch % 10) + '0'), ';');
 				}
 			}
 		}
