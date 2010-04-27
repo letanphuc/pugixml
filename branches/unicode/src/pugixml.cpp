@@ -1714,13 +1714,86 @@ namespace
 	};
 
 	// Output facilities
+	unsigned int get_write_native_encoding()
+	{
+	#ifdef PUGIXML_WCHAR_MODE
+		return get_wchar_encoding();
+	#else
+		return encoding_utf8;
+	#endif
+	}
+
+	unsigned int get_write_encoding(unsigned int flags)
+	{
+		// replace wchar encoding with utf implementation
+		if ((flags & encoding_mask) == encoding_wchar) return get_wchar_encoding();
+
+		// replace utf16 encoding with utf16 with specific endianness
+		if ((flags & encoding_mask) == encoding_utf16) return is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
+
+		// replace utf32 encoding with utf32 with specific endianness
+		if ((flags & encoding_mask) == encoding_utf32) return is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
+
+		// only do autodetection if no explicit encoding is requested
+		if ((flags & encoding_mask) != encoding_auto) return flags & encoding_mask;
+
+		// assume native encoding
+		// $$$ it's not clear whether this is a good choice; perhaps writer knows the default target encoding?
+		return get_write_native_encoding();
+	}
+
+#ifdef PUGIXML_WCHAR_MODE
+	size_t convert_buffer(char* result, const char_t* data, size_t length, unsigned int encoding)
+	{
+		return 0;
+	}
+#else
+	size_t convert_buffer(char* result, const char_t* data, size_t length, unsigned int encoding)
+	{
+		if (encoding == encoding_utf16_be || encoding == encoding_utf16_le)
+		{
+			impl::char16_t* dest = reinterpret_cast<impl::char16_t*>(result);
+
+			// convert to native utf16
+			impl::char16_t* end = impl::decode_utf8_block<impl::utf16_writer>(reinterpret_cast<const impl::char8_t*>(data), length, dest, 0);
+
+			// swap if necessary
+			unsigned int native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
+
+			if (native_encoding != encoding) impl::convert_utf_endian_swap(dest, dest, static_cast<size_t>(end - dest));
+
+			return static_cast<size_t>(end - dest) * sizeof(impl::char16_t);
+		}
+
+		if (encoding == encoding_utf32_be || encoding == encoding_utf32_le)
+		{
+			impl::char32_t* dest = reinterpret_cast<impl::char32_t*>(result);
+
+			// convert to native utf32
+			impl::char32_t* end = impl::decode_utf8_block<impl::utf32_writer>(reinterpret_cast<const impl::char8_t*>(data), length, dest, 0);
+
+			// swap if necessary
+			unsigned int native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
+
+			if (native_encoding != encoding) impl::convert_utf_endian_swap(dest, dest, static_cast<size_t>(end - dest));
+
+			return static_cast<size_t>(end - dest) * sizeof(impl::char32_t);
+		}
+
+		// invalid encoding combination (this can't happen)
+		assert(false);
+
+		return 0;
+	}
+#endif
+
 	class xml_buffered_writer
 	{
 		xml_buffered_writer(const xml_buffered_writer&);
 		xml_buffered_writer& operator=(const xml_buffered_writer&);
 
 	public:
-		xml_buffered_writer(xml_writer& writer): writer(writer), bufsize(0)
+		xml_buffered_writer(xml_writer& writer, unsigned int flags): writer(writer), bufsize(0), encoding(get_write_encoding(flags))
 		{
 		}
 
@@ -1731,7 +1804,21 @@ namespace
 
 		void flush()
 		{
-			if (bufsize > 0) writer.write(buffer, bufsize * sizeof(char_t));
+			if (bufsize == 0) return;
+
+			// fast path, just write data
+			if (encoding == get_write_native_encoding())
+				writer.write(buffer, bufsize * sizeof(char_t));
+			else
+			{
+				// convert chunk
+				size_t size = convert_buffer(scratch, buffer, bufsize, encoding);
+				assert(size <= sizeof(scratch));
+
+				// write data
+				writer.write(scratch, size);
+			}
+
 			bufsize = 0;
 		}
 
@@ -1745,8 +1832,31 @@ namespace
 
 				if (length > bufcapacity)
 				{
-					writer.write(data, length * sizeof(char_t));
-					return;
+					if (encoding == get_write_native_encoding())
+					{
+						// fast path, can just write data chunk
+						writer.write(data, length * sizeof(char_t));
+						return;
+					}
+
+					// need to convert in suitable chunks
+					// $$$ chunk splitting should be content-aware, i.e. only split at symbol boundaries (how?)
+					while (length > bufcapacity)
+					{
+						// copy chunk
+						memcpy(buffer, data, bufcapacity * sizeof(char_t));
+						bufsize = bufcapacity;
+
+						// convert chunk and write
+						flush();
+
+						// iterate
+						data += bufcapacity;
+						length -= bufcapacity;
+					}
+
+					// small tail is copied below
+					bufsize = 0;
 				}
 			}
 
@@ -1822,9 +1932,15 @@ namespace
 			bufsize += 6;
 		}
 
+		// utf8 maximum expansion: x4 (-> utf32)
+		// utf16 maximum expansion: x2 (-> utf32)
+		// utf32 maximum expansion: x1
+		char_t buffer[2048 / sizeof(char_t)];
+		char scratch[4 * 2048 / sizeof(char_t)];
+
 		xml_writer& writer;
-		char_t buffer[8192];
 		size_t bufsize;
+		unsigned int encoding;
 	};
 
 	template <typename opt1> void text_output_escaped(xml_buffered_writer& writer, const char_t* s, opt1)
@@ -3070,7 +3186,7 @@ namespace pugi
 	{
 		if (!_root) return;
 
-		xml_buffered_writer buffered_writer(writer);
+		xml_buffered_writer buffered_writer(writer, flags);
 
 		node_output(buffered_writer, *this, indent, flags, depth);
 	}
@@ -3479,7 +3595,7 @@ namespace pugi
 			writer.write(utf8_bom, 3);
 		}
 
-		xml_buffered_writer buffered_writer(writer);
+		xml_buffered_writer buffered_writer(writer, flags);
 
 		if (!(flags & format_no_declaration))
 		{

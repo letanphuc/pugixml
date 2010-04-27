@@ -54,10 +54,7 @@ struct xml_writer_string: public pugi::xml_writer
 {
 	std::basic_string<pugi::char_t> result;
 	
-	virtual void write(const void* data, size_t size)
-	{
-		result += std::basic_string<pugi::char_t>(static_cast<const pugi::char_t*>(data), static_cast<const pugi::char_t*>(data) + size / sizeof(pugi::char_t));
-	}
+	virtual void write(const void* data, size_t size);
 };
 
 inline bool test_node(const pugi::xml_node& node, const pugi::char_t* contents, const pugi::char_t* indent, unsigned int flags)
@@ -235,5 +232,20 @@ struct dummy_fixture {};
 #endif
 
 #define STR(text) PUGIXML_TEXT(text)
+
+#ifdef __DMC__
+#define U_LITERALS // DMC does not understand \x01234 (it parses first three digits), but understands \u01234
+#endif
+
+inline wchar_t wchar_cast(unsigned int value)
+{
+	return static_cast<wchar_t>(value); // to avoid C4310 on MSVC
+}
+
+inline void xml_writer_string::write(const void* data, size_t size)
+{
+	CHECK(size % sizeof(pugi::char_t) == 0);
+	result += std::basic_string<pugi::char_t>(static_cast<const pugi::char_t*>(data), static_cast<const pugi::char_t*>(data) + size / sizeof(pugi::char_t));
+}
 
 #endif
