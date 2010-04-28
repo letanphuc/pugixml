@@ -229,3 +229,13 @@ TEST(write_encoding_huge)
 	CHECK(test_write_narrow(doc, encoding_utf16_be, s_utf16.c_str(), s_utf16.length()));
 }
 #endif
+
+TEST(write_unicode_escape)
+{
+	char s_utf8[] = "<\xE2\x82\xAC \xC2\xA2='\"\xF0\xA4\xAD\xA2\"'>&amp;\xF0\xA4\xAD\xA2&lt;</\xE2\x82\xAC>";
+	
+	xml_document doc;
+	CHECK(doc.load_buffer(s_utf8, sizeof(s_utf8), parse_default | encoding_utf8));
+
+	CHECK(write_narrow(doc, encoding_utf8) == "<\xE2\x82\xAC \xC2\xA2=\"&quot;\xF0\xA4\xAD\xA2&quot;\">&amp;\xF0\xA4\xAD\xA2&lt;</\xE2\x82\xAC>\n");
+}
