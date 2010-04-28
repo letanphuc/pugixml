@@ -1745,6 +1745,61 @@ namespace
 #ifdef PUGIXML_WCHAR_MODE
 	size_t convert_buffer(char* result, const char_t* data, size_t length, unsigned int encoding)
 	{
+		// only endian-swapping is required
+		if (need_endian_swap_utf(encoding, get_wchar_encoding()))
+		{
+			impl::convert_wchar_endian_swap(reinterpret_cast<char_t*>(result), data, length);
+
+			return length * sizeof(char_t);
+		}
+	
+		// convert to utf8
+		if (encoding == encoding_utf8)
+		{
+			impl::char8_t* dest = reinterpret_cast<impl::char8_t*>(result);
+
+			impl::char8_t* end = sizeof(wchar_t) == 2 ?
+				impl::decode_utf16_block<impl::utf8_writer>(reinterpret_cast<const impl::char16_t*>(data), length, dest, 0, opt1_to_type<false>()) :
+				impl::decode_utf32_block<impl::utf8_writer>(reinterpret_cast<const impl::char32_t*>(data), length, dest, opt1_to_type<false>());
+
+			return static_cast<size_t>(end - dest);
+		}
+
+		// convert to utf16
+		if (encoding == encoding_utf16_be || encoding == encoding_utf16_le)
+		{
+			impl::char16_t* dest = reinterpret_cast<impl::char16_t*>(result);
+
+			// convert to native utf16
+			impl::char16_t* end = impl::decode_utf32_block<impl::utf16_writer>(reinterpret_cast<const impl::char32_t*>(data), length, dest, opt1_to_type<false>());
+
+			// swap if necessary
+			unsigned int native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
+
+			if (native_encoding != encoding) impl::convert_utf_endian_swap(dest, dest, static_cast<size_t>(end - dest));
+
+			return static_cast<size_t>(end - dest) * sizeof(impl::char16_t);
+		}
+
+		// convert to utf32
+		if (encoding == encoding_utf32_be || encoding == encoding_utf32_le)
+		{
+			impl::char32_t* dest = reinterpret_cast<impl::char32_t*>(result);
+
+			// convert to native utf32
+			impl::char32_t* end = impl::decode_utf16_block<impl::utf32_writer>(reinterpret_cast<const impl::char16_t*>(data), length, dest, 0, opt1_to_type<false>());
+
+			// swap if necessary
+			unsigned int native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
+
+			if (native_encoding != encoding) impl::convert_utf_endian_swap(dest, dest, static_cast<size_t>(end - dest));
+
+			return static_cast<size_t>(end - dest) * sizeof(impl::char32_t);
+		}
+
+		// invalid encoding combination (this can't happen)
+		assert(false);
+
 		return 0;
 	}
 #else
