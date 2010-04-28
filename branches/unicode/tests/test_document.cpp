@@ -135,17 +135,61 @@ TEST_XML(document_save, "<node/>")
 	CHECK(writer.result == STR("<node />"));
 }
 
-#ifndef PUGIXML_WCHAR_MODE
-// $$$ fix this (custom writer?)
-TEST_XML(document_save_bom_utf8, "<node/>")
+struct test_narrow_writer: xml_writer
 {
+	std::string contents;
+
+	virtual void write(const void* data, size_t size)
+	{
+		contents += std::string(static_cast<const char*>(data), static_cast<const char*>(data) + size);
+	}
+};
+
+std::string save_narrow(const xml_document& doc, unsigned int flags)
+{
+	test_narrow_writer writer;
+
+	doc.save(writer, STR(""), flags);
+
+	return writer.contents;
+}
+
+bool test_save_narrow(const xml_document& doc, unsigned int flags, const char* expected, size_t length)
+{
+	std::string result = save_narrow(doc, flags);
+
+	// check result
+	if (result != std::string(expected, expected + length)) return false;
+
+	// check comparison operator (incorrect implementation can theoretically early-out on zero terminators...)
+	if (result == std::string(expected, expected + length - 1) + "?") return false;
+
+	return true;
+}
+
+TEST_XML(document_save_bom, "<n/>")
+{
+	unsigned int ui = 1;
+	bool little_endian = *reinterpret_cast<char*>(&ui) == 1;
+
 	xml_writer_string writer;
 
-	doc.save(writer, STR(""), pugi::format_no_declaration | pugi::format_raw | pugi::format_write_bom_utf8);
+	unsigned int flags = format_no_declaration | format_raw | format_write_bom;
 
-	CHECK(writer.result == STR("\xef\xbb\xbf<node />"));
+	// specific encodings
+	CHECK(test_save_narrow(doc, flags | encoding_utf8, "\xef\xbb\xbf<n />", 8));
+	CHECK(test_save_narrow(doc, flags | encoding_utf16_be, "\xfe\xff\x00<\x00n\x00 \x00/\x00>", 12));
+	CHECK(test_save_narrow(doc, flags | encoding_utf16_le, "\xff\xfe<\x00n\x00 \x00/\x00>\x00", 12));
+	CHECK(test_save_narrow(doc, flags | encoding_utf32_be, "\x00\x00\xfe\xff\x00\x00\x00<\x00\x00\x00n\x00\x00\x00 \x00\x00\x00/\x00\x00\x00>", 24));
+	CHECK(test_save_narrow(doc, flags | encoding_utf32_le, "\xff\xfe\x00\x00<\x00\x00\x00n\x00\x00\x00 \x00\x00\x00/\x00\x00\x00>\x00\x00\x00", 24));
+
+	// encodings synonyms
+	CHECK(save_narrow(doc, flags | encoding_utf16) == save_narrow(doc, flags | (little_endian ? encoding_utf16_le : encoding_utf16_be)));
+	CHECK(save_narrow(doc, flags | encoding_utf32) == save_narrow(doc, flags | (little_endian ? encoding_utf32_le : encoding_utf32_be)));
+
+	size_t wcharsize = sizeof(wchar_t);
+	CHECK(save_narrow(doc, flags | encoding_wchar) == save_narrow(doc, flags | (wcharsize == 2 ? encoding_utf16 : encoding_utf32)));
 }
-#endif
 
 TEST_XML(document_save_declaration, "<node/>")
 {
