@@ -1903,7 +1903,7 @@ namespace
 					{
 						// get chunk size by selecting such number of characters that are guaranteed to fit into scratch buffer
 						// and do not leave a very small tail (to prevent out-of-buffer reads for invalid utf streams)
-						size_t chunk_size = (length - 4 < bufcapacity) ? length - 4 : bufcapacity;
+						size_t chunk_size = (length - 4 < bufcapacity) ? length - 4 : static_cast<size_t>(bufcapacity);
 
 						// convert chunk and write
 						flush(data, chunk_size);
