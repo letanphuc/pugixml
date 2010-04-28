@@ -247,11 +247,11 @@ namespace pugi
 	const unsigned int format_indent	= 0x01;
 	
 	/**
-	 * This flag determines if UTF-8 BOM is to be written to output stream.
+	 * This flag determines if encoding-specific BOM is to be written to output stream.
 	 *
-	 * This flag is off by default.
+	 * This flag is off by default. $$$ really? then perhaps we need improved UTF16 autodetection in case no decl is written?..
 	 */
-	const unsigned int format_write_bom_utf8 = 0x02;
+	const unsigned int format_write_bom = 0x02;
 	
 	/**
 	 * If this flag is on, no indentation is performed and no line breaks are written to output file.
