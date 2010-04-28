@@ -182,3 +182,50 @@ TEST(write_encodings)
 	}
 }
 
+#ifdef PUGIXML_WCHAR_MODE
+TEST(write_encoding_huge)
+{
+	const unsigned int N = 16000;
+
+	// make a large utf16 name consisting of 6-byte char pairs (6 does not divide internal buffer size, so will need split correction)
+	std::string s_utf16 = std::string("\x00<", 2);
+
+	for (unsigned int i = 0; i < N; ++i) s_utf16 += "\x20\xAC\xd8\x52\xdf\x62";
+
+	s_utf16 += std::string("\x00/\x00>", 4);
+
+	xml_document doc;
+	CHECK(doc.load_buffer(&s_utf16[0], s_utf16.length(), encoding_utf16_be));
+
+	std::string s_utf8 = "<";
+
+	for (unsigned int i = 0; i < N; ++i) s_utf8 += "\xE2\x82\xAC\xF0\xA4\xAD\xA2";
+
+	s_utf8 += " />\n";
+
+	CHECK(test_write_narrow(doc, encoding_utf8, s_utf8.c_str(), s_utf8.length()));
+}
+#else
+TEST(write_encoding_huge)
+{
+	const unsigned int N = 16000;
+
+	// make a large utf8 name consisting of 3-byte chars (3 does not divide internal buffer size, so will need split correction)
+	std::string s_utf8 = "<";
+
+	for (unsigned int i = 0; i < N; ++i) s_utf8 += "\xE2\x82\xAC";
+
+	s_utf8 += "/>";
+
+	xml_document doc;
+	CHECK(doc.load_buffer(&s_utf8[0], s_utf8.length(), encoding_utf8));
+
+	std::string s_utf16 = std::string("\x00<", 2);
+
+	for (unsigned int i = 0; i < N; ++i) s_utf16 += "\x20\xAC";
+
+	s_utf16 += std::string("\x00 \x00/\x00>\x00\n", 8);
+
+	CHECK(test_write_narrow(doc, encoding_utf16_be, s_utf16.c_str(), s_utf16.length()));
+}
+#endif
