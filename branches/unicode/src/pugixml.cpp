@@ -1859,32 +1859,36 @@ namespace
 
 		void flush()
 		{
-			if (bufsize == 0) return;
+			flush(buffer, bufsize);
+			bufsize = 0;
+		}
+
+		void flush(const char_t* data, size_t size)
+		{
+			if (size == 0) return;
 
 			// fast path, just write data
 			if (encoding == get_write_native_encoding())
-				writer.write(buffer, bufsize * sizeof(char_t));
+				writer.write(data, size * sizeof(char_t));
 			else
 			{
 				// convert chunk
-				size_t size = convert_buffer(scratch, buffer, bufsize, encoding);
-				assert(size <= sizeof(scratch));
+				size_t result = convert_buffer(scratch, data, size, encoding);
+				assert(result <= sizeof(scratch));
 
 				// write data
-				writer.write(scratch, size);
+				writer.write(scratch, result);
 			}
-
-			bufsize = 0;
 		}
 
 		void write(const char_t* data, size_t length)
 		{
-			const size_t bufcapacity = sizeof(buffer) / sizeof(buffer[0]);
-
 			if (bufsize + length > bufcapacity)
 			{
+				// flush the remaining buffer contents
 				flush();
 
+				// handle large chunks
 				if (length > bufcapacity)
 				{
 					if (encoding == get_write_native_encoding())
@@ -1895,19 +1899,18 @@ namespace
 					}
 
 					// need to convert in suitable chunks
-					// $$$ chunk splitting should be content-aware, i.e. only split at symbol boundaries (how?)
 					while (length > bufcapacity)
 					{
-						// copy chunk
-						memcpy(buffer, data, bufcapacity * sizeof(char_t));
-						bufsize = bufcapacity;
+						// get chunk size by selecting such number of characters that are guaranteed to fit into scratch buffer
+						// and do not leave a very small tail (to prevent out-of-buffer reads for invalid utf streams)
+						size_t chunk_size = (length - 4 < bufcapacity) ? length - 4 : bufcapacity;
 
 						// convert chunk and write
-						flush();
+						flush(data, chunk_size);
 
 						// iterate
-						data += bufcapacity;
-						length -= bufcapacity;
+						data += chunk_size;
+						length -= chunk_size;
 					}
 
 					// small tail is copied below
@@ -1926,7 +1929,7 @@ namespace
 
 		void write(char_t d0)
 		{
-			if (bufsize + 1 > sizeof(buffer) / sizeof(buffer[0])) flush();
+			if (bufsize + 1 > bufcapacity) flush();
 
 			buffer[bufsize + 0] = d0;
 			bufsize += 1;
@@ -1934,7 +1937,7 @@ namespace
 
 		void write(char_t d0, char_t d1)
 		{
-			if (bufsize + 2 > sizeof(buffer) / sizeof(buffer[0])) flush();
+			if (bufsize + 2 > bufcapacity) flush();
 
 			buffer[bufsize + 0] = d0;
 			buffer[bufsize + 1] = d1;
@@ -1943,7 +1946,7 @@ namespace
 
 		void write(char_t d0, char_t d1, char_t d2)
 		{
-			if (bufsize + 3 > sizeof(buffer) / sizeof(buffer[0])) flush();
+			if (bufsize + 3 > bufcapacity) flush();
 
 			buffer[bufsize + 0] = d0;
 			buffer[bufsize + 1] = d1;
@@ -1953,7 +1956,7 @@ namespace
 
 		void write(char_t d0, char_t d1, char_t d2, char_t d3)
 		{
-			if (bufsize + 4 > sizeof(buffer) / sizeof(buffer[0])) flush();
+			if (bufsize + 4 > bufcapacity) flush();
 
 			buffer[bufsize + 0] = d0;
 			buffer[bufsize + 1] = d1;
@@ -1964,7 +1967,7 @@ namespace
 
 		void write(char_t d0, char_t d1, char_t d2, char_t d3, char_t d4)
 		{
-			if (bufsize + 5 > sizeof(buffer) / sizeof(buffer[0])) flush();
+			if (bufsize + 5 > bufcapacity) flush();
 
 			buffer[bufsize + 0] = d0;
 			buffer[bufsize + 1] = d1;
@@ -1976,7 +1979,7 @@ namespace
 
 		void write(char_t d0, char_t d1, char_t d2, char_t d3, char_t d4, char_t d5)
 		{
-			if (bufsize + 6 > sizeof(buffer) / sizeof(buffer[0])) flush();
+			if (bufsize + 6 > bufcapacity) flush();
 
 			buffer[bufsize + 0] = d0;
 			buffer[bufsize + 1] = d1;
@@ -1990,8 +1993,10 @@ namespace
 		// utf8 maximum expansion: x4 (-> utf32)
 		// utf16 maximum expansion: x2 (-> utf32)
 		// utf32 maximum expansion: x1
-		char_t buffer[2048 / sizeof(char_t)];
-		char scratch[4 * 2048 / sizeof(char_t)];
+		enum { bufcapacity = 2048 };
+
+		char_t buffer[bufcapacity + 4];
+		char scratch[4 * bufcapacity];
 
 		xml_writer& writer;
 		size_t bufsize;
