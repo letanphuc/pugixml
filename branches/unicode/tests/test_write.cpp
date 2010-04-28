@@ -199,7 +199,7 @@ TEST(write_encoding_huge)
 
 	std::string s_utf8 = "<";
 
-	for (unsigned int i = 0; i < N; ++i) s_utf8 += "\xE2\x82\xAC\xF0\xA4\xAD\xA2";
+	for (unsigned int j = 0; j < N; ++j) s_utf8 += "\xE2\x82\xAC\xF0\xA4\xAD\xA2";
 
 	s_utf8 += " />\n";
 
@@ -222,7 +222,7 @@ TEST(write_encoding_huge)
 
 	std::string s_utf16 = std::string("\x00<", 2);
 
-	for (unsigned int i = 0; i < N; ++i) s_utf16 += "\x20\xAC";
+	for (unsigned int j = 0; j < N; ++j) s_utf16 += "\x20\xAC";
 
 	s_utf16 += std::string("\x00 \x00/\x00>\x00\n", 8);
 
