@@ -118,6 +118,9 @@ struct test_wide_writer: xml_writer
 	}
 };
 
+#ifdef __GNUC__
+__attribute__((noinline)) // GCC 4.3 and 4.4 crash below on two calls to save_narrow in single expression, http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42394
+#endif
 static std::string write_narrow(xml_node node, unsigned int flags)
 {
 	test_narrow_writer writer;
@@ -140,6 +143,9 @@ static bool test_write_narrow(xml_node node, unsigned int flags, const char* exp
 	return true;
 }
 
+#ifdef __GNUC__
+__attribute__((noinline)) // GCC 4.3 and 4.4 crash below on two calls to save_narrow in single expression, http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42394
+#endif
 static std::wstring write_wide(xml_node node, unsigned int flags)
 {
 	test_wide_writer writer;
