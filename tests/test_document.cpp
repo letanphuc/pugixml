@@ -145,7 +145,7 @@ struct test_narrow_writer: xml_writer
 	}
 };
 
-std::string save_narrow(const xml_document& doc, unsigned int flags)
+static std::string save_narrow(const xml_document& doc, unsigned int flags)
 {
 	test_narrow_writer writer;
 
@@ -154,7 +154,7 @@ std::string save_narrow(const xml_document& doc, unsigned int flags)
 	return writer.contents;
 }
 
-bool test_save_narrow(const xml_document& doc, unsigned int flags, const char* expected, size_t length)
+static bool test_save_narrow(const xml_document& doc, unsigned int flags, const char* expected, size_t length)
 {
 	std::string result = save_narrow(doc, flags);
 

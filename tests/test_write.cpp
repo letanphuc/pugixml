@@ -118,7 +118,7 @@ struct test_wide_writer: xml_writer
 	}
 };
 
-std::string write_narrow(xml_node node, unsigned int flags)
+static std::string write_narrow(xml_node node, unsigned int flags)
 {
 	test_narrow_writer writer;
 
@@ -127,7 +127,7 @@ std::string write_narrow(xml_node node, unsigned int flags)
 	return writer.contents;
 }
 
-bool test_write_narrow(xml_node node, unsigned int flags, const char* expected, size_t length)
+static bool test_write_narrow(xml_node node, unsigned int flags, const char* expected, size_t length)
 {
 	std::string result = write_narrow(node, flags);
 
@@ -140,7 +140,7 @@ bool test_write_narrow(xml_node node, unsigned int flags, const char* expected, 
 	return true;
 }
 
-std::wstring write_wide(xml_node node, unsigned int flags)
+static std::wstring write_wide(xml_node node, unsigned int flags)
 {
 	test_wide_writer writer;
 
