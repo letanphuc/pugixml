@@ -1998,6 +1998,36 @@ namespace
 		unsigned int encoding;
 	};
 
+	void write_bom(xml_writer& writer, unsigned int encoding)
+	{
+		switch (encoding)
+		{
+		case encoding_utf8:
+			writer.write("\xef\xbb\xbf", 3);
+			break;
+
+		case encoding_utf16_be:
+			writer.write("\xfe\xff", 2);
+			break;
+
+		case encoding_utf16_le:
+			writer.write("\xff\xfe", 2);
+			break;
+
+		case encoding_utf32_be:
+			writer.write("\x00\x00\xfe\xff", 4);
+			break;
+
+		case encoding_utf32_le:
+			writer.write("\xff\xfe\x00\x00", 4);
+			break;
+
+		default:
+			// invalid encoding (this should not happen)
+			assert(false);
+		}
+	}
+
 	template <typename opt1> void text_output_escaped(xml_buffered_writer& writer, const char_t* s, opt1)
 	{
 		const bool attribute = opt1::o1;
@@ -3644,11 +3674,7 @@ namespace pugi
 
 	void xml_document::save(xml_writer& writer, const char_t* indent, unsigned int flags) const
 	{
-		if (flags & format_write_bom_utf8)
-		{
-			static const unsigned char utf8_bom[] = {0xEF, 0xBB, 0xBF};
-			writer.write(utf8_bom, 3);
-		}
+		if (flags & format_write_bom) write_bom(writer, get_write_encoding(flags & encoding_mask));
 
 		xml_buffered_writer buffered_writer(writer, flags);
 
