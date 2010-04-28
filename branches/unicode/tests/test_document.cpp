@@ -145,6 +145,9 @@ struct test_narrow_writer: xml_writer
 	}
 };
 
+#ifdef __GNUC__
+__attribute__((noinline)) // GCC 4.3 and 4.4 crash below on two calls to save_narrow in single expression, http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42394
+#endif
 static std::string save_narrow(const xml_document& doc, unsigned int flags)
 {
 	test_narrow_writer writer;
