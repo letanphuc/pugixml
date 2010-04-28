@@ -248,7 +248,7 @@ namespace pugi
 			if (data != end && valid_size)
 			{
 				// discard last codepoint
-				*valid_size = size - (data - prev);
+				*valid_size = prev - (end - size);
 			}
 
 			return result;
@@ -296,7 +296,7 @@ namespace pugi
 			if (data != end && valid_size)
 			{
 				// discard last codepoint
-				*valid_size = size - (data - prev);
+				*valid_size = prev - (end - size);
 			}
 
 			return result;
