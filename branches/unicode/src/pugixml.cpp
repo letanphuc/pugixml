@@ -525,7 +525,11 @@ namespace
 		if (size > 4 && data[0] == 0x3c && data[1] == 0 && data[2] == 0x3f && data[3] == 0) return encoding_utf16_le;
 		if (size > 4 && data[0] == 0x3c && data[1] == 0x3f && data[2] == 0x78 && data[3] == 0x6d) return encoding_utf8;
 
-		// no known BOM detected, assume UTF8
+		// look for utf16 < followed by node name (this may fail, but is better than utf8 since it's zero terminated so early)
+		if (size > 2 && data[0] == 0 && data[1] == 0x3c) return encoding_utf16_be;
+		if (size > 2 && data[0] == 0x3c && data[1] == 0) return encoding_utf16_le;
+
+		// no known BOM detected, assume utf8
 		return encoding_utf8;
 	}
 

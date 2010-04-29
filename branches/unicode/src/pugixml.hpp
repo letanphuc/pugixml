@@ -249,7 +249,7 @@ namespace pugi
 	/**
 	 * This flag determines if encoding-specific BOM is to be written to output stream.
 	 *
-	 * This flag is off by default. $$$ really? then perhaps we need improved UTF16 autodetection in case no decl is written?..
+	 * This flag is off by default.
 	 */
 	const unsigned int format_write_bom = 0x02;
 	

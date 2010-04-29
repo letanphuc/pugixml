@@ -318,14 +318,19 @@ TEST(document_load_file_convert_auto)
 	{
 		"tests/data/utftest_utf16_be.xml",
 		"tests/data/utftest_utf16_be_bom.xml",
+		"tests/data/utftest_utf16_be_nodecl.xml",
 		"tests/data/utftest_utf16_le.xml",
 		"tests/data/utftest_utf16_le_bom.xml",
+		"tests/data/utftest_utf16_le_nodecl.xml",
 		"tests/data/utftest_utf32_be.xml",
 		"tests/data/utftest_utf32_be_bom.xml",
+		"tests/data/utftest_utf32_be_nodecl.xml",
 		"tests/data/utftest_utf32_le.xml",
 		"tests/data/utftest_utf32_le_bom.xml",
+		"tests/data/utftest_utf32_le_nodecl.xml",
 		"tests/data/utftest_utf8.xml",
-		"tests/data/utftest_utf8_bom.xml"
+		"tests/data/utftest_utf8_bom.xml",
+		"tests/data/utftest_utf8_nodecl.xml"
 	};
 
 	for (unsigned int i = 0; i < sizeof(files) / sizeof(files[0]); ++i)
@@ -342,23 +347,28 @@ TEST(document_load_file_convert_specific)
 	{
 		"tests/data/utftest_utf16_be.xml",
 		"tests/data/utftest_utf16_be_bom.xml",
+		"tests/data/utftest_utf16_be_nodecl.xml",
 		"tests/data/utftest_utf16_le.xml",
 		"tests/data/utftest_utf16_le_bom.xml",
+		"tests/data/utftest_utf16_le_nodecl.xml",
 		"tests/data/utftest_utf32_be.xml",
 		"tests/data/utftest_utf32_be_bom.xml",
+		"tests/data/utftest_utf32_be_nodecl.xml",
 		"tests/data/utftest_utf32_le.xml",
 		"tests/data/utftest_utf32_le_bom.xml",
+		"tests/data/utftest_utf32_le_nodecl.xml",
 		"tests/data/utftest_utf8.xml",
-		"tests/data/utftest_utf8_bom.xml"
+		"tests/data/utftest_utf8_bom.xml",
+		"tests/data/utftest_utf8_nodecl.xml"
 	};
 
 	unsigned int encodings[] =
 	{
-		encoding_utf16_be, encoding_utf16_be,
-		encoding_utf16_le, encoding_utf16_le,
-		encoding_utf32_be, encoding_utf32_be,
-		encoding_utf32_le, encoding_utf32_le,
-		encoding_utf8, encoding_utf8
+		encoding_utf16_be, encoding_utf16_be, encoding_utf16_be,
+		encoding_utf16_le, encoding_utf16_le, encoding_utf16_le,
+		encoding_utf32_be, encoding_utf32_be, encoding_utf32_be,
+		encoding_utf32_le, encoding_utf32_le, encoding_utf32_le,
+		encoding_utf8, encoding_utf8, encoding_utf8
 	};
 
 	for (unsigned int i = 0; i < sizeof(files) / sizeof(files[0]); ++i)
@@ -389,26 +399,30 @@ TEST(document_load_file_convert_native_endianness)
 	unsigned int ui = 1;
 	bool little_endian = *reinterpret_cast<char*>(&ui) == 1;
 
-	const char* files[2][4] =
+	const char* files[2][6] =
 	{
 		{
 			"tests/data/utftest_utf16_be.xml",
 			"tests/data/utftest_utf16_be_bom.xml",
+			"tests/data/utftest_utf16_be_nodecl.xml",
 			"tests/data/utftest_utf32_be.xml",
 			"tests/data/utftest_utf32_be_bom.xml",
+			"tests/data/utftest_utf32_be_nodecl.xml",
 		},
 		{
 			"tests/data/utftest_utf16_le.xml",
 			"tests/data/utftest_utf16_le_bom.xml",
+			"tests/data/utftest_utf16_le_nodecl.xml",
 			"tests/data/utftest_utf32_le.xml",
 			"tests/data/utftest_utf32_le_bom.xml",
+			"tests/data/utftest_utf32_le_nodecl.xml",
 		}
 	};
 
 	unsigned int encodings[] =
 	{
-		encoding_utf16, encoding_utf16,
-		encoding_utf32, encoding_utf32
+		encoding_utf16, encoding_utf16, encoding_utf16,
+		encoding_utf32, encoding_utf32, encoding_utf32
 	};
 
 	for (unsigned int i = 0; i < sizeof(files[0]) / sizeof(files[0][0]); ++i)
