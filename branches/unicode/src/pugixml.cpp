@@ -2046,9 +2046,8 @@ namespace
 			const char_t* prev = s;
 			
 			// While *s is a usual symbol
-			// $$$ >= 32 is wrong for wchar_t, revise
 			while (*s && *s != '&' && *s != '<' && *s != '>' && (*s != '"' || !attribute)
-					&& ((unsigned char)*s >= 32 || (*s == '\r' && !attribute) || (*s == '\n' && !attribute) || *s == '\t'))
+					&& (static_cast<unsigned int>(*s) >= 32 || (*s == '\r' && !attribute) || (*s == '\n' && !attribute) || *s == '\t'))
 				++s;
 		
 			writer.write(prev, static_cast<size_t>(s - prev));
@@ -2074,7 +2073,7 @@ namespace
 					break;
 				default: // s is not a usual symbol
 				{
-					unsigned int ch = (unsigned int)*s++;
+					unsigned int ch = static_cast<unsigned int>(*s++);
 					assert(ch < 32);
 
 					writer.write('&', '#', static_cast<char_t>((ch / 10) + '0'), static_cast<char_t>((ch % 10) + '0'), ';');

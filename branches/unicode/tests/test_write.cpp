@@ -55,6 +55,19 @@ TEST_XML(write_escape, "<node attr=''>text</node>")
 	CHECK_NODE(doc, STR("<node attr=\"&lt;&gt;'&quot;&amp;&#04;&#13;&#10;\t\">&lt;&gt;'\"&amp;&#04;\r\n\t</node>"));
 }
 
+TEST_XML(write_escape_unicode, "<node attr='&#x3c00;'/>")
+{
+#ifdef PUGIXML_WCHAR_MODE
+	#ifdef U_LITERALS
+		CHECK_NODE(doc, STR("<node attr=\"\u3c00\" />"));
+	#else
+		CHECK_NODE(doc, STR("<node attr=\"\x3c00\" />"));
+	#endif
+#else
+	CHECK_NODE(doc, STR("<node attr=\"\xe3\xb0\x80\" />"));
+#endif
+}
+
 struct test_writer: xml_writer
 {
 	std::basic_string<pugi::char_t> contents;
