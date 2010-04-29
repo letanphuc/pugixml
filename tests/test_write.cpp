@@ -78,11 +78,17 @@ TEST_XML(write_print_writer, "<node/>")
 TEST_XML(write_print_stream, "<node/>")
 {
 	std::ostringstream oss;
-	doc.print(oss);
+	doc.print(oss, STR(""), encoding_utf8);
 
-#ifndef PUGIXML_WCHAR_MODE // $$$ fix this (should we provide a writer for wide stream if we're wide? probably)
-	CHECK(oss.str() == STR("<node />\n"));
-#endif
+	CHECK(oss.str() == "<node />\n");
+}
+
+TEST_XML(write_print_stream_encode, "<n/>")
+{
+	std::ostringstream oss;
+	doc.print(oss, STR(""), encoding_utf16_be);
+
+	CHECK(oss.str() == std::string("\x00<\x00n\x00 \x00/\x00>\x00\n", 12));
 }
 #endif
 
