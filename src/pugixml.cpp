@@ -1742,7 +1742,6 @@ namespace
 		if ((flags & encoding_mask) != encoding_auto) return flags & encoding_mask;
 
 		// assume native encoding
-		// $$$ it's not clear whether this is a good choice; perhaps writer knows the default target encoding?
 		return get_write_native_encoding();
 	}
 
