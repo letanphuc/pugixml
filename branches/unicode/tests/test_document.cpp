@@ -20,8 +20,6 @@ TEST(document_create)
 }
 
 #ifndef PUGIXML_NO_STL
-#ifndef PUGIXML_WCHAR_MODE
-// $$$ recover (wide streams?)
 TEST(document_load_stream)
 {
 	pugi::xml_document doc;
@@ -52,7 +50,6 @@ TEST(document_load_stream_text)
 	CHECK(doc.load(iss));
 	CHECK_NODE(doc, STR("<node1 /><node2 /><node3 />"));
 }
-#endif
 
 TEST(document_load_stream_error)
 {
