@@ -26,8 +26,10 @@
 #include <wchar.h>
 
 #ifndef PUGIXML_NO_STL
+#	include <iterator>
 #	include <istream>
 #	include <ostream>
+#	include <string>
 #endif
 
 // For placement new
@@ -3773,6 +3775,22 @@ namespace pugi
     	return global_deallocate;
     }
 }
+
+#if defined(_MSC_VER) || defined(__ICC)
+namespace std
+{
+	// Workarounds for (non-standard) iterator category detection for older versions (MSVC7/IC8 and earlier)
+	std::bidirectional_iterator_tag _Iter_cat(const pugi::xml_node_iterator&)
+	{
+		return std::bidirectional_iterator_tag();
+	}
+
+	std::bidirectional_iterator_tag _Iter_cat(const pugi::xml_attribute_iterator&)
+	{
+		return std::bidirectional_iterator_tag();
+	}
+}
+#endif
 
 /**
  * Copyright (c) 2006-2009 Arseny Kapoulkine

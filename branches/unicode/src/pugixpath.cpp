@@ -16,6 +16,7 @@
 #ifndef PUGIXML_NO_XPATH
 
 #include <algorithm>
+#include <string>
 
 #include <assert.h>
 
