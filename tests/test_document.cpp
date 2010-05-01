@@ -1,8 +1,10 @@
+#include <string.h> // because Borland's STL is braindead, we have to include <string.h> _before_ <string> in order to get memcpy
+
 #include "common.hpp"
 
 #include "writer_string.hpp"
 
-#include <string.h>
+#include <stdio.h>
 
 #include <fstream>
 #include <sstream>

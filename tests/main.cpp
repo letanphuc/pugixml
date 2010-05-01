@@ -3,6 +3,7 @@
 
 #include <exception>
 #include <stdio.h>
+#include <float.h>
 
 test_runner* test_runner::_tests = 0;
 size_t test_runner::_memory_fail_threshold = 0;
