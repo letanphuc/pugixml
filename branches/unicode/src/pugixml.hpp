@@ -22,11 +22,13 @@
 namespace std
 {
 	struct bidirectional_iterator_tag;
-	template <class T> class allocator;
-	template <class T> struct char_traits;
-	template <class charT, class traits> class basic_istream;
-	template <class charT, class traits> class basic_ostream;
-	template <class charT, class traits, class Allocator> class basic_string;
+
+	// Borland C++ compiler has a bug which forces template argument names in forward declarations to be the same as in actual definitions
+	template <class _Ty> class allocator;
+	template <class _Ty> struct char_traits;
+	template <class _Elem, class _Traits> class basic_istream;
+	template <class _Elem, class _Traits> class basic_ostream;
+	template <class _Elem, class _Traits, class _Ax> class basic_string;
 }
 #endif
 
