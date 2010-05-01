@@ -29,6 +29,12 @@ namespace std
 	template <class _Elem, class _Traits> class basic_istream;
 	template <class _Elem, class _Traits> class basic_ostream;
 	template <class _Elem, class _Traits, class _Ax> class basic_string;
+
+	// Digital Mars compiler has a bug which requires a forward declaration for explicit instantiation (otherwise type selection is messed up later, producing link errors)
+	// Also note that we have to declare char_traits as a class here, since it's defined that way
+#ifdef __DMC__
+	template <> class char_traits<char>;
+#endif
 }
 #endif
 
