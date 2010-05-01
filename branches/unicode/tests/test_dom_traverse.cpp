@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 #include <iterator>
+#include <string>
 
 #include "helpers.hpp"
 

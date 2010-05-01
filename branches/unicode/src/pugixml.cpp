@@ -3776,7 +3776,7 @@ namespace pugi
     }
 }
 
-#if defined(_MSC_VER) || defined(__ICC)
+#if !defined(PUGIXML_NO_STL) && (defined(_MSC_VER) || defined(__ICC))
 namespace std
 {
 	// Workarounds for (non-standard) iterator category detection for older versions (MSVC7/IC8 and earlier)
