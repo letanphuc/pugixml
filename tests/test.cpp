@@ -109,10 +109,11 @@ xpath_node_set_tester& xpath_node_set_tester::operator%(unsigned int expected)
 	return *this;
 }
 
+#endif
+
 bool is_little_endian()
 {
 	unsigned int ui = 1;
 	return *reinterpret_cast<char*>(&ui) == 1;
 }
 
-#endif

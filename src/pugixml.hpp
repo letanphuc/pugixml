@@ -1452,7 +1452,10 @@ namespace pugi
 		typedef xml_node value_type;
 		typedef xml_node* pointer;
 		typedef xml_node& reference;
+
+	#ifndef PUGIXML_NO_STL
 		typedef std::bidirectional_iterator_tag iterator_category;
+	#endif
 
 		/**
 		 * Default ctor
@@ -1556,7 +1559,10 @@ namespace pugi
 		typedef xml_attribute value_type;
 		typedef xml_attribute* pointer;
 		typedef xml_attribute& reference;
+
+	#ifndef PUGIXML_NO_STL
 		typedef std::bidirectional_iterator_tag iterator_category;
+	#endif
 
 		/**
 		 * Default ctor
@@ -2183,7 +2189,7 @@ namespace pugi
     deallocation_function PUGIXML_FUNCTION get_memory_deallocation_function();
 }
 
-#if defined(_MSC_VER) || defined(__ICC)
+#if !defined(PUGIXML_NO_STL) && (defined(_MSC_VER) || defined(__ICC))
 namespace std
 {
 	// Workarounds for (non-standard) iterator category detection for older versions (MSVC7/IC8 and earlier)
