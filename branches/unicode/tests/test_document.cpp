@@ -9,7 +9,6 @@
 
 #include <string>
 
-
 #ifdef _MSC_VER
 #pragma warning(disable: 4996)
 #endif
@@ -132,31 +131,6 @@ TEST_XML(document_save, "<node/>")
 	doc.save(writer, STR(""), pugi::format_no_declaration | pugi::format_raw);
 
 	CHECK(writer.as_string() == STR("<node />"));
-}
-
-#ifdef __GNUC__
-__attribute__((noinline)) // GCC 4.3 and 4.4 crash below on two calls to save_narrow in single expression, http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42394
-#endif
-static std::string save_narrow(const xml_document& doc, unsigned int flags)
-{
-	xml_writer_string writer;
-
-	doc.save(writer, STR(""), flags);
-
-	return writer.as_narrow();
-}
-
-static bool test_save_narrow(const xml_document& doc, unsigned int flags, const char* expected, size_t length)
-{
-	std::string result = save_narrow(doc, flags);
-
-	// check result
-	if (result != std::string(expected, expected + length)) return false;
-
-	// check comparison operator (incorrect implementation can theoretically early-out on zero terminators...)
-	if (result == std::string(expected, expected + length - 1) + "?") return false;
-
-	return true;
 }
 
 TEST_XML(document_save_bom, "<n/>")
