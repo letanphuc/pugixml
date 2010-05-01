@@ -66,16 +66,26 @@ namespace std
 #ifdef PUGIXML_WCHAR_MODE
 #	define PUGIXML_TEXT(t) L ## t
 
-namespace pugi { typedef wchar_t char_t; }
+namespace pugi
+{
+	typedef wchar_t char_t;
+
+#ifndef PUGIXML_NO_STL
+	typedef std::basic_string<wchar_t, std::char_traits<wchar_t>, std::allocator<wchar_t> > string_t;
+#endif
+}
 #else
 #	define PUGIXML_TEXT(t) t
 
-namespace pugi { typedef char char_t; }
-#endif
+namespace pugi
+{
+	typedef char char_t;
 
-// STL string for string operations
-#ifndef PUGIXML_NO_STL
-namespace pugi { typedef std::basic_string<char_t, std::char_traits<char_t>, std::allocator<char_t> > string_t; }
+#	ifndef PUGIXML_NO_STL
+	// gcc3.4 has a bug which prevents string_t instantiation using char_t, so we have to use char type explicitly
+	typedef std::basic_string<char, std::char_traits<char>, std::allocator<char> > string_t;
+#	endif
+}
 #endif
 
 // Helpers for inline implementation
