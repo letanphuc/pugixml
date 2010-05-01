@@ -3,18 +3,10 @@
 
 #include "../src/pugixml.hpp"
 
-#if (defined(_MSC_VER) && _MSC_VER==1200) || defined(__DMC__)
-typedef int intptr_t;
-#endif
-
 #include <string.h>
 #include <math.h>
 #include <float.h>
 #include <setjmp.h>
-
-#if defined(__MWERKS__) || defined(__BORLANDC__)
-#include <stdint.h> // intptr_t
-#endif
 
 #include <string>
 
