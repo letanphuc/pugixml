@@ -17,8 +17,17 @@
 #include "pugiconfig.hpp"
 
 #ifndef PUGIXML_NO_STL
-#	include <string>
-#	include <iosfwd>
+#include <exception>
+
+namespace std
+{
+	struct bidirectional_iterator_tag;
+	template <class T> class allocator;
+	template <class T> struct char_traits;
+	template <class charT, class traits> class basic_istream;
+	template <class charT, class traits> class basic_ostream;
+	template <class charT, class traits, class Allocator> class basic_string;
+}
 #endif
 
 // No XPath without STL
@@ -58,7 +67,7 @@ namespace pugi { typedef char char_t; }
 
 // STL string for string operations
 #ifndef PUGIXML_NO_STL
-namespace pugi { typedef std::basic_string<char_t> string_t; }
+namespace pugi { typedef std::basic_string<char_t, std::char_traits<char_t>, std::allocator<char_t> > string_t; }
 #endif
 
 // Helpers for inline implementation
@@ -438,12 +447,12 @@ namespace pugi
 		 *
 		 * \param stream - output stream object
 		 */
-		xml_writer_stream(std::ostream& stream);
+		xml_writer_stream(std::basic_ostream<char, std::char_traits<char> >& stream);
 
 		virtual void write(const void* data, size_t size);
 
 	private:
-		std::ostream* stream;
+		std::basic_ostream<char, std::char_traits<char> >* stream;
 	};
 	#endif
 
@@ -1400,7 +1409,7 @@ namespace pugi
 		 * \param depth - starting depth (used for indentation)
 		 * \deprecated Use print() with xml_writer_stream instead
 		 */
-		void print(std::ostream& os, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, unsigned int depth = 0) const;
+		void print(std::basic_ostream<char, std::char_traits<char> >& os, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, unsigned int depth = 0) const;
 	#endif
 
 		/**
@@ -1425,17 +1434,7 @@ namespace pugi
 	 * It's a bidirectional iterator with value type 'xml_node'.
 	 */
 	class PUGIXML_CLASS xml_node_iterator
-#ifndef PUGIXML_NO_STL
-	: public std::iterator<std::bidirectional_iterator_tag, xml_node>
-#endif
-#ifdef _MSC_VER
-#   pragma warning(push)
-#   pragma warning(disable: 4251 4275) // C4251 and C4275 can be ignored for _Container_base, as per MSDN
-#endif
 	{
-#ifdef _MSC_VER
-#    pragma warning(pop)
-#endif
 		friend class xml_node;
 
 	private:
@@ -1446,6 +1445,15 @@ namespace pugi
 		explicit xml_node_iterator(xml_node_struct* ref);
 
 	public:
+		/**
+		 * Iterator traits
+		 */
+		typedef ptrdiff_t difference_type;
+		typedef xml_node value_type;
+		typedef xml_node* pointer;
+		typedef xml_node& reference;
+		typedef std::bidirectional_iterator_tag iterator_category;
+
 		/**
 		 * Default ctor
 		 */
@@ -1530,17 +1538,7 @@ namespace pugi
 	 * It's a bidirectional iterator with value type 'xml_attribute'.
 	 */
 	class PUGIXML_CLASS xml_attribute_iterator
-#ifndef PUGIXML_NO_STL
-        : public std::iterator<std::bidirectional_iterator_tag, xml_attribute>
-#endif
-#ifdef _MSC_VER
-#   pragma warning(push)
-#   pragma warning(disable: 4251 4275) // C4251 and C4275 can be ignored for _Container_base, as per MSDN
-#endif
 	{
-#ifdef _MSC_VER
-#    pragma warning(pop)
-#endif
 		friend class xml_node;
 
 	private:
@@ -1551,6 +1549,15 @@ namespace pugi
 		explicit xml_attribute_iterator(xml_attribute_struct* ref);
 
 	public:
+		/**
+		 * Iterator traits
+		 */
+		typedef ptrdiff_t difference_type;
+		typedef xml_attribute value_type;
+		typedef xml_attribute* pointer;
+		typedef xml_attribute& reference;
+		typedef std::bidirectional_iterator_tag iterator_category;
+
 		/**
 		 * Default ctor
 		 */
@@ -1786,7 +1793,7 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return parsing result
 		 */
-		xml_parse_result load(std::istream& stream, unsigned int options = parse_default);
+		xml_parse_result load(std::basic_istream<char, std::char_traits<char> >& stream, unsigned int options = parse_default);
 #endif
 
 		/**
@@ -2116,7 +2123,7 @@ namespace pugi
 	 * \param str - input UTF16 string
 	 * \return output UTF8 string
 	 */
-	std::string PUGIXML_FUNCTION as_utf8(const wchar_t* str);
+	std::basic_string<char, std::char_traits<char>, std::allocator<char> > PUGIXML_FUNCTION as_utf8(const wchar_t* str);
 	
 	/**
 	 * Convert utf8 to utf16
@@ -2124,7 +2131,7 @@ namespace pugi
 	 * \param str - input UTF8 string
 	 * \return output UTF16 string
 	 */
-	std::wstring PUGIXML_FUNCTION as_utf16(const char* str);
+	std::basic_string<wchar_t, std::char_traits<wchar_t>, std::allocator<wchar_t> > PUGIXML_FUNCTION as_utf16(const char* str);
 #endif
 
 	/**
@@ -2175,6 +2182,15 @@ namespace pugi
      */
     deallocation_function PUGIXML_FUNCTION get_memory_deallocation_function();
 }
+
+#if defined(_MSC_VER) || defined(__ICC)
+namespace std
+{
+	// Workarounds for (non-standard) iterator category detection for older versions (MSVC7/IC8 and earlier)
+	std::bidirectional_iterator_tag _Iter_cat(const pugi::xml_node_iterator&);
+	std::bidirectional_iterator_tag _Iter_cat(const pugi::xml_attribute_iterator&);
+}
+#endif
 
 #endif
 
