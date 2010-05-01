@@ -1,8 +1,11 @@
+#ifndef PUGIXML_NO_STL
+
 #include "common.hpp"
+
+#include <string>
 
 // letters taken from http://www.utf8-chartable.de/
 
-#ifndef PUGIXML_NO_STL
 TEST(as_utf16)
 {
 	CHECK(as_utf16("") == L"");
@@ -70,8 +73,3 @@ TEST(as_utf8)
 	}
 }
 #endif
-
-TEST_XML(parse_bom_utf8, "\xef\xbb\xbf<node/>")
-{
-	CHECK_NODE(doc, STR("<node />"));
-}

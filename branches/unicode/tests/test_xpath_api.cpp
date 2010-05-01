@@ -4,6 +4,8 @@
 
 #include "helpers.hpp"
 
+#include <string>
+
 TEST_XML(xpath_api_select_nodes, "<node><head/><foo/><foo/><tail/></node>")
 {
 	doc.precompute_document_order();

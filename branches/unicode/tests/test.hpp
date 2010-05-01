@@ -3,12 +3,7 @@
 
 #include "../src/pugixml.hpp"
 
-#include <string.h>
-#include <math.h>
-#include <float.h>
 #include <setjmp.h>
-
-#include <string>
 
 struct test_runner
 {
@@ -32,78 +27,21 @@ struct test_runner
 	static const char* _failure_message;
 };
 
-inline bool test_string_equal(const pugi::char_t* lhs, const pugi::char_t* rhs)
-{
-	return (!lhs || !rhs) ? lhs == rhs : pugi::impl::strequal(lhs, rhs);
-}
+bool test_string_equal(const pugi::char_t* lhs, const pugi::char_t* rhs);
 
 template <typename Node> inline bool test_node_name_value(const Node& node, const pugi::char_t* name, const pugi::char_t* value)
 {
 	return test_string_equal(node.name(), name) && test_string_equal(node.value(), value);
 }
 
-struct xml_writer_string: public pugi::xml_writer
-{
-	std::basic_string<pugi::char_t> result;
-	
-	virtual void write(const void* data, size_t size);
-};
-
-inline bool test_node(const pugi::xml_node& node, const pugi::char_t* contents, const pugi::char_t* indent, unsigned int flags)
-{
-	xml_writer_string writer;
-	node.print(writer, indent, flags);
-
-	return writer.result == contents;
-}
+bool test_node(const pugi::xml_node& node, const pugi::char_t* contents, const pugi::char_t* indent, unsigned int flags);
 
 #ifndef PUGIXML_NO_XPATH
-inline bool test_xpath_string(const pugi::xml_node& node, const pugi::char_t* query, const pugi::char_t* expected)
-{
-	pugi::xpath_query q(query);
-
-	return q.evaluate_string(node) == expected;
-}
-
-inline bool test_xpath_boolean(const pugi::xml_node& node, const pugi::char_t* query, bool expected)
-{
-	pugi::xpath_query q(query);
-
-	return q.evaluate_boolean(node) == expected;
-}
-
-inline bool test_xpath_number(const pugi::xml_node& node, const pugi::char_t* query, double expected)
-{
-	pugi::xpath_query q(query);
-
-	return fabs(q.evaluate_number(node) - expected) < 1e-16f;
-}
-
-inline bool test_xpath_number_nan(const pugi::xml_node& node, const pugi::char_t* query)
-{
-	pugi::xpath_query q(query);
-
-	double r = q.evaluate_number(node);
-
-#if defined(_MSC_VER) || defined(__BORLANDC__)
-	return _isnan(r) != 0;
-#else
-	return r != r;
-#endif
-}
-
-inline bool test_xpath_fail_compile(const pugi::char_t* query)
-{
-	try
-	{
-		pugi::xpath_query q(query);
-		return false;
-	}
-	catch (const pugi::xpath_exception&)
-	{
-		return true;
-	}
-}
+bool test_xpath_string(const pugi::xml_node& node, const pugi::char_t* query, const pugi::char_t* expected);
+bool test_xpath_boolean(const pugi::xml_node& node, const pugi::char_t* query, bool expected);
+bool test_xpath_number(const pugi::xml_node& node, const pugi::char_t* query, double expected);
+bool test_xpath_number_nan(const pugi::xml_node& node, const pugi::char_t* query);
+bool test_xpath_fail_compile(const pugi::char_t* query);
 
 struct xpath_node_set_tester
 {
@@ -111,48 +49,13 @@ struct xpath_node_set_tester
 	unsigned int last;
 	const char* message;
 
-	void check(bool condition)
-	{
-		if (!condition)
-		{
-			test_runner::_failure_message = message;
-			longjmp(test_runner::_failure_buffer, 1);
-		}
-	}
+	void check(bool condition);
 
-	xpath_node_set_tester(const pugi::xml_node& node, const pugi::char_t* query, const char* message): last(0), message(message)
-	{
-		pugi::xpath_query q(query);
-		result = q.evaluate_node_set(node);
-	}
+	xpath_node_set_tester(const pugi::xml_node& node, const pugi::char_t* query, const char* message);
+	xpath_node_set_tester(const pugi::xpath_node_set& set, const char* message);
+	~xpath_node_set_tester();
 
-	xpath_node_set_tester(const pugi::xpath_node_set& set, const char* message): last(0), message(message)
-	{
-		result = set;
-	}
-
-	~xpath_node_set_tester()
-	{
-		// check that we processed everything
-		check(last == result.size());
-	}
-
-	xpath_node_set_tester& operator%(unsigned int expected)
-	{
-		// check element count
-		check(last < result.size());
-
-		// check document order
-		pugi::xpath_node node = result.begin()[last];
-		unsigned int order = node.attribute() ? node.attribute().document_order() : node.node().document_order();
-
-		check(order == expected);
-
-		// continue to the next element
-		last++;
-
-		return *this;
-	}
+	xpath_node_set_tester& operator%(unsigned int expected);
 };
 
 #endif
@@ -209,7 +112,7 @@ struct dummy_fixture {};
 
 #define CHECK(condition) CHECK_TEXT(condition, STRINGIZE(condition) " is false")
 #define CHECK_STRING(value, expected) CHECK_TEXT(test_string_equal(value, expected), STRINGIZE(value) " is not equal to " STRINGIZE(expected))
-#define CHECK_DOUBLE(value, expected) CHECK_TEXT(fabs(value - expected) < 1e-6, STRINGIZE(value) " is not equal to " STRINGIZE(expected))
+#define CHECK_DOUBLE(value, expected) CHECK_TEXT((value > expected ? value - expected : expected - value) < 1e-6, STRINGIZE(value) " is not equal to " STRINGIZE(expected))
 #define CHECK_NAME_VALUE(node, name, value) CHECK_TEXT(test_node_name_value(node, name, value), STRINGIZE(node) " name/value do not match " STRINGIZE(name) " and " STRINGIZE(value))
 #define CHECK_NODE_EX(node, expected, indent, flags) CHECK_TEXT(test_node(node, expected, indent, flags), STRINGIZE(node) " contents does not match " STRINGIZE(expected))
 #define CHECK_NODE(node, expected) CHECK_NODE_EX(node, expected, PUGIXML_TEXT(""), pugi::format_raw)
@@ -234,10 +137,6 @@ inline wchar_t wchar_cast(unsigned int value)
 	return static_cast<wchar_t>(value); // to avoid C4310 on MSVC
 }
 
-inline void xml_writer_string::write(const void* data, size_t size)
-{
-	CHECK(size % sizeof(pugi::char_t) == 0);
-	result += std::basic_string<pugi::char_t>(static_cast<const pugi::char_t*>(data), static_cast<const pugi::char_t*>(data) + size / sizeof(pugi::char_t));
-}
+bool is_little_endian();
 
 #endif

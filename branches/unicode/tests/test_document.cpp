@@ -1,12 +1,14 @@
-#include <string.h>
-
 #include "common.hpp"
+
+#include "writer_string.hpp"
+
+#include <string.h>
 
 #include <fstream>
 #include <sstream>
+
 #include <string>
 
-#include <stdio.h>
 
 #ifdef _MSC_VER
 #pragma warning(disable: 4996)
@@ -129,29 +131,19 @@ TEST_XML(document_save, "<node/>")
 
 	doc.save(writer, STR(""), pugi::format_no_declaration | pugi::format_raw);
 
-	CHECK(writer.result == STR("<node />"));
+	CHECK(writer.as_string() == STR("<node />"));
 }
-
-struct test_narrow_writer: xml_writer
-{
-	std::string contents;
-
-	virtual void write(const void* data, size_t size)
-	{
-		contents += std::string(static_cast<const char*>(data), static_cast<const char*>(data) + size);
-	}
-};
 
 #ifdef __GNUC__
 __attribute__((noinline)) // GCC 4.3 and 4.4 crash below on two calls to save_narrow in single expression, http://gcc.gnu.org/bugzilla/show_bug.cgi?id=42394
 #endif
 static std::string save_narrow(const xml_document& doc, unsigned int flags)
 {
-	test_narrow_writer writer;
+	xml_writer_string writer;
 
 	doc.save(writer, STR(""), flags);
 
-	return writer.contents;
+	return writer.as_narrow();
 }
 
 static bool test_save_narrow(const xml_document& doc, unsigned int flags, const char* expected, size_t length)
@@ -169,11 +161,6 @@ static bool test_save_narrow(const xml_document& doc, unsigned int flags, const 
 
 TEST_XML(document_save_bom, "<n/>")
 {
-	unsigned int ui = 1;
-	bool little_endian = *reinterpret_cast<char*>(&ui) == 1;
-
-	xml_writer_string writer;
-
 	unsigned int flags = format_no_declaration | format_raw | format_write_bom;
 
 	// specific encodings
@@ -184,8 +171,8 @@ TEST_XML(document_save_bom, "<n/>")
 	CHECK(test_save_narrow(doc, flags | encoding_utf32_le, "\xff\xfe\x00\x00<\x00\x00\x00n\x00\x00\x00 \x00\x00\x00/\x00\x00\x00>\x00\x00\x00", 24));
 
 	// encodings synonyms
-	CHECK(save_narrow(doc, flags | encoding_utf16) == save_narrow(doc, flags | (little_endian ? encoding_utf16_le : encoding_utf16_be)));
-	CHECK(save_narrow(doc, flags | encoding_utf32) == save_narrow(doc, flags | (little_endian ? encoding_utf32_le : encoding_utf32_be)));
+	CHECK(save_narrow(doc, flags | encoding_utf16) == save_narrow(doc, flags | (is_little_endian() ? encoding_utf16_le : encoding_utf16_be)));
+	CHECK(save_narrow(doc, flags | encoding_utf32) == save_narrow(doc, flags | (is_little_endian() ? encoding_utf32_le : encoding_utf32_be)));
 
 	size_t wcharsize = sizeof(wchar_t);
 	CHECK(save_narrow(doc, flags | encoding_wchar) == save_narrow(doc, flags | (wcharsize == 2 ? encoding_utf16 : encoding_utf32)));
@@ -197,7 +184,7 @@ TEST_XML(document_save_declaration, "<node/>")
 
 	doc.save(writer);
 
-	CHECK(writer.result == STR("<?xml version=\"1.0\"?>\n<node />\n"));
+	CHECK(writer.as_string() == STR("<?xml version=\"1.0\"?>\n<node />\n"));
 }
 
 TEST_XML(document_save_file, "<node/>")
@@ -393,9 +380,6 @@ TEST(document_load_file_convert_specific)
 
 TEST(document_load_file_convert_native_endianness)
 {
-	unsigned int ui = 1;
-	bool little_endian = *reinterpret_cast<char*>(&ui) == 1;
-
 	const char* files[2][6] =
 	{
 		{
@@ -424,8 +408,8 @@ TEST(document_load_file_convert_native_endianness)
 
 	for (unsigned int i = 0; i < sizeof(files[0]) / sizeof(files[0][0]); ++i)
 	{
-		const char* right_file = files[little_endian][i];
-		const char* wrong_file = files[!little_endian][i];
+		const char* right_file = files[is_little_endian()][i];
+		const char* wrong_file = files[!is_little_endian()][i];
 
 		for (unsigned int j = 0; j < sizeof(encodings) / sizeof(encodings[0]); ++j)
 		{
