@@ -417,3 +417,67 @@ TEST(document_load_file_convert_native_endianness)
 		}
 	}
 }
+
+static bool load_file_in_memory(const char* path, char*& data, size_t& size)
+{
+	FILE* file = fopen(path, "rb");
+	if (!file) return false;
+
+	fseek(file, 0, SEEK_END);
+	size = (size_t)ftell(file);
+	fseek(file, 0, SEEK_SET);
+
+	data = new char[size];
+
+	fread(data, 1, size, file);
+	fclose(file);
+
+	return true;
+}
+
+TEST(document_contents_preserve)
+{
+	struct file_t
+	{
+		const char* path;
+		unsigned int encoding;
+
+		char* data;
+		size_t size;
+	};
+
+	file_t files[] =
+	{
+		{"tests/data/utftest_utf16_be_clean.xml", encoding_utf16_be, 0, 0},
+		{"tests/data/utftest_utf16_le_clean.xml", encoding_utf16_le, 0, 0},
+		{"tests/data/utftest_utf32_be_clean.xml", encoding_utf32_be, 0, 0},
+		{"tests/data/utftest_utf32_le_clean.xml", encoding_utf32_le, 0, 0},
+		{"tests/data/utftest_utf8_clean.xml", encoding_utf8, 0, 0}
+	};
+
+	// load files in memory
+	for (unsigned int i = 0; i < sizeof(files) / sizeof(files[0]); ++i)
+	{
+		CHECK(load_file_in_memory(files[i].path, files[i].data, files[i].size));
+	}
+
+	// convert each file to each format and compare bitwise
+	for (unsigned int src = 0; src < sizeof(files) / sizeof(files[0]); ++src)
+	{
+		for (unsigned int dst = 0; dst < sizeof(files) / sizeof(files[0]); ++dst)
+		{
+			// parse into document (preserve comments, declaration and whitespace pcdata)
+			xml_document doc;
+			CHECK(doc.load_buffer(files[src].data, files[src].size, parse_default | parse_ws_pcdata | parse_declaration | parse_comments));
+
+			// compare saved document with the original (raw formatting, without extra declaration, write bom if it was in original file)
+			CHECK(test_save_narrow(doc, format_raw | format_no_declaration | format_write_bom | files[dst].encoding, files[dst].data, files[dst].size));
+		}
+	}
+
+	// cleanup
+	for (unsigned int j = 0; j < sizeof(files) / sizeof(files[0]); ++j)
+	{
+		delete[] files[j].data;
+	}
+}
