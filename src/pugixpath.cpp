@@ -21,6 +21,7 @@
 #include <assert.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include <float.h>
 #include <ctype.h>
@@ -370,25 +371,25 @@ namespace
 	{
 		if (is_nan(value)) return PUGIXML_TEXT("NaN");
 		else if (is_inf(value)) return value < 0 ? PUGIXML_TEXT("-Infinity") : PUGIXML_TEXT("Infinity");
+		else if (value == 0) return PUGIXML_TEXT("0");
 		
-		char buf[128];
-		
-		if (value == (int)value) sprintf(buf, "%d", (int)value);
-		else
-		{
-			sprintf(buf, "%f", value);
+		char buf[512];
+		sprintf(buf, "%f", value);
 			
-			// trim trailing zeros after decimal point
-			if (strchr(buf, '.'))
-			{
-				char* ptr = buf + strlen(buf) - 1;
-				for (; *ptr == '0'; --ptr) ;
-				*(ptr+1) = 0;
-			}
+		// trim trailing zeros after decimal point
+		if (strchr(buf, '.'))
+		{
+			char* ptr = buf + strlen(buf) - 1;
+			for (; *ptr == '0'; --ptr) ;
+
+			// trim leftover decimal point (for integer numbers)
+			if (*ptr == '.') --ptr;
+
+			*(ptr+1) = 0;
 		}
 
 	#ifdef PUGIXML_WCHAR_MODE
-		wchar_t wbuf[128];
+		wchar_t wbuf[512];
 		impl::widen_ascii(wbuf, buf);
 		
 		return string_t(wbuf);
@@ -397,54 +398,47 @@ namespace
 	#endif
 	}
 	
+	bool check_string_to_number_format(const char_t* string)
+	{
+		// parse leading whitespace
+		while (is_chartypex(*string, ctx_space)) ++string;
+
+		// parse sign
+		if (*string == '-') ++string;
+
+		if (!*string) return false;
+
+		// if there is no integer part, there should be a decimal part with at least one digit
+		if (!is_chartypex(string[0], ctx_digit) && (string[0] != '.' || !is_chartypex(string[1], ctx_digit))) return false;
+
+		// parse integer part
+		while (is_chartypex(*string, ctx_digit)) ++string;
+
+		// parse decimal part
+		if (*string == '.')
+		{
+			++string;
+
+			while (is_chartypex(*string, ctx_digit)) ++string;
+		}
+
+		// parse trailing whitespace
+		while (is_chartypex(*string, ctx_space)) ++string;
+
+		return *string == 0;
+	}
+
 	double convert_string_to_number(const char_t* string)
 	{
-		while (is_chartypex(*string, ctx_space)) ++string;
-		
-		double sign = 1;
-		
-		if (*string == '-')
-		{
-			sign = -1;
-			++string;
-		}
-		
-		double r = 0;
-		
-		if (!*string) return gen_nan();
-		
-		while (is_chartypex(*string, ctx_digit))
-		{
-			r = r * 10 + (*string - '0');
-			++string;
-		}
-		
-		if (*string)
-		{
-			if (is_chartypex(*string, ctx_space))
-			{
-				while (is_chartypex(*string, ctx_space)) ++string;
-				return *string ? gen_nan() : r;
-			}
-			
-			if (*string != '.') return gen_nan();
-			
-			++string;
-			
-			double power = 0.1;
-			
-			while (is_chartypex(*string, ctx_digit))
-			{
-				r += power * (*string - '0');
-				power /= 10;
-				++string;
-			}
-			
-			while (is_chartypex(*string, ctx_space)) ++string;
-			if (*string) return gen_nan();
-		}
-		
-		return r * sign;
+		// check string format
+		if (!check_string_to_number_format(string)) return gen_nan();
+
+		// parse string
+	#ifdef PUGIXML_WCHAR_MODE
+		return wcstod(string, 0);
+	#else
+		return atof(string);
+	#endif
 	}
 	
 	double ieee754_round(double value)

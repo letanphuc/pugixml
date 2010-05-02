@@ -1,5 +1,7 @@
 #include "common.hpp"
 
+#include <float.h>
+
 TEST_XML(dom_attr_assign, "<node attr1='' attr2='' attr3='' attr4='' attr5=''/>")
 {
 	xml_node node = doc.child(STR("node"));
@@ -490,4 +492,15 @@ TEST_XML_FLAGS(dom_node_copy_types, "<root><?xml version='1.0'?><?pi value?><!--
 {
 	doc.append_copy(doc.child(STR("root")));
 	CHECK_NODE(doc, STR("<root><?xml version=\"1.0\"?><?pi value?><!--comment--><node id=\"1\">pcdata<![CDATA[cdata]]></node></root><root><?xml version=\"1.0\"?><?pi value?><!--comment--><node id=\"1\">pcdata<![CDATA[cdata]]></node></root>"));
+}
+
+TEST_XML(dom_attr_assign_large, "<node attr1='' attr2='' />")
+{
+	xml_node node = doc.child(STR("node"));
+
+	node.attribute(STR("attr1")) = FLT_MAX;
+	node.attribute(STR("attr2")) = DBL_MAX;
+
+	CHECK(test_node(node, STR("<node attr1=\"3.40282e+038\" attr2=\"1.79769e+308\" />"), STR(""), pugi::format_raw) ||
+		  test_node(node, STR("<node attr1=\"3.40282e+38\" attr2=\"1.79769e+308\" />"), STR(""), pugi::format_raw));
 }
