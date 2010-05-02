@@ -23,6 +23,8 @@ TEST_XML(xpath_number_number, "<node>123</node>")
 	CHECK_XPATH_NUMBER_NAN(c, STR("number('1.f')"));
 	CHECK_XPATH_NUMBER_NAN(c, STR("number('1.0f')"));
 	CHECK_XPATH_NUMBER_NAN(c, STR("number('123 f')"));
+	CHECK_XPATH_NUMBER_NAN(c, STR("number('')"));
+	CHECK_XPATH_NUMBER_NAN(c, STR("number('.')"));
 
 	// number with 1 bool argument
 	CHECK_XPATH_NUMBER(c, STR("number(true())"), 1);
