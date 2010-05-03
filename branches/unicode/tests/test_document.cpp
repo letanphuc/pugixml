@@ -429,7 +429,7 @@ static bool load_file_in_memory(const char* path, char*& data, size_t& size)
 
 	data = new char[size];
 
-	fread(data, 1, size, file);
+	CHECK(fread(data, 1, size, file) == size);
 	fclose(file);
 
 	return true;
