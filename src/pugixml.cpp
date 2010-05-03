@@ -2323,17 +2323,14 @@ namespace pugi
 	{
 	}
 
+	xml_attribute::operator xml_attribute::unspecified_bool_type() const
+	{
 #ifdef __MWERKS__
-	xml_attribute::operator xml_attribute::unspecified_bool_type() const
-	{
       	return _attr ? &xml_attribute::empty : 0;
-   	}
 #else
-	xml_attribute::operator xml_attribute::unspecified_bool_type() const
-	{
       	return _attr ? &xml_attribute::_attr : 0;
-   	}
 #endif
+   	}
 
    	bool xml_attribute::operator!() const
    	{
@@ -2579,17 +2576,14 @@ namespace pugi
 	{
 	}
 	
+	xml_node::operator xml_node::unspecified_bool_type() const
+	{
 #ifdef __MWERKS__
-	xml_node::operator xml_node::unspecified_bool_type() const
-	{
       	return _root ? &xml_node::empty : 0;
-   	}
 #else
-	xml_node::operator xml_node::unspecified_bool_type() const
-	{
       	return _root ? &xml_node::_root : 0;
-   	}
 #endif
+   	}
 
    	bool xml_node::operator!() const
    	{
