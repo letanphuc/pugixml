@@ -49,7 +49,7 @@ if ( $(toolset:I=^mingw) || $(toolset) = "gcc" )
 }
 else if ( $(toolset:I=^msvc) )
 {
-	CCFLAGS += /D$(defines) /Z7 ;
+	CCFLAGS += /D$(defines) ;
 
 	if ( $(configuration) = "debug" )
 	{
@@ -91,8 +91,6 @@ else if ( $(toolset:I=^msvc) )
 	{
 		CCFLAGS += /D_HAS_EXCEPTIONS=0 ;
 	}
-
-	LDFLAGS += /DEBUG ;
 
 	if ( $(toolset:I=x64$) )
 	{
@@ -166,7 +164,7 @@ else if ( $(toolset) = "ic8" )
 }
 else if ( $(toolset:I=^dmc) )
 {
-	CCFLAGS += -D$(defines) -g ;
+	CCFLAGS += -D$(defines) ;
 
 	if ( $(configuration) = "debug" )
 	{
