@@ -7,7 +7,7 @@ sub permute
 	
 	foreach $define (@defines)
 	{
-		push @result, map { length($_) == 0 ? $define : "$_ $define" } @result;
+		push @result, map { length($_) == 0 ? $define : "$_,$define" } @result;
 	}
 
 	@result;
@@ -40,6 +40,7 @@ foreach $toolset (@toolsets)
 		foreach $defineset (@definesets)
 		{
 			$defineabbr = $defineset;
+			$defineabbr =~ s/,/ /g;
 
 			for ($i = 0; $i < $#definesabbr + 1; ++$i)
 			{
@@ -51,7 +52,7 @@ foreach $toolset (@toolsets)
 
 			print "*** testing $toolset/$configuration ($defineabbr) ... ***\n";
 
-			my $cmdline = "jam toolset=$toolset configuration=$configuration defines=\"$defineset\"";
+			my $cmdline = "jam toolset=$toolset configuration=$configuration defines=$defineset";
 			my $coverage_pugixml = 0;
 			my $coverage_pugixpath = 0;
 	

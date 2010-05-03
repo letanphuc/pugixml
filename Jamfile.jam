@@ -28,8 +28,8 @@ if ( ! $(configuration) )
 	configuration = "debug" ;
 }
 
-# remove empty define
-defines -= "" ;
+# split defines into list
+defines = [ Split $(defines) : ',' ] ;
 
 # options
 if ( $(defines) )
