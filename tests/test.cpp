@@ -33,11 +33,17 @@ bool test_xpath_boolean(const pugi::xml_node& node, const pugi::char_t* query, b
 	return q.evaluate_boolean(node) == expected;
 }
 
+#include <stdio.h>
+
 bool test_xpath_number(const pugi::xml_node& node, const pugi::char_t* query, double expected)
 {
 	pugi::xpath_query q(query);
 
-	return fabs(q.evaluate_number(node) - expected) < 1e-16f;
+	double value = q.evaluate_number(node);
+	double absolute_error = fabs(value - expected);
+
+	const double tolerance = 1e-15f;
+	return absolute_error < tolerance || absolute_error < fabs(expected) * tolerance;
 }
 
 bool test_xpath_number_nan(const pugi::xml_node& node, const pugi::char_t* query)

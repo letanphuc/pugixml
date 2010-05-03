@@ -2,8 +2,11 @@
 
 #include "common.hpp"
 
-#include <string>
 #include <float.h>
+#include <string.h>
+#include <wchar.h>
+
+#include <string>
 
 TEST_XML(xpath_document_order, "<node><child1 attr1='value1' attr2='value2'/><child2 attr1='value1'>test</child2></node>")
 {
@@ -98,7 +101,6 @@ TEST_XML(xpath_sort_attributes, "<node/>")
 	xpath_node_set_tester(reverse_sorted, "reverse sorted order failed") % 5 % 4 % 3;
 }
 
-#if !defined(__BORLANDC__)
 TEST(xpath_long_numbers_parse)
 {
 	const pugi::char_t* str_flt_max = STR("340282346638528860000000000000000000000");
@@ -115,9 +117,21 @@ TEST(xpath_long_numbers_parse)
 	CHECK_XPATH_NUMBER(c, str_dbl_max, DBL_MAX);
 	CHECK_XPATH_NUMBER(c, str_dbl_max_dec, DBL_MAX);
 }
+
+static bool test_xpath_string_prefix(const pugi::xml_node& node, const pugi::char_t* query, const pugi::char_t* expected, size_t match_length)
+{
+#ifdef PUGIXML_WCHAR_MODE
+	size_t expected_length = wcslen(expected);
+#else
+	size_t expected_length = strlen(expected);
 #endif
 
-#if !defined(__DMC__) && !defined(__BORLANDC__) && !defined(__MWERKS__)
+	pugi::xpath_query q(query);
+	pugi::string_t value = q.evaluate_string(node);
+
+	return value.length() == expected_length && value.compare(0, match_length, expected, match_length) == 0;
+}
+
 TEST(xpath_long_numbers_stringize)
 {
 	const pugi::char_t* str_flt_max = STR("340282346638528860000000000000000000000");
@@ -128,11 +142,13 @@ TEST(xpath_long_numbers_stringize)
 
 	xml_node c;
 
-	CHECK_XPATH_STRING(c, str_flt_max, str_flt_max);
-	CHECK_XPATH_STRING(c, str_flt_max_dec, str_flt_max);
-	CHECK_XPATH_STRING(c, str_dbl_max, str_dbl_max);
-	CHECK_XPATH_STRING(c, str_dbl_max_dec, str_dbl_max);
-}
+	CHECK(test_xpath_string_prefix(c, str_flt_max, str_flt_max, 16));
+	CHECK(test_xpath_string_prefix(c, str_flt_max_dec, str_flt_max, 16));
+
+#ifndef __BORLANDC__ // printf with %f format still results in 1.xxxe+308 form
+	CHECK(test_xpath_string_prefix(c, str_dbl_max, str_dbl_max, 16));
+	CHECK(test_xpath_string_prefix(c, str_dbl_max_dec, str_dbl_max, 16));
 #endif
+}
 
 #endif
