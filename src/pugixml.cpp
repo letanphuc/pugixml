@@ -406,7 +406,7 @@ namespace
 {	
 	using namespace pugi;
 
-	enum chartype
+	enum chartype_t
 	{
 		ct_parse_pcdata = 1,	// \0, &, \r, <
 		ct_parse_attr = 2,		// \0, &, \r, ', "
@@ -438,8 +438,8 @@ namespace
 		192, 192, 192, 192, 192, 192, 192, 192,    192, 192, 192, 192, 192, 192, 192, 192,
 		192, 192, 192, 192, 192, 192, 192, 192,    192, 192, 192, 192, 192, 192, 192, 192
 	};
-	
-	inline bool is_chartype(char_t c, chartype ct)
+
+	inline bool is_chartype(char_t c, chartype_t ct)
 	{
 	#ifdef PUGIXML_WCHAR_MODE
 		unsigned int ch = static_cast<unsigned int>(c);
@@ -447,6 +447,45 @@ namespace
 		return !!((ch < 128 ? chartype_table[ch] : chartype_table[128]) & ct);
 	#else
 		return !!(chartype_table[static_cast<unsigned char>(c)] & ct);
+	#endif
+	}
+
+	enum output_chartype_t
+	{
+		oct_special_pcdata = 1,   // Any symbol >= 0 and < 32 (except \t, \r, \n), &, <, >
+		oct_special_attr = 2      // Any symbol >= 0 and < 32 (except \t), &, <, >, "
+	};
+
+	const unsigned char output_chartype_table[256] =
+	{
+		3, 3, 3, 3, 3, 3, 3, 3,    3, 0, 2, 3, 3, 2, 3, 3,  // 0-15
+		3, 3, 3, 3, 3, 3, 3, 3,    3, 3, 3, 3, 3, 3, 3, 3,  // 16-31
+		0, 0, 2, 0, 0, 0, 3, 0,    0, 0, 0, 0, 0, 0, 0, 0,  // 32-47
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 3, 0, 3, 0,  // 48-63
+
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0,  // 64-128
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0,
+
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0,  // 128+
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0,
+	};
+	
+	inline bool is_output_chartype(char_t c, output_chartype_t ct)
+	{
+	#ifdef PUGIXML_WCHAR_MODE
+		unsigned int ch = static_cast<unsigned int>(c);
+
+		return !!((ch < 128 ? output_chartype_table[ch] : output_chartype_table[128]) & ct);
+	#else
+		return !!(output_chartype_table[static_cast<unsigned char>(c)] & ct);
 	#endif
 	}
 
@@ -2038,18 +2077,14 @@ namespace
 		}
 	}
 
-	template <typename opt1> void text_output_escaped(xml_buffered_writer& writer, const char_t* s, opt1)
+	void text_output_escaped(xml_buffered_writer& writer, const char_t* s, output_chartype_t type)
 	{
-		const bool attribute = opt1::o1;
-
 		while (*s)
 		{
 			const char_t* prev = s;
 			
 			// While *s is a usual symbol
-			while (*s && *s != '&' && *s != '<' && *s != '>' && (*s != '"' || !attribute)
-					&& (static_cast<unsigned int>(*s) >= 32 || (*s == '\r' && !attribute) || (*s == '\n' && !attribute) || *s == '\t'))
-				++s;
+			while (!is_output_chartype(*s, type)) ++s;
 		
 			writer.write(prev, static_cast<size_t>(s - prev));
 
@@ -2108,7 +2143,7 @@ namespace
 				writer.write(a.name());
 				writer.write('=', '"');
 
-				text_output_escaped(writer, a.value(), opt1_to_type<1>());
+				text_output_escaped(writer, a.value(), oct_special_attr);
 
 				writer.write('"');
 			}
@@ -2135,7 +2170,7 @@ namespace
 			{
 				writer.write('>');
 
-				text_output_escaped(writer, node.first_child().value(), opt1_to_type<0>());
+				text_output_escaped(writer, node.first_child().value(), oct_special_pcdata);
 
 				writer.write('<', '/');
 				writer.write(node.name());
@@ -2160,7 +2195,7 @@ namespace
 		}
 		
 		case node_pcdata:
-			text_output_escaped(writer, node.value(), opt1_to_type<0>());
+			text_output_escaped(writer, node.value(), oct_special_pcdata);
 			if ((flags & format_raw) == 0) writer.write('\n');
 			break;
 
@@ -2202,7 +2237,7 @@ namespace
 				writer.write(a.name());
 				writer.write('=', '"');
 
-				text_output_escaped(writer, a.value(), opt1_to_type<1>());
+				text_output_escaped(writer, a.value(), oct_special_attr);
 
 				writer.write('"');
 			}
