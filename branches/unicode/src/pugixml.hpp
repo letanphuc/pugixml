@@ -1726,12 +1726,6 @@ namespace pugi
 	};
 
 	/**
-	 * Struct used to distinguish parsing with ownership transfer from parsing without it.
-	 * \see xml_document::parse
-	 */
-	struct transfer_ownership_tag {};
-
-	/**
 	 * Parsing status enumeration, returned as part of xml_parse_result struct
 	 */
 	enum xml_parse_status
