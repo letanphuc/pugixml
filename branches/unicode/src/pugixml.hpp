@@ -235,33 +235,30 @@ namespace pugi
 	const unsigned int parse_declaration		= 0x0100;
 
 	/**
-	 * These flags determine the encoding of input data for XML document. Default mode is encoding_auto,
-	 * which means that document encoding is autodetected from BOM and necessary encoding conversions are
-	 * applied. You can override this mode by using any of the specific encodings.
-	 */
-	const unsigned int encoding_auto        = 0x0000; //!< Auto-detect input encoding using BOM or </<? detection; use UTF8 if BOM is not found
-
-	const unsigned int encoding_utf8        = 0x1000; //!< UTF8 encoding
-
-	const unsigned int encoding_utf16_le    = 0x2000; //!< Little-endian UTF16
-	const unsigned int encoding_utf16_be    = 0x3000; //!< Big-endian UTF16
-	const unsigned int encoding_utf16       = 0x4000; //!< UTF16 with native endianness
-
-	const unsigned int encoding_utf32_le    = 0x5000; //!< Little-endian UTF32
-	const unsigned int encoding_utf32_be    = 0x6000; //!< Big-endian UTF32
-	const unsigned int encoding_utf32       = 0x7000; //!< UTF32 with native endianness
-
-	const unsigned int encoding_wchar       = 0x8000; //!< The same encoding wchar_t has (either UTF16 or UTF32)
-
-	const unsigned int encoding_mask        = 0xf000; //!< \internal bitmask for encoding
-
-	/**
      * This is the default set of flags. It includes parsing CDATA sections (comments/PIs are not
      * parsed), performing character and entity reference expansion, replacing whitespace characters
      * with spaces in attribute values and performing EOL handling. Note, that PCDATA sections
      * consisting only of whitespace characters are not parsed (by default) for performance reasons.
      */
-	const unsigned int parse_default			= parse_cdata | parse_escapes | parse_wconv_attribute | parse_eol | encoding_auto;
+	const unsigned int parse_default			= parse_cdata | parse_escapes | parse_wconv_attribute | parse_eol;
+
+	/**
+	 * These flags determine the encoding of input data for XML document. Default mode is encoding_auto,
+	 * which means that document encoding is autodetected from BOM and necessary encoding conversions are
+	 * applied. You can override this mode by using any of the specific encodings.
+	 */
+	enum encoding_t
+	{
+		encoding_auto,      //!< Auto-detect input encoding using BOM or </<? detection; use UTF8 if BOM is not found
+		encoding_utf8,      //!< UTF8 encoding
+		encoding_utf16_le,  //!< Little-endian UTF16
+		encoding_utf16_be,  //!< Big-endian UTF16
+		encoding_utf16,     //!< UTF16 with native endianness
+		encoding_utf32_le,  //!< Little-endian UTF32
+		encoding_utf32_be,  //!< Big-endian UTF32
+		encoding_utf32,     //!< UTF32 with native endianness
+		encoding_wchar      //!< The same encoding wchar_t has (either UTF16 or UTF32)
+	};
 
 	// Formatting flags
 	
@@ -1415,7 +1412,7 @@ namespace pugi
 		 * \param flags - formatting flags
 		 * \param depth - starting depth (used for indentation)
 		 */
-		void print(xml_writer& writer, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, unsigned int depth = 0) const;
+		void print(xml_writer& writer, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, encoding_t encoding = encoding_auto, unsigned int depth = 0) const;
 
 	#ifndef PUGIXML_NO_STL
 		/**
@@ -1427,7 +1424,7 @@ namespace pugi
 		 * \param depth - starting depth (used for indentation)
 		 * \deprecated Use print() with xml_writer_stream instead
 		 */
-		void print(std::basic_ostream<char, std::char_traits<char> >& os, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, unsigned int depth = 0) const;
+		void print(std::basic_ostream<char, std::char_traits<char> >& os, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, encoding_t encoding = encoding_auto, unsigned int depth = 0) const;
 	#endif
 
 		/**
@@ -1811,7 +1808,7 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return parsing result
 		 */
-		xml_parse_result load(std::basic_istream<char, std::char_traits<char> >& stream, unsigned int options = parse_default);
+		xml_parse_result load(std::basic_istream<char, std::char_traits<char> >& stream, unsigned int options = parse_default, encoding_t encoding = encoding_auto);
 #endif
 
 		/**
@@ -1830,7 +1827,7 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return parsing result
 		 */
-		xml_parse_result load_file(const char* name, unsigned int options = parse_default);
+		xml_parse_result load_file(const char* name, unsigned int options = parse_default, encoding_t encoding = encoding_auto);
 
 		/**
 		 * Load document from buffer
@@ -1840,7 +1837,7 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return parsing result
 		 */
-		xml_parse_result load_buffer(const void* contents, size_t size, unsigned int options = parse_default);
+		xml_parse_result load_buffer(const void* contents, size_t size, unsigned int options = parse_default, encoding_t encoding = encoding_auto);
 
 		/**
 		 * Load document from buffer in-situ.
@@ -1852,7 +1849,7 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return parsing result
 		 */
-		xml_parse_result load_buffer_inplace(void* contents, size_t size, unsigned int options = parse_default);
+		xml_parse_result load_buffer_inplace(void* contents, size_t size, unsigned int options = parse_default, encoding_t encoding = encoding_auto);
 
 		/**
 		 * Load document from buffer in-situ (gains buffer ownership).
@@ -1865,7 +1862,7 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return parsing result
 		 */
-		xml_parse_result load_buffer_inplace_own(void* contents, size_t size, unsigned int options = parse_default);
+		xml_parse_result load_buffer_inplace_own(void* contents, size_t size, unsigned int options = parse_default, encoding_t encoding = encoding_auto);
 
 		/**
 		 * Save XML to writer
@@ -1874,7 +1871,7 @@ namespace pugi
 		 * \param indent - indentation string
 		 * \param flags - formatting flags
 		 */
-		void save(xml_writer& writer, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default) const;
+		void save(xml_writer& writer, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, encoding_t encoding = encoding_auto) const;
 
 		/**
 		 * Save XML to file
@@ -1884,7 +1881,7 @@ namespace pugi
 		 * \param flags - formatting flags
 		 * \return success flag
 		 */
-		bool save_file(const char* name, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default) const;
+		bool save_file(const char* name, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, encoding_t encoding = encoding_auto) const;
 
 		/**
 		 * Compute document order for the whole tree

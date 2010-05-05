@@ -525,7 +525,7 @@ namespace
 		return *reinterpret_cast<unsigned char*>(&ui) == 1;
 	}
 
-	unsigned int get_wchar_encoding()
+	encoding_t get_wchar_encoding()
 	{
 		STATIC_ASSERT(sizeof(wchar_t) == 2 || sizeof(wchar_t) == 4);
 
@@ -535,19 +535,19 @@ namespace
 			return is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
 	}
 
-	unsigned int get_buffer_encoding(unsigned int options, const void* contents, size_t size)
+	encoding_t get_buffer_encoding(encoding_t encoding, const void* contents, size_t size)
 	{
 		// replace wchar encoding with utf implementation
-		if ((options & encoding_mask) == encoding_wchar) return get_wchar_encoding();
+		if (encoding == encoding_wchar) return get_wchar_encoding();
 
 		// replace utf16 encoding with utf16 with specific endianness
-		if ((options & encoding_mask) == encoding_utf16) return is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
+		if (encoding == encoding_utf16) return is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
 
 		// replace utf32 encoding with utf32 with specific endianness
-		if ((options & encoding_mask) == encoding_utf32) return is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
+		if (encoding == encoding_utf32) return is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
 
 		// only do autodetection if no explicit encoding is requested
-		if ((options & encoding_mask) != encoding_auto) return options & encoding_mask;
+		if (encoding != encoding_auto) return encoding;
 
 		// try to guess encoding (based on XML specification, Appendix F.1)
 		const impl::char8_t* data = static_cast<const impl::char8_t*>(contents);
@@ -596,7 +596,7 @@ namespace
 	}
 
 #ifdef PUGIXML_WCHAR_MODE
-	inline bool need_endian_swap_utf(unsigned int le, unsigned int re)
+	inline bool need_endian_swap_utf(encoding_t le, encoding_t re)
 	{
 		return (le == encoding_utf16_be && re == encoding_utf16_le) || (le == encoding_utf16_le && re == encoding_utf16_be) ||
 		       (le == encoding_utf32_be && re == encoding_utf32_le) || (le == encoding_utf32_le && re == encoding_utf32_be);
@@ -673,13 +673,13 @@ namespace
 		return true;
 	}
 
-	bool convert_buffer(char_t*& out_buffer, size_t& out_length, unsigned int options, const void* contents, size_t size, bool is_mutable)
+	bool convert_buffer(char_t*& out_buffer, size_t& out_length, encoding_t user_encoding, const void* contents, size_t size, bool is_mutable)
 	{
 		// get actual encoding
-		unsigned int encoding = get_buffer_encoding(options, contents, size);
+		encoding_t encoding = get_buffer_encoding(user_encoding, contents, size);
 
 		// get native encoding
-		unsigned int wchar_encoding = get_wchar_encoding();
+		encoding_t wchar_encoding = get_wchar_encoding();
 
 		// fast path: no conversion required
 		if (encoding == wchar_encoding) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
@@ -693,7 +693,7 @@ namespace
 		// source encoding is utf16
 		if (encoding == encoding_utf16_be || encoding == encoding_utf16_le)
 		{
-			unsigned int native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
+			encoding_t native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
 
 			return (native_encoding == encoding) ?
 				convert_buffer_utf16(out_buffer, out_length, contents, size, opt1_to_type<false>()) :
@@ -703,7 +703,7 @@ namespace
 		// source encoding is utf32
 		if (encoding == encoding_utf32_be || encoding == encoding_utf32_le)
 		{
-			unsigned int native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
+			encoding_t native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
 
 			return (native_encoding == encoding) ?
 				convert_buffer_utf32(out_buffer, out_length, contents, size, opt1_to_type<false>()) :
@@ -755,10 +755,10 @@ namespace
 		return true;
 	}
 
-	bool convert_buffer(char_t*& out_buffer, size_t& out_length, unsigned int options, const void* contents, size_t size, bool is_mutable)
+	bool convert_buffer(char_t*& out_buffer, size_t& out_length, encoding_t user_encoding, const void* contents, size_t size, bool is_mutable)
 	{
 		// get actual encoding
-		unsigned int encoding = get_buffer_encoding(options, contents, size);
+		encoding_t encoding = get_buffer_encoding(user_encoding, contents, size);
 
 		// fast path: no conversion required
 		if (encoding == encoding_utf8) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
@@ -766,7 +766,7 @@ namespace
 		// source encoding is utf16
 		if (encoding == encoding_utf16_be || encoding == encoding_utf16_le)
 		{
-			unsigned int native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
+			encoding_t native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
 
 			return (native_encoding == encoding) ?
 				convert_buffer_utf16(out_buffer, out_length, contents, size, opt1_to_type<false>()) :
@@ -776,7 +776,7 @@ namespace
 		// source encoding is utf32
 		if (encoding == encoding_utf32_be || encoding == encoding_utf32_le)
 		{
-			unsigned int native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
+			encoding_t native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
 
 			return (native_encoding == encoding) ?
 				convert_buffer_utf32(out_buffer, out_length, contents, size, opt1_to_type<false>()) :
@@ -1759,7 +1759,7 @@ namespace
 	};
 
 	// Output facilities
-	unsigned int get_write_native_encoding()
+	encoding_t get_write_native_encoding()
 	{
 	#ifdef PUGIXML_WCHAR_MODE
 		return get_wchar_encoding();
@@ -1768,26 +1768,26 @@ namespace
 	#endif
 	}
 
-	unsigned int get_write_encoding(unsigned int flags)
+	encoding_t get_write_encoding(encoding_t encoding)
 	{
 		// replace wchar encoding with utf implementation
-		if ((flags & encoding_mask) == encoding_wchar) return get_wchar_encoding();
+		if (encoding == encoding_wchar) return get_wchar_encoding();
 
 		// replace utf16 encoding with utf16 with specific endianness
-		if ((flags & encoding_mask) == encoding_utf16) return is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
+		if (encoding == encoding_utf16) return is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
 
 		// replace utf32 encoding with utf32 with specific endianness
-		if ((flags & encoding_mask) == encoding_utf32) return is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
+		if (encoding == encoding_utf32) return is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
 
 		// only do autodetection if no explicit encoding is requested
-		if ((flags & encoding_mask) != encoding_auto) return flags & encoding_mask;
+		if (encoding != encoding_auto) return encoding;
 
 		// assume native encoding
 		return get_write_native_encoding();
 	}
 
 #ifdef PUGIXML_WCHAR_MODE
-	size_t convert_buffer(char* result, const char_t* data, size_t length, unsigned int encoding)
+	size_t convert_buffer(char* result, const char_t* data, size_t length, encoding_t encoding)
 	{
 		// only endian-swapping is required
 		if (need_endian_swap_utf(encoding, get_wchar_encoding()))
@@ -1818,7 +1818,7 @@ namespace
 			impl::char16_t* end = impl::decode_utf32_block<impl::utf16_writer>(reinterpret_cast<const impl::char32_t*>(data), length, dest, opt1_to_type<false>());
 
 			// swap if necessary
-			unsigned int native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
+			encoding_t native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
 
 			if (native_encoding != encoding) impl::convert_utf_endian_swap(dest, dest, static_cast<size_t>(end - dest));
 
@@ -1834,7 +1834,7 @@ namespace
 			impl::char32_t* end = impl::decode_utf16_block<impl::utf32_writer>(reinterpret_cast<const impl::char16_t*>(data), length, dest, 0, opt1_to_type<false>());
 
 			// swap if necessary
-			unsigned int native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
+			encoding_t native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
 
 			if (native_encoding != encoding) impl::convert_utf_endian_swap(dest, dest, static_cast<size_t>(end - dest));
 
@@ -1847,7 +1847,7 @@ namespace
 		return 0;
 	}
 #else
-	size_t convert_buffer(char* result, const char_t* data, size_t length, unsigned int encoding)
+	size_t convert_buffer(char* result, const char_t* data, size_t length, encoding_t encoding)
 	{
 		if (encoding == encoding_utf16_be || encoding == encoding_utf16_le)
 		{
@@ -1857,7 +1857,7 @@ namespace
 			impl::char16_t* end = impl::decode_utf8_block<impl::utf16_writer>(reinterpret_cast<const impl::char8_t*>(data), length, dest, 0);
 
 			// swap if necessary
-			unsigned int native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
+			encoding_t native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
 
 			if (native_encoding != encoding) impl::convert_utf_endian_swap(dest, dest, static_cast<size_t>(end - dest));
 
@@ -1872,7 +1872,7 @@ namespace
 			impl::char32_t* end = impl::decode_utf8_block<impl::utf32_writer>(reinterpret_cast<const impl::char8_t*>(data), length, dest, 0);
 
 			// swap if necessary
-			unsigned int native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
+			encoding_t native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
 
 			if (native_encoding != encoding) impl::convert_utf_endian_swap(dest, dest, static_cast<size_t>(end - dest));
 
@@ -1892,7 +1892,7 @@ namespace
 		xml_buffered_writer& operator=(const xml_buffered_writer&);
 
 	public:
-		xml_buffered_writer(xml_writer& writer, unsigned int flags): writer(writer), bufsize(0), encoding(get_write_encoding(flags))
+		xml_buffered_writer(xml_writer& writer, encoding_t user_encoding): writer(writer), bufsize(0), encoding(get_write_encoding(user_encoding))
 		{
 		}
 
@@ -2044,10 +2044,10 @@ namespace
 
 		xml_writer& writer;
 		size_t bufsize;
-		unsigned int encoding;
+		encoding_t encoding;
 	};
 
-	void write_bom(xml_writer& writer, unsigned int encoding)
+	void write_bom(xml_writer& writer, encoding_t encoding)
 	{
 		switch (encoding)
 		{
@@ -3305,23 +3305,23 @@ namespace pugi
 		}
 	}
 
-	void xml_node::print(xml_writer& writer, const char_t* indent, unsigned int flags, unsigned int depth) const
+	void xml_node::print(xml_writer& writer, const char_t* indent, unsigned int flags, encoding_t encoding, unsigned int depth) const
 	{
 		if (!_root) return;
 
-		xml_buffered_writer buffered_writer(writer, flags);
+		xml_buffered_writer buffered_writer(writer, encoding);
 
 		node_output(buffered_writer, *this, indent, flags, depth);
 	}
 
 #ifndef PUGIXML_NO_STL
-	void xml_node::print(std::ostream& stream, const char_t* indent, unsigned int flags, unsigned int depth) const
+	void xml_node::print(std::ostream& stream, const char_t* indent, unsigned int flags, encoding_t encoding, unsigned int depth) const
 	{
 		if (!_root) return;
 
 		xml_writer_stream writer(stream);
 
-		print(writer, indent, flags, depth);
+		print(writer, indent, flags, encoding, depth);
 	}
 #endif
 
@@ -3571,7 +3571,7 @@ namespace pugi
 	}
 
 #ifndef PUGIXML_NO_STL
-	xml_parse_result xml_document::load(std::istream& stream, unsigned int options)
+	xml_parse_result xml_document::load(std::istream& stream, unsigned int options, encoding_t encoding)
 	{
 		destroy();
 
@@ -3595,7 +3595,7 @@ namespace pugi
 			return MAKE_PARSE_RESULT(status_io_error);
 		}
 
-		return load_buffer_inplace_own(s, stream.gcount(), options); // Parse the input string.
+		return load_buffer_inplace_own(s, stream.gcount(), options, encoding); // Parse the input string.
 	}
 #endif
 
@@ -3605,15 +3605,15 @@ namespace pugi
 		
 		// Force native encoding (skip autodetection)
 	#ifdef PUGIXML_WCHAR_MODE
-		options = (options & ~encoding_mask) | encoding_wchar;
+		encoding_t encoding = encoding_wchar;
 	#else
-		options = (options & ~encoding_mask) | encoding_utf8;
+		encoding_t encoding = encoding_utf8;
 	#endif
 
-		return load_buffer(contents, impl::strlen(contents) * sizeof(char_t), options);
+		return load_buffer(contents, impl::strlen(contents) * sizeof(char_t), options, encoding);
 	}
 
-	xml_parse_result xml_document::load_file(const char* name, unsigned int options)
+	xml_parse_result xml_document::load_file(const char* name, unsigned int options, encoding_t encoding)
 	{
 		destroy();
 
@@ -3647,10 +3647,10 @@ namespace pugi
 			return MAKE_PARSE_RESULT(status_io_error);
 		}
 		
-		return load_buffer_inplace_own(s, length, options);
+		return load_buffer_inplace_own(s, length, options, encoding);
 	}
 
-	xml_parse_result xml_document::load_buffer(const void* contents, size_t size, unsigned int options)
+	xml_parse_result xml_document::load_buffer(const void* contents, size_t size, unsigned int options, encoding_t encoding)
 	{
 		destroy();
 
@@ -3658,7 +3658,7 @@ namespace pugi
 		char_t* buffer;
 		size_t length;
 
-		if (!convert_buffer(buffer, length, options, contents, size, false)) return MAKE_PARSE_RESULT(status_out_of_memory);
+		if (!convert_buffer(buffer, length, encoding, contents, size, false)) return MAKE_PARSE_RESULT(status_out_of_memory);
 		
 		// parse
 		xml_parse_result res = xml_parser::parse(buffer, length, _root, options);
@@ -3669,7 +3669,7 @@ namespace pugi
 		return res;
 	}
 
-	xml_parse_result xml_document::load_buffer_inplace(void* contents, size_t size, unsigned int options)
+	xml_parse_result xml_document::load_buffer_inplace(void* contents, size_t size, unsigned int options, encoding_t encoding)
 	{
 		destroy();
 
@@ -3677,7 +3677,7 @@ namespace pugi
 		char_t* buffer;
 		size_t length;
 
-		if (!convert_buffer(buffer, length, options, contents, size, true)) return MAKE_PARSE_RESULT(status_out_of_memory);
+		if (!convert_buffer(buffer, length, encoding, contents, size, true)) return MAKE_PARSE_RESULT(status_out_of_memory);
 		
 		// parse
 		xml_parse_result res = xml_parser::parse(buffer, length, _root, options);
@@ -3688,7 +3688,7 @@ namespace pugi
 		return res;
 	}
 		
-	xml_parse_result xml_document::load_buffer_inplace_own(void* contents, size_t size, unsigned int options)
+	xml_parse_result xml_document::load_buffer_inplace_own(void* contents, size_t size, unsigned int options, encoding_t encoding)
 	{
 		destroy();
 
@@ -3696,7 +3696,7 @@ namespace pugi
 		char_t* buffer;
 		size_t length;
 
-		if (!convert_buffer(buffer, length, options, contents, size, true)) return MAKE_PARSE_RESULT(status_out_of_memory);
+		if (!convert_buffer(buffer, length, encoding, contents, size, true)) return MAKE_PARSE_RESULT(status_out_of_memory);
 
 		// delete original buffer if we performed a conversion
 		if (buffer != contents) global_deallocate(contents);
@@ -3710,11 +3710,11 @@ namespace pugi
 		return res;
 	}
 
-	void xml_document::save(xml_writer& writer, const char_t* indent, unsigned int flags) const
+	void xml_document::save(xml_writer& writer, const char_t* indent, unsigned int flags, encoding_t encoding) const
 	{
-		if (flags & format_write_bom) write_bom(writer, get_write_encoding(flags & encoding_mask));
+		if (flags & format_write_bom) write_bom(writer, get_write_encoding(encoding));
 
-		xml_buffered_writer buffered_writer(writer, flags);
+		xml_buffered_writer buffered_writer(writer, encoding);
 
 		if (!(flags & format_no_declaration))
 		{
@@ -3725,13 +3725,13 @@ namespace pugi
 		node_output(buffered_writer, *this, indent, flags, 0);
 	}
 
-	bool xml_document::save_file(const char* name, const char_t* indent, unsigned int flags) const
+	bool xml_document::save_file(const char* name, const char_t* indent, unsigned int flags, encoding_t encoding) const
 	{
 		FILE* file = fopen(name, "wb");
 		if (!file) return false;
 
 		xml_writer_file writer(file);
-		save(writer, indent, flags);
+		save(writer, indent, flags, encoding);
 
 		fclose(file);
 
