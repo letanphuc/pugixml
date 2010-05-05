@@ -26,7 +26,6 @@
 #include <wchar.h>
 
 #ifndef PUGIXML_NO_STL
-#	include <iterator>
 #	include <istream>
 #	include <ostream>
 #	include <string>
