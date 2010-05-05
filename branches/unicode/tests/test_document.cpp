@@ -144,6 +144,7 @@ TEST_XML(document_save, "<node/>")
 	CHECK(writer.as_string() == STR("<node />"));
 }
 
+#ifndef PUGIXML_NO_STL
 TEST_XML(document_save_stream, "<node/>")
 {
 	std::ostringstream oss;
@@ -161,6 +162,7 @@ TEST_XML(document_save_stream_wide, "<node/>")
 
 	CHECK(oss.str() == L"<node />");
 }
+#endif
 
 TEST_XML(document_save_bom, "<n/>")
 {
