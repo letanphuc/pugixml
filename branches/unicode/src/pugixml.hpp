@@ -464,10 +464,18 @@ namespace pugi
 		 */
 		xml_writer_stream(std::basic_ostream<char, std::char_traits<char> >& stream);
 
+		/**
+		 * Construct writer instance
+		 *
+		 * \param stream - output stream object
+		 */
+		xml_writer_stream(std::basic_ostream<wchar_t, std::char_traits<wchar_t> >& stream);
+
 		virtual void write(const void* data, size_t size);
 
 	private:
-		std::basic_ostream<char, std::char_traits<char> >* stream;
+		std::basic_ostream<char, std::char_traits<char> >* narrow_stream;
+		std::basic_ostream<wchar_t, std::char_traits<wchar_t> >* wide_stream;
 	};
 	#endif
 
@@ -1425,6 +1433,17 @@ namespace pugi
 		 * \deprecated Use print() with xml_writer_stream instead
 		 */
 		void print(std::basic_ostream<char, std::char_traits<char> >& os, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, encoding_t encoding = encoding_auto, unsigned int depth = 0) const;
+
+		/**
+		 * Print subtree to stream
+		 *
+		 * \param os - output stream
+		 * \param indent - indentation string
+		 * \param flags - formatting flags
+		 * \param depth - starting depth (used for indentation)
+		 * \deprecated Use print() with xml_writer_stream instead
+		 */
+		void print(std::basic_ostream<wchar_t, std::char_traits<wchar_t> >& os, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, unsigned int depth = 0) const;
 	#endif
 
 		/**
@@ -1808,7 +1827,16 @@ namespace pugi
 		 * \param options - parsing options
 		 * \return parsing result
 		 */
+
 		xml_parse_result load(std::basic_istream<char, std::char_traits<char> >& stream, unsigned int options = parse_default, encoding_t encoding = encoding_auto);
+		/**
+		 * Load document from stream.
+		 *
+		 * \param stream - stream with xml data
+		 * \param options - parsing options
+		 * \return parsing result
+		 */
+		xml_parse_result load(std::basic_istream<wchar_t, std::char_traits<wchar_t> >& stream, unsigned int options = parse_default);
 #endif
 
 		/**
@@ -1872,6 +1900,26 @@ namespace pugi
 		 * \param flags - formatting flags
 		 */
 		void save(xml_writer& writer, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, encoding_t encoding = encoding_auto) const;
+
+	#ifndef PUGIXML_NO_STL
+		/**
+		 * Save XML to stream
+		 *
+		 * \param stream - output stream
+		 * \param indent - indentation string
+		 * \param flags - formatting flags
+		 */
+		void save(std::basic_ostream<char, std::char_traits<char> >& stream, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, encoding_t encoding = encoding_auto) const;
+
+		/**
+		 * Save XML to stream
+		 *
+		 * \param stream - output stream
+		 * \param indent - indentation string
+		 * \param flags - formatting flags
+		 */
+		void save(std::basic_ostream<wchar_t, std::char_traits<wchar_t> >& stream, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default) const;
+	#endif
 
 		/**
 		 * Save XML to file
