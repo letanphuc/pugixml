@@ -140,18 +140,18 @@ TEST_XML(document_save_bom, "<n/>")
 	unsigned int flags = format_no_declaration | format_raw | format_write_bom;
 
 	// specific encodings
-	CHECK(test_save_narrow(doc, flags | encoding_utf8, "\xef\xbb\xbf<n />", 8));
-	CHECK(test_save_narrow(doc, flags | encoding_utf16_be, "\xfe\xff\x00<\x00n\x00 \x00/\x00>", 12));
-	CHECK(test_save_narrow(doc, flags | encoding_utf16_le, "\xff\xfe<\x00n\x00 \x00/\x00>\x00", 12));
-	CHECK(test_save_narrow(doc, flags | encoding_utf32_be, "\x00\x00\xfe\xff\x00\x00\x00<\x00\x00\x00n\x00\x00\x00 \x00\x00\x00/\x00\x00\x00>", 24));
-	CHECK(test_save_narrow(doc, flags | encoding_utf32_le, "\xff\xfe\x00\x00<\x00\x00\x00n\x00\x00\x00 \x00\x00\x00/\x00\x00\x00>\x00\x00\x00", 24));
+	CHECK(test_save_narrow(doc, flags, encoding_utf8, "\xef\xbb\xbf<n />", 8));
+	CHECK(test_save_narrow(doc, flags, encoding_utf16_be, "\xfe\xff\x00<\x00n\x00 \x00/\x00>", 12));
+	CHECK(test_save_narrow(doc, flags, encoding_utf16_le, "\xff\xfe<\x00n\x00 \x00/\x00>\x00", 12));
+	CHECK(test_save_narrow(doc, flags, encoding_utf32_be, "\x00\x00\xfe\xff\x00\x00\x00<\x00\x00\x00n\x00\x00\x00 \x00\x00\x00/\x00\x00\x00>", 24));
+	CHECK(test_save_narrow(doc, flags, encoding_utf32_le, "\xff\xfe\x00\x00<\x00\x00\x00n\x00\x00\x00 \x00\x00\x00/\x00\x00\x00>\x00\x00\x00", 24));
 
 	// encodings synonyms
-	CHECK(save_narrow(doc, flags | encoding_utf16) == save_narrow(doc, flags | (is_little_endian() ? encoding_utf16_le : encoding_utf16_be)));
-	CHECK(save_narrow(doc, flags | encoding_utf32) == save_narrow(doc, flags | (is_little_endian() ? encoding_utf32_le : encoding_utf32_be)));
+	CHECK(save_narrow(doc, flags, encoding_utf16) == save_narrow(doc, flags, (is_little_endian() ? encoding_utf16_le : encoding_utf16_be)));
+	CHECK(save_narrow(doc, flags, encoding_utf32) == save_narrow(doc, flags, (is_little_endian() ? encoding_utf32_le : encoding_utf32_be)));
 
 	size_t wcharsize = sizeof(wchar_t);
-	CHECK(save_narrow(doc, flags | encoding_wchar) == save_narrow(doc, flags | (wcharsize == 2 ? encoding_utf16 : encoding_utf32)));
+	CHECK(save_narrow(doc, flags, encoding_wchar) == save_narrow(doc, flags, (wcharsize == 2 ? encoding_utf16 : encoding_utf32)));
 }
 
 TEST_XML(document_save_declaration, "<node/>")
@@ -322,7 +322,7 @@ TEST(document_load_file_convert_specific)
 		"tests/data/utftest_utf8_nodecl.xml"
 	};
 
-	unsigned int encodings[] =
+	encoding_t encodings[] =
 	{
 		encoding_utf16_be, encoding_utf16_be, encoding_utf16_be,
 		encoding_utf16_le, encoding_utf16_le, encoding_utf16_le,
@@ -335,10 +335,10 @@ TEST(document_load_file_convert_specific)
 	{
 		for (unsigned int j = 0; j < sizeof(files) / sizeof(files[0]); ++j)
 		{
-			unsigned int encoding = encodings[j];
+			encoding_t encoding = encodings[j];
 
 			xml_document doc;
-			xml_parse_result res = doc.load_file(files[i], encoding);
+			xml_parse_result res = doc.load_file(files[i], parse_default, encoding);
 
 			if (encoding == encodings[i])
 			{
@@ -376,7 +376,7 @@ TEST(document_load_file_convert_native_endianness)
 		}
 	};
 
-	unsigned int encodings[] =
+	encoding_t encodings[] =
 	{
 		encoding_utf16, encoding_utf16, encoding_utf16,
 		encoding_utf32, encoding_utf32, encoding_utf32
@@ -389,12 +389,12 @@ TEST(document_load_file_convert_native_endianness)
 
 		for (unsigned int j = 0; j < sizeof(encodings) / sizeof(encodings[0]); ++j)
 		{
-			unsigned int encoding = encodings[j];
+			encoding_t encoding = encodings[j];
 
 			// check file with right endianness
 			{
 				xml_document doc;
-				xml_parse_result res = doc.load_file(right_file, encoding);
+				xml_parse_result res = doc.load_file(right_file, parse_default, encoding);
 
 				if (encoding == encodings[i])
 				{
@@ -411,7 +411,7 @@ TEST(document_load_file_convert_native_endianness)
 			// check file with wrong endianness
 			{
 				xml_document doc;
-				doc.load_file(wrong_file, encoding);
+				doc.load_file(wrong_file, parse_default, encoding);
 				CHECK(!doc.first_child());
 			}
 		}
@@ -440,7 +440,7 @@ TEST(document_contents_preserve)
 	struct file_t
 	{
 		const char* path;
-		unsigned int encoding;
+		encoding_t encoding;
 
 		char* data;
 		size_t size;
@@ -471,7 +471,7 @@ TEST(document_contents_preserve)
 			CHECK(doc.load_buffer(files[src].data, files[src].size, parse_default | parse_ws_pcdata | parse_declaration | parse_comments));
 
 			// compare saved document with the original (raw formatting, without extra declaration, write bom if it was in original file)
-			CHECK(test_save_narrow(doc, format_raw | format_no_declaration | format_write_bom | files[dst].encoding, files[dst].data, files[dst].size));
+			CHECK(test_save_narrow(doc, format_raw | format_no_declaration | format_write_bom, files[dst].encoding, files[dst].data, files[dst].size));
 		}
 	}
 

@@ -93,7 +93,7 @@ TEST_XML(write_print_writer, "<node/>")
 TEST_XML(write_print_stream, "<node/>")
 {
 	std::ostringstream oss;
-	doc.print(oss, STR(""), encoding_utf8);
+	doc.print(oss, STR(""), format_default, encoding_utf8);
 
 	CHECK(oss.str() == "<node />\n");
 }
@@ -101,7 +101,7 @@ TEST_XML(write_print_stream, "<node/>")
 TEST_XML(write_print_stream_encode, "<n/>")
 {
 	std::ostringstream oss;
-	doc.print(oss, STR(""), encoding_utf16_be);
+	doc.print(oss, STR(""), format_default, encoding_utf16_be);
 
 	CHECK(oss.str() == std::string("\x00<\x00n\x00 \x00/\x00>\x00\n", 12));
 }
@@ -123,20 +123,20 @@ TEST(write_encodings)
 	static char s_utf8[] = "<\x54\xC2\xA2\xE2\x82\xAC\xF0\xA4\xAD\xA2/>";
 
 	xml_document doc;
-	CHECK(doc.load_buffer(s_utf8, sizeof(s_utf8), encoding_utf8));
+	CHECK(doc.load_buffer(s_utf8, sizeof(s_utf8), parse_default, encoding_utf8));
 
-	CHECK(write_narrow(doc, encoding_utf8) == "<\x54\xC2\xA2\xE2\x82\xAC\xF0\xA4\xAD\xA2 />\n");
+	CHECK(write_narrow(doc, format_default, encoding_utf8) == "<\x54\xC2\xA2\xE2\x82\xAC\xF0\xA4\xAD\xA2 />\n");
 
-	CHECK(test_write_narrow(doc, encoding_utf32_le, "<\x00\x00\x00\x54\x00\x00\x00\xA2\x00\x00\x00\xAC\x20\x00\x00\x62\x4B\x02\x00 \x00\x00\x00/\x00\x00\x00>\x00\x00\x00\n\x00\x00\x00", 36));
-	CHECK(test_write_narrow(doc, encoding_utf32_be, "\x00\x00\x00<\x00\x00\x00\x54\x00\x00\x00\xA2\x00\x00\x20\xAC\x00\x02\x4B\x62\x00\x00\x00 \x00\x00\x00/\x00\x00\x00>\x00\x00\x00\n", 36));
-	CHECK(write_narrow(doc, encoding_utf32) == write_narrow(doc, is_little_endian() ? encoding_utf32_le : encoding_utf32_be));
+	CHECK(test_write_narrow(doc, format_default, encoding_utf32_le, "<\x00\x00\x00\x54\x00\x00\x00\xA2\x00\x00\x00\xAC\x20\x00\x00\x62\x4B\x02\x00 \x00\x00\x00/\x00\x00\x00>\x00\x00\x00\n\x00\x00\x00", 36));
+	CHECK(test_write_narrow(doc, format_default, encoding_utf32_be, "\x00\x00\x00<\x00\x00\x00\x54\x00\x00\x00\xA2\x00\x00\x20\xAC\x00\x02\x4B\x62\x00\x00\x00 \x00\x00\x00/\x00\x00\x00>\x00\x00\x00\n", 36));
+	CHECK(write_narrow(doc, format_default, encoding_utf32) == write_narrow(doc, format_default, is_little_endian() ? encoding_utf32_le : encoding_utf32_be));
 
-	CHECK(test_write_narrow(doc, encoding_utf16_le, "<\x00\x54\x00\xA2\x00\xAC\x20\x52\xd8\x62\xdf \x00/\x00>\x00\n\x00", 20));
-	CHECK(test_write_narrow(doc, encoding_utf16_be, "\x00<\x00\x54\x00\xA2\x20\xAC\xd8\x52\xdf\x62\x00 \x00/\x00>\x00\n", 20));
-	CHECK(write_narrow(doc, encoding_utf16) == write_narrow(doc, is_little_endian() ? encoding_utf16_le : encoding_utf16_be));
+	CHECK(test_write_narrow(doc, format_default, encoding_utf16_le, "<\x00\x54\x00\xA2\x00\xAC\x20\x52\xd8\x62\xdf \x00/\x00>\x00\n\x00", 20));
+	CHECK(test_write_narrow(doc, format_default, encoding_utf16_be, "\x00<\x00\x54\x00\xA2\x20\xAC\xd8\x52\xdf\x62\x00 \x00/\x00>\x00\n", 20));
+	CHECK(write_narrow(doc, format_default, encoding_utf16) == write_narrow(doc, format_default, is_little_endian() ? encoding_utf16_le : encoding_utf16_be));
 
 	size_t wcharsize = sizeof(wchar_t);
-	std::wstring v = write_wide(doc, encoding_wchar);
+	std::wstring v = write_wide(doc, format_default, encoding_wchar);
 
 	if (wcharsize == 4)
 	{
@@ -161,7 +161,7 @@ TEST(write_encoding_huge)
 	s_utf16 += std::string("\x00/\x00>", 4);
 
 	xml_document doc;
-	CHECK(doc.load_buffer(&s_utf16[0], s_utf16.length(), encoding_utf16_be));
+	CHECK(doc.load_buffer(&s_utf16[0], s_utf16.length(), parse_default, encoding_utf16_be));
 
 	std::string s_utf8 = "<";
 
@@ -169,7 +169,7 @@ TEST(write_encoding_huge)
 
 	s_utf8 += " />\n";
 
-	CHECK(test_write_narrow(doc, encoding_utf8, s_utf8.c_str(), s_utf8.length()));
+	CHECK(test_write_narrow(doc, format_default, encoding_utf8, s_utf8.c_str(), s_utf8.length()));
 }
 #else
 TEST(write_encoding_huge)
@@ -184,7 +184,7 @@ TEST(write_encoding_huge)
 	s_utf8 += "/>";
 
 	xml_document doc;
-	CHECK(doc.load_buffer(&s_utf8[0], s_utf8.length(), encoding_utf8));
+	CHECK(doc.load_buffer(&s_utf8[0], s_utf8.length(), parse_default, encoding_utf8));
 
 	std::string s_utf16 = std::string("\x00<", 2);
 
@@ -192,7 +192,7 @@ TEST(write_encoding_huge)
 
 	s_utf16 += std::string("\x00 \x00/\x00>\x00\n", 8);
 
-	CHECK(test_write_narrow(doc, encoding_utf16_be, s_utf16.c_str(), s_utf16.length()));
+	CHECK(test_write_narrow(doc, format_default, encoding_utf16_be, s_utf16.c_str(), s_utf16.length()));
 }
 #endif
 
@@ -201,7 +201,7 @@ TEST(write_unicode_escape)
 	char s_utf8[] = "<\xE2\x82\xAC \xC2\xA2='\"\xF0\xA4\xAD\xA2&#x0a;\"'>&amp;\x14\xF0\xA4\xAD\xA2&lt;</\xE2\x82\xAC>";
 	
 	xml_document doc;
-	CHECK(doc.load_buffer(s_utf8, sizeof(s_utf8), parse_default | encoding_utf8));
+	CHECK(doc.load_buffer(s_utf8, sizeof(s_utf8), parse_default, encoding_utf8));
 
-	CHECK(write_narrow(doc, encoding_utf8) == "<\xE2\x82\xAC \xC2\xA2=\"&quot;\xF0\xA4\xAD\xA2&#10;&quot;\">&amp;&#20;\xF0\xA4\xAD\xA2&lt;</\xE2\x82\xAC>\n");
+	CHECK(write_narrow(doc, format_default, encoding_utf8) == "<\xE2\x82\xAC \xC2\xA2=\"&quot;\xF0\xA4\xAD\xA2&#10;&quot;\">&amp;&#20;\xF0\xA4\xAD\xA2&lt;</\xE2\x82\xAC>\n");
 }
