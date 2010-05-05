@@ -2317,11 +2317,11 @@ namespace pugi
 	}
 
 #ifndef PUGIXML_NO_STL
-	xml_writer_stream::xml_writer_stream(std::ostream& stream): narrow_stream(&stream), wide_stream(0)
+	xml_writer_stream::xml_writer_stream(std::basic_ostream<char, std::char_traits<char> >& stream): narrow_stream(&stream), wide_stream(0)
 	{
 	}
 
-	xml_writer_stream::xml_writer_stream(std::wostream& stream): narrow_stream(0), wide_stream(&stream)
+	xml_writer_stream::xml_writer_stream(std::basic_ostream<wchar_t, std::char_traits<wchar_t> >& stream): narrow_stream(0), wide_stream(&stream)
 	{
 	}
 
@@ -3330,7 +3330,7 @@ namespace pugi
 	}
 
 #ifndef PUGIXML_NO_STL
-	void xml_node::print(std::ostream& stream, const char_t* indent, unsigned int flags, encoding_t encoding, unsigned int depth) const
+	void xml_node::print(std::basic_ostream<char, std::char_traits<char> >& stream, const char_t* indent, unsigned int flags, encoding_t encoding, unsigned int depth) const
 	{
 		if (!_root) return;
 
@@ -3339,7 +3339,7 @@ namespace pugi
 		print(writer, indent, flags, encoding, depth);
 	}
 
-	void xml_node::print(std::wostream& stream, const char_t* indent, unsigned int flags, unsigned int depth) const
+	void xml_node::print(std::basic_ostream<wchar_t, std::char_traits<wchar_t> >& stream, const char_t* indent, unsigned int flags, unsigned int depth) const
 	{
 		if (!_root) return;
 
@@ -3595,7 +3595,7 @@ namespace pugi
 	}
 
 #ifndef PUGIXML_NO_STL
-	xml_parse_result xml_document::load(std::istream& stream, unsigned int options, encoding_t encoding)
+	xml_parse_result xml_document::load(std::basic_istream<char, std::char_traits<char> >& stream, unsigned int options, encoding_t encoding)
 	{
 		destroy();
 
@@ -3622,7 +3622,7 @@ namespace pugi
 		return load_buffer_inplace_own(s, stream.gcount(), options, encoding); // Parse the input string.
 	}
 
-	xml_parse_result xml_document::load(std::wistream& stream, unsigned int options)
+	xml_parse_result xml_document::load(std::basic_istream<wchar_t, std::char_traits<wchar_t> >& stream, unsigned int options)
 	{
 		destroy();
 
@@ -3777,14 +3777,14 @@ namespace pugi
 	}
 
 #ifndef PUGIXML_NO_STL
-	void xml_document::save(std::ostream& stream, const char_t* indent, unsigned int flags, encoding_t encoding) const
+	void xml_document::save(std::basic_ostream<char, std::char_traits<char> >& stream, const char_t* indent, unsigned int flags, encoding_t encoding) const
 	{
 		xml_writer_stream writer(stream);
 
 		save(writer, indent, flags, encoding);
 	}
 
-	void xml_document::save(std::wostream& stream, const char_t* indent, unsigned int flags) const
+	void xml_document::save(std::basic_ostream<wchar_t, std::char_traits<wchar_t> >& stream, const char_t* indent, unsigned int flags) const
 	{
 		xml_writer_stream writer(stream);
 

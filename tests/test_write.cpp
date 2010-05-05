@@ -108,7 +108,7 @@ TEST_XML(write_print_stream_encode, "<n/>")
 
 TEST_XML(write_print_stream_wide, "<node/>")
 {
-	std::wostringstream oss;
+	std::basic_ostringstream<wchar_t> oss;
 	doc.print(oss, STR(""), format_default, encoding_utf8);
 
 	CHECK(oss.str() == L"<node />\n");
