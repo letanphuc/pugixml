@@ -1782,8 +1782,8 @@ namespace
 		// only do autodetection if no explicit encoding is requested
 		if (encoding != encoding_auto) return encoding;
 
-		// assume native encoding
-		return get_write_native_encoding();
+		// assume utf8 encoding
+		return encoding_utf8;
 	}
 
 #ifdef PUGIXML_WCHAR_MODE

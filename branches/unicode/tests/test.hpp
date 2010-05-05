@@ -138,5 +138,6 @@ inline wchar_t wchar_cast(unsigned int value)
 }
 
 bool is_little_endian();
+pugi::encoding_t get_native_encoding();
 
 #endif

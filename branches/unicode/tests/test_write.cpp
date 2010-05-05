@@ -84,7 +84,7 @@ struct test_writer: xml_writer
 TEST_XML(write_print_writer, "<node/>")
 {
 	test_writer writer;
-	doc.print(writer);
+	doc.print(writer, STR(""), format_default, get_native_encoding());
 
 	CHECK(writer.contents == STR("<node />\n"));
 }
@@ -121,7 +121,7 @@ TEST_XML(write_huge_chunk, "<node/>")
 	doc.child(STR("node")).set_name(name.c_str());
 
 	test_writer writer;
-	doc.print(writer);
+	doc.print(writer, STR(""), format_default, get_native_encoding());
 
 	CHECK(writer.contents == STR("<") + name + STR(" />\n"));
 }

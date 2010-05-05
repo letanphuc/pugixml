@@ -13,7 +13,8 @@ bool test_string_equal(const pugi::char_t* lhs, const pugi::char_t* rhs)
 bool test_node(const pugi::xml_node& node, const pugi::char_t* contents, const pugi::char_t* indent, unsigned int flags)
 {
 	xml_writer_string writer;
-	node.print(writer, indent, flags);
+
+	node.print(writer, indent, flags, get_native_encoding());
 
 	return writer.as_string() == contents;
 }
@@ -123,3 +124,11 @@ bool is_little_endian()
 	return *reinterpret_cast<char*>(&ui) == 1;
 }
 
+pugi::encoding_t get_native_encoding()
+{
+#ifdef PUGIXML_WCHAR_MODE
+	return pugi::encoding_wchar;
+#else
+	return pugi::encoding_utf8;
+#endif
+}
