@@ -2317,13 +2317,28 @@ namespace pugi
 	}
 
 #ifndef PUGIXML_NO_STL
-	xml_writer_stream::xml_writer_stream(std::ostream& stream): stream(&stream)
+	xml_writer_stream::xml_writer_stream(std::ostream& stream): narrow_stream(&stream), wide_stream(0)
+	{
+	}
+
+	xml_writer_stream::xml_writer_stream(std::wostream& stream): narrow_stream(0), wide_stream(&stream)
 	{
 	}
 
 	void xml_writer_stream::write(const void* data, size_t size)
 	{
-		stream->write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
+		if (narrow_stream)
+		{
+			assert(!wide_stream);
+			narrow_stream->write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
+		}
+		else
+		{
+			assert(wide_stream);
+			assert(size % sizeof(wchar_t) == 0);
+
+			wide_stream->write(reinterpret_cast<const wchar_t*>(data), static_cast<std::streamsize>(size / sizeof(wchar_t)));
+		}
 	}
 #endif
 
@@ -3323,6 +3338,15 @@ namespace pugi
 
 		print(writer, indent, flags, encoding, depth);
 	}
+
+	void xml_node::print(std::wostream& stream, const char_t* indent, unsigned int flags, unsigned int depth) const
+	{
+		if (!_root) return;
+
+		xml_writer_stream writer(stream);
+
+		print(writer, indent, flags, encoding_wchar, depth);
+	}
 #endif
 
 	ptrdiff_t xml_node::offset_debug() const
@@ -3597,6 +3621,33 @@ namespace pugi
 
 		return load_buffer_inplace_own(s, stream.gcount(), options, encoding); // Parse the input string.
 	}
+
+	xml_parse_result xml_document::load(std::wistream& stream, unsigned int options)
+	{
+		destroy();
+
+		if (!stream.good()) return MAKE_PARSE_RESULT(status_io_error);
+
+		std::streamoff length, pos = stream.tellg();
+		stream.seekg(0, std::ios::end);
+		length = stream.tellg();
+		stream.seekg(pos, std::ios::beg);
+
+		if (!stream.good()) return MAKE_PARSE_RESULT(status_io_error);
+
+		wchar_t* s = static_cast<wchar_t*>(global_allocate((length > 0 ? length : 1) * sizeof(wchar_t)));
+		if (!s) return MAKE_PARSE_RESULT(status_out_of_memory);
+
+		stream.read(s, length);
+
+		if (stream.gcount() > length || (length > 0 && stream.gcount() == 0))
+		{
+			global_deallocate(s);
+			return MAKE_PARSE_RESULT(status_io_error);
+		}
+
+		return load_buffer_inplace_own(s, stream.gcount() * sizeof(wchar_t), options, encoding_wchar); // Parse the input string.
+	}
 #endif
 
 	xml_parse_result xml_document::load(const char_t* contents, unsigned int options)
@@ -3724,6 +3775,22 @@ namespace pugi
 
 		node_output(buffered_writer, *this, indent, flags, 0);
 	}
+
+#ifndef PUGIXML_NO_STL
+	void xml_document::save(std::ostream& stream, const char_t* indent, unsigned int flags, encoding_t encoding) const
+	{
+		xml_writer_stream writer(stream);
+
+		save(writer, indent, flags, encoding);
+	}
+
+	void xml_document::save(std::wostream& stream, const char_t* indent, unsigned int flags) const
+	{
+		xml_writer_stream writer(stream);
+
+		save(writer, indent, flags, encoding_wchar);
+	}
+#endif
 
 	bool xml_document::save_file(const char* name, const char_t* indent, unsigned int flags, encoding_t encoding) const
 	{
