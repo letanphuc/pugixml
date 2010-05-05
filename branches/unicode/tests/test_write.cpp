@@ -105,6 +105,14 @@ TEST_XML(write_print_stream_encode, "<n/>")
 
 	CHECK(oss.str() == std::string("\x00<\x00n\x00 \x00/\x00>\x00\n", 12));
 }
+
+TEST_XML(write_print_stream_wide, "<node/>")
+{
+	std::wostringstream oss;
+	doc.print(oss, STR(""), format_default, encoding_utf8);
+
+	CHECK(oss.str() == L"<node />\n");
+}
 #endif
 
 TEST_XML(write_huge_chunk, "<node/>")

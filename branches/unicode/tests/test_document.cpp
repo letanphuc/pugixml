@@ -70,6 +70,15 @@ TEST(document_load_stream_error)
 	std::istringstream iss("<node/>");
 	CHECK(doc.load(iss).status == status_out_of_memory);
 }
+
+TEST(document_load_stream_wide)
+{
+	pugi::xml_document doc;
+
+	std::wistringstream iss(L"<node/>");
+	CHECK(doc.load(iss));
+	CHECK_NODE(doc, STR("<node />"));
+}
 #endif
 
 TEST(document_load_string)
@@ -133,6 +142,24 @@ TEST_XML(document_save, "<node/>")
 	doc.save(writer, STR(""), pugi::format_no_declaration | pugi::format_raw);
 
 	CHECK(writer.as_string() == STR("<node />"));
+}
+
+TEST_XML(document_save_stream, "<node/>")
+{
+	std::ostringstream oss;
+
+	doc.save(oss, STR(""), pugi::format_no_declaration | pugi::format_raw);
+
+	CHECK(oss.str() == "<node />");
+}
+
+TEST_XML(document_save_stream_wide, "<node/>")
+{
+	std::wostringstream oss;
+
+	doc.save(oss, STR(""), pugi::format_no_declaration | pugi::format_raw);
+
+	CHECK(oss.str() == L"<node />");
 }
 
 TEST_XML(document_save_bom, "<n/>")
