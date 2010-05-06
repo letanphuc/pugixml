@@ -213,3 +213,61 @@ TEST(write_unicode_escape)
 
 	CHECK(write_narrow(doc, format_default, encoding_utf8) == "<\xE2\x82\xAC \xC2\xA2=\"&quot;\xF0\xA4\xAD\xA2&#10;&quot;\">&amp;&#20;\xF0\xA4\xAD\xA2&lt;</\xE2\x82\xAC>\n");
 }
+
+#ifdef PUGIXML_WCHAR_MODE
+bool test_write_unicode_invalid(const wchar_t* name, const char* expected)
+{
+	xml_document doc;
+	doc.append_child(node_pcdata).set_value(name);
+
+	return write_narrow(doc, format_raw, encoding_wchar) == expected;
+}
+
+TEST(write_unicode_invalid_utf16)
+{
+	// check non-terminated degenerate handling
+#ifdef U_LITERALS
+	CHECK(test_write_unicode_invalid(L"a\uda1d", "a"));
+#else
+	CHECK(test_write_unicode_invalid(L"a\xda1d", "a"));
+#endif
+
+	// check incorrect leading code
+#ifdef U_LITERALS
+	CHECK(test_write_unicode_invalid(L"a\ude24_", "a_"));
+#else
+	CHECK(test_write_unicode_invalid(L"a\xde24_", "a_"));
+#endif
+}
+#else
+bool test_write_unicode_invalid(const char* name, const wchar_t* expected)
+{
+	xml_document doc;
+	doc.append_child(node_pcdata).set_value(name);
+
+	return write_wide(doc, format_raw, encoding_wchar) == expected;
+}
+
+TEST(write_unicode_invalid_utf8)
+{
+	// invalid 1-byte input
+	CHECK(test_write_unicode_invalid("a\xb0", L"a"));
+
+	// invalid 2-byte input
+	CHECK(test_write_unicode_invalid("a\xc0", L"a"));
+	CHECK(test_write_unicode_invalid("a\xd0", L"a"));
+
+	// invalid 3-byte input
+	CHECK(test_write_unicode_invalid("a\xe2\x80", L"a"));
+	CHECK(test_write_unicode_invalid("a\xe2", L"a"));
+
+	// invalid 4-byte input
+	CHECK(test_write_unicode_invalid("a\xf2\x97\x98", L"a"));
+	CHECK(test_write_unicode_invalid("a\xf2\x97", L"a"));
+	CHECK(test_write_unicode_invalid("a\xf2", L"a"));
+
+	// invalid 5-byte input
+	CHECK(test_write_unicode_invalid("a\xf8_", L"a_"));
+}
+
+#endif
