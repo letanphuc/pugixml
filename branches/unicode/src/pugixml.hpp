@@ -2181,20 +2181,20 @@ namespace pugi
 
 #ifndef PUGIXML_NO_STL
 	/**
-	 * Convert utf16 to utf8
+	 * Convert wide string to utf8
 	 *
-	 * \param str - input UTF16 string
+	 * \param str - input wide string string
 	 * \return output UTF8 string
 	 */
 	std::basic_string<char, std::char_traits<char>, std::allocator<char> > PUGIXML_FUNCTION as_utf8(const wchar_t* str);
 	
 	/**
-	 * Convert utf8 to utf16
+	 * Convert utf8 to wide string
 	 *
 	 * \param str - input UTF8 string
-	 * \return output UTF16 string
+	 * \return output wide string string
 	 */
-	std::basic_string<wchar_t, std::char_traits<wchar_t>, std::allocator<wchar_t> > PUGIXML_FUNCTION as_utf16(const char* str);
+	std::basic_string<wchar_t, std::char_traits<wchar_t>, std::allocator<wchar_t> > PUGIXML_FUNCTION as_wide(const char* str);
 #endif
 
 	/**
@@ -2222,7 +2222,7 @@ namespace pugi
      * \param allocate - allocation function
      * \param deallocate - deallocation function
      * 
-     * \note XPath-related allocations, as well as allocations in functions that return std::string (xml_node::path, as_utf8, as_utf16)
+     * \note XPath-related allocations, as well as allocations in functions that return std::string (xml_node::path, as_utf8, as_wide)
      * are not performed via these functions.
      * \note If you're using parse() with ownership transfer, you have to allocate the buffer you pass to parse() with allocation
      * function you set via this function.
