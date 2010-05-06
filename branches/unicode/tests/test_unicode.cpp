@@ -42,9 +42,9 @@ TEST(as_utf16_invalid)
 {
 	// invalid 1-byte input
 	CHECK(as_utf16("a\xb0") == L"a");
-	CHECK(as_utf16("a\xc0") == L"a");
 
 	// invalid 2-byte input
+	CHECK(as_utf16("a\xc0") == L"a");
 	CHECK(as_utf16("a\xd0") == L"a");
 
 	// invalid 3-byte input
@@ -109,15 +109,22 @@ TEST(as_utf8_valid_astral)
 
 TEST(as_utf8_invalid)
 {
-	// check non-terminated degenerate handling
 	size_t wcharsize = sizeof(wchar_t);
 
 	if (wcharsize == 2)
 	{
+		// check non-terminated degenerate handling
 	#ifdef U_LITERALS
 		CHECK(as_utf8(L"a\uda1d") == "a");
 	#else
 		CHECK(as_utf8(L"a\xda1d") == "a");
+	#endif
+
+		// check incorrect leading code
+	#ifdef U_LITERALS
+		CHECK(as_utf8(L"a\ude24_") == "a_");
+	#else
+		CHECK(as_utf8(L"a\xde24_") == "a_");
 	#endif
 	}
 }
