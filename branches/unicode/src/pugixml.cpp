@@ -629,7 +629,9 @@ namespace
 		// second pass: convert utf8 input to wchar_t
 		impl::wchar_writer::value_type out_begin = reinterpret_cast<impl::wchar_writer::value_type>(out_buffer);
 		impl::wchar_writer::value_type out_end = impl::decode_utf8_block<impl::wchar_writer>(data, size, out_begin);
+
 		assert(out_end == out_begin + out_length);
+		(void)!out_end;
 
 		return true;
 	}
@@ -649,7 +651,9 @@ namespace
 		// second pass: convert utf16 input to wchar_t
 		impl::wchar_writer::value_type out_begin = reinterpret_cast<impl::wchar_writer::value_type>(out_buffer);
 		impl::wchar_writer::value_type out_end = impl::decode_utf16_block<impl::wchar_writer>(data, length, out_begin, opt1());
+
 		assert(out_end == out_begin + out_length);
+		(void)!out_end;
 
 		return true;
 	}
@@ -669,7 +673,9 @@ namespace
 		// second pass: convert utf32 input to wchar_t
 		impl::wchar_writer::value_type out_begin = reinterpret_cast<impl::wchar_writer::value_type>(out_buffer);
 		impl::wchar_writer::value_type out_end = impl::decode_utf32_block<impl::wchar_writer>(data, length, out_begin, opt1());
+
 		assert(out_end == out_begin + out_length);
+		(void)!out_end;
 
 		return true;
 	}
@@ -732,7 +738,9 @@ namespace
 		// second pass: convert utf16 input to utf8
 		impl::char8_t* out_begin = reinterpret_cast<impl::char8_t*>(out_buffer);
 		impl::char8_t* out_end = impl::decode_utf16_block<impl::utf8_writer>(data, length, out_begin, opt1());
+
 		assert(out_end == out_begin + out_length);
+		(void)!out_end;
 
 		return true;
 	}
@@ -752,7 +760,9 @@ namespace
 		// second pass: convert utf32 input to utf8
 		impl::char8_t* out_begin = reinterpret_cast<impl::char8_t*>(out_buffer);
 		impl::char8_t* out_end = impl::decode_utf32_block<impl::utf8_writer>(data, length, out_begin, opt1());
+
 		assert(out_end == out_begin + out_length);
+		(void)!out_end;
 
 		return true;
 	}
