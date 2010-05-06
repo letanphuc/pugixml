@@ -3826,12 +3826,17 @@ namespace pugi
 		result.resize(size);
 
 		// second pass: convert to utf8
-		impl::char8_t* dest = size > 0 ? reinterpret_cast<impl::char8_t*>(&result[0]) : 0;
-
-		sizeof(wchar_t) == 2 ?
-			impl::decode_utf16_block<impl::utf8_writer>(reinterpret_cast<const impl::char16_t*>(str), length, dest, 0, opt1_to_type<false>()) :
-			impl::decode_utf32_block<impl::utf8_writer>(reinterpret_cast<const impl::char32_t*>(str), length, dest, opt1_to_type<false>());
+		if (size > 0)
+		{
+			impl::char8_t* begin = reinterpret_cast<impl::char8_t*>(&result[0]);
+			impl::char8_t* end = sizeof(wchar_t) == 2 ?
+				impl::decode_utf16_block<impl::utf8_writer>(reinterpret_cast<const impl::char16_t*>(str), length, begin, 0, opt1_to_type<false>()) :
+				impl::decode_utf32_block<impl::utf8_writer>(reinterpret_cast<const impl::char32_t*>(str), length, begin, opt1_to_type<false>());
 	  	
+			// truncate invalid output
+			result.resize(end - begin);
+		}
+
 	  	return result;
 	}
 	
@@ -3848,7 +3853,14 @@ namespace pugi
 		result.resize(length);
 
 		// second pass: convert to wchar_t
-		if (length > 0) impl::decode_utf8_block<impl::wchar_writer>(data, size, reinterpret_cast<impl::wchar_writer::value_type>(&result[0]), 0);
+		if (length > 0)
+		{
+			impl::wchar_writer::value_type begin = reinterpret_cast<impl::wchar_writer::value_type>(&result[0]);
+			impl::wchar_writer::value_type end = impl::decode_utf8_block<impl::wchar_writer>(data, size, begin, 0);
+
+			// truncate invalid output
+			result.resize(end - begin);
+		}
 
 		return result;
 	}
