@@ -3834,7 +3834,8 @@ namespace pugi
 				impl::decode_utf32_block<impl::utf8_writer>(reinterpret_cast<const impl::char32_t*>(str), length, begin, opt1_to_type<false>());
 	  	
 			// truncate invalid output
-			result.resize(end - begin);
+			assert(begin <= end && static_cast<size_t>(end - begin) <= result.size());
+			result.resize(static_cast<size_t>(end - begin));
 		}
 
 	  	return result;
@@ -3859,7 +3860,8 @@ namespace pugi
 			impl::wchar_writer::value_type end = impl::decode_utf8_block<impl::wchar_writer>(data, size, begin, 0);
 
 			// truncate invalid output
-			result.resize(end - begin);
+			assert(begin <= end && static_cast<size_t>(end - begin) <= result.size());
+			result.resize(static_cast<size_t>(end - begin));
 		}
 
 		return result;
