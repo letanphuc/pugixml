@@ -244,23 +244,28 @@ static bool test_write_unicode_invalid(const wchar_t* name, const char* expected
 
 TEST(write_unicode_invalid_utf16)
 {
-	// check non-terminated degenerate handling
-#ifdef U_LITERALS
-	CHECK(test_write_unicode_invalid(L"a\uda1d", "a"));
-	CHECK(test_write_unicode_invalid(L"a\uda1d_", "a_"));
-#else
-	CHECK(test_write_unicode_invalid(L"a\xda1d", "a"));
-	CHECK(test_write_unicode_invalid(L"a\xda1d_", "a_"));
-#endif
+	size_t wcharsize = sizeof(wchar_t);
 
-	// check incorrect leading code
-#ifdef U_LITERALS
-	CHECK(test_write_unicode_invalid(L"a\ude24", "a"));
-	CHECK(test_write_unicode_invalid(L"a\ude24_", "a_"));
-#else
-	CHECK(test_write_unicode_invalid(L"a\xde24", "a"));
-	CHECK(test_write_unicode_invalid(L"a\xde24_", "a_"));
-#endif
+	if (wcharsize == 2)
+	{
+		// check non-terminated degenerate handling
+	#ifdef U_LITERALS
+		CHECK(test_write_unicode_invalid(L"a\uda1d", "a"));
+		CHECK(test_write_unicode_invalid(L"a\uda1d_", "a_"));
+	#else
+		CHECK(test_write_unicode_invalid(L"a\xda1d", "a"));
+		CHECK(test_write_unicode_invalid(L"a\xda1d_", "a_"));
+	#endif
+
+		// check incorrect leading code
+	#ifdef U_LITERALS
+		CHECK(test_write_unicode_invalid(L"a\ude24", "a"));
+		CHECK(test_write_unicode_invalid(L"a\ude24_", "a_"));
+	#else
+		CHECK(test_write_unicode_invalid(L"a\xde24", "a"));
+		CHECK(test_write_unicode_invalid(L"a\xde24_", "a_"));
+	#endif
+	}
 }
 #else
 static bool test_write_unicode_invalid(const char* name, const wchar_t* expected)
