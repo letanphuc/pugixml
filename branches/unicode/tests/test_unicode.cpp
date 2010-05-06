@@ -6,20 +6,23 @@
 
 // letters taken from http://www.utf8-chartable.de/
 
-TEST(as_utf16)
+TEST(as_utf16_empty)
 {
 	CHECK(as_utf16("") == L"");
+}
 
+TEST(as_utf16_valid_basic)
+{
 	// valid 1-byte, 2-byte and 3-byte inputs
 #ifdef U_LITERALS
 	CHECK(as_utf16("?\xd0\x80\xe2\x80\xbd") == L"?\u0400\u203D");
 #else
 	CHECK(as_utf16("?\xd0\x80\xe2\x80\xbd") == L"?\x0400\x203D");
 #endif
+}
 
-	// invalid 1-byte input
-	CHECK(as_utf16("\xb0") == L"");
-	
+TEST(as_utf16_valid_astral)
+{
 	// valid 4-byte input
 	std::wstring b4 = as_utf16("\xf2\x97\x98\xa4 \xf4\x80\x8f\xbf");
 
@@ -33,23 +36,54 @@ TEST(as_utf16)
 	{
 		CHECK(b4.size() == 5 && b4[0] == 0xda1d && b4[1] == 0xde24 && b4[2] == L' ' && b4[3] == 0xdbc0 && b4[4] == 0xdfff);
 	}
+}
+
+TEST(as_utf16_invalid)
+{
+	// invalid 1-byte input
+	CHECK(as_utf16("a\xb0") == L"a");
+	CHECK(as_utf16("a\xc0") == L"a");
+
+	// invalid 2-byte input
+	CHECK(as_utf16("a\xd0") == L"a");
+
+	// invalid 3-byte input
+	CHECK(as_utf16("a\xe2\x80") == L"a");
+	CHECK(as_utf16("a\xe2") == L"a");
+
+	// invalid 4-byte input
+	CHECK(as_utf16("a\xf2\x97\x98") == L"a");
+	CHECK(as_utf16("a\xf2\x97") == L"a");
+	CHECK(as_utf16("a\xf2") == L"a");
 
 	// invalid 5-byte input
 	std::wstring b5 = as_utf16("\xf8\nbcd");
 	CHECK(b5 == L"\nbcd");
 }
 
-TEST(as_utf8)
+TEST(as_utf16_invalid_recovery)
+{
+	// recovery after invalid symbols
+	CHECK(as_utf16("a\xb0_e") == L"a_e");
+}
+
+TEST(as_utf8_empty)
 {
 	CHECK(as_utf8(L"") == "");
+}
 
+TEST(as_utf8_valid_basic)
+{
 	// valid 1-byte, 2-byte and 3-byte outputs
 #ifdef U_LITERALS
 	CHECK(as_utf8(L"?\u0400\u203D") == "?\xd0\x80\xe2\x80\xbd");
 #else
 	CHECK(as_utf8(L"?\x0400\x203D") == "?\xd0\x80\xe2\x80\xbd");
 #endif
-	
+}
+
+TEST(as_utf8_valid_astral)
+{
 	// valid 4-byte output
 	size_t wcharsize = sizeof(wchar_t);
 
@@ -69,6 +103,21 @@ TEST(as_utf8)
 		CHECK(as_utf8(L"\uda1d\ude24 \udbc0\udfff") == "\xf2\x97\x98\xa4 \xf4\x80\x8f\xbf");
 	#else
 		CHECK(as_utf8(L"\xda1d\xde24 \xdbc0\xdfff") == "\xf2\x97\x98\xa4 \xf4\x80\x8f\xbf");
+	#endif
+	}
+}
+
+TEST(as_utf8_invalid)
+{
+	// check non-terminated degenerate handling
+	size_t wcharsize = sizeof(wchar_t);
+
+	if (wcharsize == 2)
+	{
+	#ifdef U_LITERALS
+		CHECK(as_utf8(L"a\uda1d") == "a");
+	#else
+		CHECK(as_utf8(L"a\xda1d") == "a");
 	#endif
 	}
 }
