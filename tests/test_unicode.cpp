@@ -6,25 +6,25 @@
 
 // letters taken from http://www.utf8-chartable.de/
 
-TEST(as_utf16_empty)
+TEST(as_wide_empty)
 {
-	CHECK(as_utf16("") == L"");
+	CHECK(as_wide("") == L"");
 }
 
-TEST(as_utf16_valid_basic)
+TEST(as_wide_valid_basic)
 {
 	// valid 1-byte, 2-byte and 3-byte inputs
 #ifdef U_LITERALS
-	CHECK(as_utf16("?\xd0\x80\xe2\x80\xbd") == L"?\u0400\u203D");
+	CHECK(as_wide("?\xd0\x80\xe2\x80\xbd") == L"?\u0400\u203D");
 #else
-	CHECK(as_utf16("?\xd0\x80\xe2\x80\xbd") == L"?\x0400\x203D");
+	CHECK(as_wide("?\xd0\x80\xe2\x80\xbd") == L"?\x0400\x203D");
 #endif
 }
 
-TEST(as_utf16_valid_astral)
+TEST(as_wide_valid_astral)
 {
 	// valid 4-byte input
-	std::wstring b4 = as_utf16("\xf2\x97\x98\xa4 \xf4\x80\x8f\xbf");
+	std::wstring b4 = as_wide("\xf2\x97\x98\xa4 \xf4\x80\x8f\xbf");
 
 	size_t wcharsize = sizeof(wchar_t);
 
@@ -38,34 +38,34 @@ TEST(as_utf16_valid_astral)
 	}
 }
 
-TEST(as_utf16_invalid)
+TEST(as_wide_invalid)
 {
 	// invalid 1-byte input
-	CHECK(as_utf16("a\xb0") == L"a");
-	CHECK(as_utf16("a\xb0_") == L"a_");
+	CHECK(as_wide("a\xb0") == L"a");
+	CHECK(as_wide("a\xb0_") == L"a_");
 
 	// invalid 2-byte input
-	CHECK(as_utf16("a\xc0") == L"a");
-	CHECK(as_utf16("a\xd0") == L"a");
-	CHECK(as_utf16("a\xc0_") == L"a_");
-	CHECK(as_utf16("a\xd0_") == L"a_");
+	CHECK(as_wide("a\xc0") == L"a");
+	CHECK(as_wide("a\xd0") == L"a");
+	CHECK(as_wide("a\xc0_") == L"a_");
+	CHECK(as_wide("a\xd0_") == L"a_");
 
 	// invalid 3-byte input
-	CHECK(as_utf16("a\xe2\x80") == L"a");
-	CHECK(as_utf16("a\xe2") == L"a");
-	CHECK(as_utf16("a\xe2\x80_") == L"a_");
-	CHECK(as_utf16("a\xe2_") == L"a_");
+	CHECK(as_wide("a\xe2\x80") == L"a");
+	CHECK(as_wide("a\xe2") == L"a");
+	CHECK(as_wide("a\xe2\x80_") == L"a_");
+	CHECK(as_wide("a\xe2_") == L"a_");
 
 	// invalid 4-byte input
-	CHECK(as_utf16("a\xf2\x97\x98") == L"a");
-	CHECK(as_utf16("a\xf2\x97") == L"a");
-	CHECK(as_utf16("a\xf2") == L"a");
-	CHECK(as_utf16("a\xf2\x97\x98_") == L"a_");
-	CHECK(as_utf16("a\xf2\x97_") == L"a_");
-	CHECK(as_utf16("a\xf2_") == L"a_");
+	CHECK(as_wide("a\xf2\x97\x98") == L"a");
+	CHECK(as_wide("a\xf2\x97") == L"a");
+	CHECK(as_wide("a\xf2") == L"a");
+	CHECK(as_wide("a\xf2\x97\x98_") == L"a_");
+	CHECK(as_wide("a\xf2\x97_") == L"a_");
+	CHECK(as_wide("a\xf2_") == L"a_");
 
 	// invalid 5-byte input
-	std::wstring b5 = as_utf16("\xf8\nbcd");
+	std::wstring b5 = as_wide("\xf8\nbcd");
 	CHECK(b5 == L"\nbcd");
 }
 

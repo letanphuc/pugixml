@@ -3878,7 +3878,7 @@ namespace pugi
 	  	return result;
 	}
 	
-	std::wstring PUGIXML_FUNCTION as_utf16(const char* str)
+	std::wstring PUGIXML_FUNCTION as_wide(const char* str)
 	{
 		const impl::char8_t* data = reinterpret_cast<const impl::char8_t*>(str);
 		size_t size = strlen(str);
