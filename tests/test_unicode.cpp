@@ -42,29 +42,31 @@ TEST(as_utf16_invalid)
 {
 	// invalid 1-byte input
 	CHECK(as_utf16("a\xb0") == L"a");
+	CHECK(as_utf16("a\xb0_") == L"a_");
 
 	// invalid 2-byte input
 	CHECK(as_utf16("a\xc0") == L"a");
 	CHECK(as_utf16("a\xd0") == L"a");
+	CHECK(as_utf16("a\xc0_") == L"a_");
+	CHECK(as_utf16("a\xd0_") == L"a_");
 
 	// invalid 3-byte input
 	CHECK(as_utf16("a\xe2\x80") == L"a");
 	CHECK(as_utf16("a\xe2") == L"a");
+	CHECK(as_utf16("a\xe2\x80_") == L"a_");
+	CHECK(as_utf16("a\xe2_") == L"a_");
 
 	// invalid 4-byte input
 	CHECK(as_utf16("a\xf2\x97\x98") == L"a");
 	CHECK(as_utf16("a\xf2\x97") == L"a");
 	CHECK(as_utf16("a\xf2") == L"a");
+	CHECK(as_utf16("a\xf2\x97\x98_") == L"a_");
+	CHECK(as_utf16("a\xf2\x97_") == L"a_");
+	CHECK(as_utf16("a\xf2_") == L"a_");
 
 	// invalid 5-byte input
 	std::wstring b5 = as_utf16("\xf8\nbcd");
 	CHECK(b5 == L"\nbcd");
-}
-
-TEST(as_utf16_invalid_recovery)
-{
-	// recovery after invalid symbols
-	CHECK(as_utf16("a\xb0_e") == L"a_e");
 }
 
 TEST(as_utf8_empty)
@@ -116,14 +118,18 @@ TEST(as_utf8_invalid)
 		// check non-terminated degenerate handling
 	#ifdef U_LITERALS
 		CHECK(as_utf8(L"a\uda1d") == "a");
+		CHECK(as_utf8(L"a\uda1d_") == "a_");
 	#else
 		CHECK(as_utf8(L"a\xda1d") == "a");
+		CHECK(as_utf8(L"a\xda1d_") == "a_");
 	#endif
 
 		// check incorrect leading code
 	#ifdef U_LITERALS
+		CHECK(as_utf8(L"a\ude24") == "a");
 		CHECK(as_utf8(L"a\ude24_") == "a_");
 	#else
+		CHECK(as_utf8(L"a\xde24") == "a");
 		CHECK(as_utf8(L"a\xde24_") == "a_");
 	#endif
 	}

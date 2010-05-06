@@ -201,17 +201,14 @@ namespace pugi
 		typedef wchar_selector<sizeof(wchar_t)>::counter wchar_counter;
 		typedef wchar_selector<sizeof(wchar_t)>::writer wchar_writer;
 
-		template <typename Traits> static inline typename Traits::value_type decode_utf8_block(const char8_t* data, size_t size, typename Traits::value_type result, size_t* valid_size)
+		template <typename Traits> static inline typename Traits::value_type decode_utf8_block(const char8_t* data, size_t size, typename Traits::value_type result)
 		{
 			const char8_t utf8_byte_mask = 0x3f;
 
 			const char8_t* end = data + size;
-			const char8_t* prev = data;
 
 			while (data < end)
 			{
-				prev = data;
-
 				char8_t lead = *data;
 
 				// 0xxxxxxx -> U+0000..U+007F
@@ -221,19 +218,19 @@ namespace pugi
 					data += 1;
 				}
 				// 110xxxxx -> U+0080..U+07FF
-				else if ((unsigned)(lead - 0xC0) < 0x20)
+				else if ((unsigned)(lead - 0xC0) < 0x20 && data + 1 < end && (data[1] & 0xc0) == 0x80)
 				{
 					result = Traits::low(result, ((lead & ~0xC0) << 6) | (data[1] & utf8_byte_mask));
 					data += 2;
 				}
 				// 1110xxxx -> U+0800-U+FFFF
-				else if ((unsigned)(lead - 0xE0) < 0x10)
+				else if ((unsigned)(lead - 0xE0) < 0x10 && data + 2 < end && (data[1] & 0xc0) == 0x80 && (data[2] & 0xc0) == 0x80)
 				{
 					result = Traits::low(result, ((lead & ~0xE0) << 12) | ((data[1] & utf8_byte_mask) << 6) | (data[2] & utf8_byte_mask));
 					data += 3;
 				}
 				// 11110xxx -> U+10000..U+10FFFF
-				else if ((unsigned)(lead - 0xF0) < 0x08)
+				else if ((unsigned)(lead - 0xF0) < 0x08 && data + 3 < end && (data[1] & 0xc0) == 0x80 && (data[2] & 0xc0) == 0x80 && (data[3] & 0xc0) == 0x80)
 				{
 					result = Traits::high(result, ((lead & ~0xF0) << 18) | ((data[1] & utf8_byte_mask) << 12) | ((data[2] & utf8_byte_mask) << 6) | (data[3] & utf8_byte_mask));
 					data += 4;
@@ -245,26 +242,17 @@ namespace pugi
 				}
 			}
 
-			if (data != end && valid_size)
-			{
-				// discard last codepoint
-				*valid_size = prev - (end - size);
-			}
-
 			return result;
 		}
 
-		template <typename Traits, typename opt1> static inline typename Traits::value_type decode_utf16_block(const char16_t* data, size_t size, typename Traits::value_type result, size_t* valid_size, opt1)
+		template <typename Traits, typename opt1> static inline typename Traits::value_type decode_utf16_block(const char16_t* data, size_t size, typename Traits::value_type result, opt1)
 		{
 			const bool swap = opt1::o1;
 
 			const char16_t* end = data + size;
-			const char16_t* prev = data;
 
 			while (data < end)
 			{
-				prev = data;
-
 				char16_t lead = swap ? endian_swap(*data) : *data;
 
 				// U+0000..U+D7FF
@@ -280,23 +268,24 @@ namespace pugi
 					data += 1;
 				}
 				// surrogate pair lead
-				else if ((unsigned)(lead - 0xD800) < 0x400)
+				else if ((unsigned)(lead - 0xD800) < 0x400 && data + 1 < end)
 				{
 					char16_t next = swap ? endian_swap(data[1]) : data[1];
 
-					result = Traits::high(result, 0x10000 + ((lead & 0x3ff) << 10) + (next & 0x3ff));
-					data += 2;
+					if ((unsigned)(next - 0xDC00) < 0x400)
+					{
+						result = Traits::high(result, 0x10000 + ((lead & 0x3ff) << 10) + (next & 0x3ff));
+						data += 2;
+					}
+					else
+					{
+						data += 1;
+					}
 				}
 				else
 				{
 					data += 1;
 				}
-			}
-
-			if (data != end && valid_size)
-			{
-				// discard last codepoint
-				*valid_size = prev - (end - size);
 			}
 
 			return result;

@@ -619,17 +619,17 @@ namespace
 	{
 		const impl::char8_t* data = static_cast<const impl::char8_t*>(contents);
 
-		// first pass: get length in wchar_t units, correct input size if input sequence ends prematurely
-		out_length = impl::decode_utf8_block<impl::wchar_counter>(data, size, 0, &size);
+		// first pass: get length in wchar_t units
+		out_length = impl::decode_utf8_block<impl::wchar_counter>(data, size, 0);
 
-		// allocate buffer of suitable length and set last two symbols to zero (no garbage if input sequence ends prematurely)
+		// allocate buffer of suitable length
 		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
 		if (!out_buffer) return false;
 
-		out_buffer[out_length > 0 ? out_length - 1 : 0] = out_buffer[out_length > 1 ? out_length - 2 : 0] = 0;
-
 		// second pass: convert utf8 input to wchar_t
-		impl::decode_utf8_block<impl::wchar_writer>(data, size, reinterpret_cast<impl::wchar_writer::value_type>(out_buffer), 0);
+		impl::wchar_writer::value_type out_begin = reinterpret_cast<impl::wchar_writer::value_type>(out_buffer);
+		impl::wchar_writer::value_type out_end = impl::decode_utf8_block<impl::wchar_writer>(data, size, out_begin);
+		assert(out_end == out_begin + out_length);
 
 		return true;
 	}
@@ -639,17 +639,17 @@ namespace
 		const impl::char16_t* data = static_cast<const impl::char16_t*>(contents);
 		size_t length = size / sizeof(impl::char16_t);
 
-		// first pass: get length in wchar_t units, correct input size if input sequence ends prematurely
-		out_length = impl::decode_utf16_block<impl::wchar_counter>(data, length, 0, &length, opt1());
+		// first pass: get length in wchar_t units
+		out_length = impl::decode_utf16_block<impl::wchar_counter>(data, length, 0, opt1());
 
-		// allocate buffer of suitable length and set last two symbols to zero (no garbage if input sequence ends prematurely)
+		// allocate buffer of suitable length
 		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
 		if (!out_buffer) return false;
 
-		out_buffer[out_length > 0 ? out_length - 1 : 0] = out_buffer[out_length > 1 ? out_length - 2 : 0] = 0;
-
 		// second pass: convert utf16 input to wchar_t
-		impl::decode_utf16_block<impl::wchar_writer>(data, length, reinterpret_cast<impl::wchar_writer::value_type>(out_buffer), 0, opt1());
+		impl::wchar_writer::value_type out_begin = reinterpret_cast<impl::wchar_writer::value_type>(out_buffer);
+		impl::wchar_writer::value_type out_end = impl::decode_utf16_block<impl::wchar_writer>(data, length, out_begin, opt1());
+		assert(out_end == out_begin + out_length);
 
 		return true;
 	}
@@ -667,7 +667,9 @@ namespace
 		if (!out_buffer) return false;
 
 		// second pass: convert utf32 input to wchar_t
-		impl::decode_utf32_block<impl::wchar_writer>(data, length, reinterpret_cast<impl::wchar_writer::value_type>(out_buffer), opt1());
+		impl::wchar_writer::value_type out_begin = reinterpret_cast<impl::wchar_writer::value_type>(out_buffer);
+		impl::wchar_writer::value_type out_end = impl::decode_utf32_block<impl::wchar_writer>(data, length, out_begin, opt1());
+		assert(out_end == out_begin + out_length);
 
 		return true;
 	}
@@ -720,18 +722,17 @@ namespace
 		const impl::char16_t* data = static_cast<const impl::char16_t*>(contents);
 		size_t length = size / sizeof(impl::char16_t);
 
-		// first pass: get length in utf8 units, correct input size if input sequence ends prematurely
-		out_length = impl::decode_utf16_block<impl::utf8_counter>(data, length, 0, &length, opt1());
+		// first pass: get length in utf8 units
+		out_length = impl::decode_utf16_block<impl::utf8_counter>(data, length, 0, opt1());
 
-		// allocate buffer of suitable length and set last four symbols to zero (no garbage if input sequence ends prematurely)
+		// allocate buffer of suitable length
 		out_buffer = static_cast<char_t*>(global_allocate((out_length > 0 ? out_length : 1) * sizeof(char_t)));
 		if (!out_buffer) return false;
 
-		out_buffer[out_length > 0 ? out_length - 1 : 0] = out_buffer[out_length > 1 ? out_length - 2 : 0] = 0;
-		out_buffer[out_length > 2 ? out_length - 3 : 0] = out_buffer[out_length > 3 ? out_length - 4 : 0] = 0;
-
 		// second pass: convert utf16 input to utf8
-		impl::decode_utf16_block<impl::utf8_writer>(data, length, reinterpret_cast<impl::char8_t*>(out_buffer), 0, opt1());
+		impl::char8_t* out_begin = reinterpret_cast<impl::char8_t*>(out_buffer);
+		impl::char8_t* out_end = impl::decode_utf16_block<impl::utf8_writer>(data, length, out_begin, opt1());
+		assert(out_end == out_begin + out_length);
 
 		return true;
 	}
@@ -749,7 +750,9 @@ namespace
 		if (!out_buffer) return false;
 
 		// second pass: convert utf32 input to utf8
-		impl::decode_utf32_block<impl::utf8_writer>(data, length, reinterpret_cast<impl::char8_t*>(out_buffer), opt1());
+		impl::char8_t* out_begin = reinterpret_cast<impl::char8_t*>(out_buffer);
+		impl::char8_t* out_end = impl::decode_utf32_block<impl::utf8_writer>(data, length, out_begin, opt1());
+		assert(out_end == out_begin + out_length);
 
 		return true;
 	}
@@ -1802,7 +1805,7 @@ namespace
 			impl::char8_t* dest = reinterpret_cast<impl::char8_t*>(result);
 
 			impl::char8_t* end = sizeof(wchar_t) == 2 ?
-				impl::decode_utf16_block<impl::utf8_writer>(reinterpret_cast<const impl::char16_t*>(data), length, dest, 0, opt1_to_type<false>()) :
+				impl::decode_utf16_block<impl::utf8_writer>(reinterpret_cast<const impl::char16_t*>(data), length, dest, opt1_to_type<false>()) :
 				impl::decode_utf32_block<impl::utf8_writer>(reinterpret_cast<const impl::char32_t*>(data), length, dest, opt1_to_type<false>());
 
 			return static_cast<size_t>(end - dest);
@@ -1830,7 +1833,7 @@ namespace
 			impl::char32_t* dest = reinterpret_cast<impl::char32_t*>(result);
 
 			// convert to native utf32
-			impl::char32_t* end = impl::decode_utf16_block<impl::utf32_writer>(reinterpret_cast<const impl::char16_t*>(data), length, dest, 0, opt1_to_type<false>());
+			impl::char32_t* end = impl::decode_utf16_block<impl::utf32_writer>(reinterpret_cast<const impl::char16_t*>(data), length, dest, opt1_to_type<false>());
 
 			// swap if necessary
 			encoding_t native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
@@ -1853,7 +1856,7 @@ namespace
 			impl::char16_t* dest = reinterpret_cast<impl::char16_t*>(result);
 
 			// convert to native utf16
-			impl::char16_t* end = impl::decode_utf8_block<impl::utf16_writer>(reinterpret_cast<const impl::char8_t*>(data), length, dest, 0);
+			impl::char16_t* end = impl::decode_utf8_block<impl::utf16_writer>(reinterpret_cast<const impl::char8_t*>(data), length, dest);
 
 			// swap if necessary
 			encoding_t native_encoding = is_little_endian() ? encoding_utf16_le : encoding_utf16_be;
@@ -1868,7 +1871,7 @@ namespace
 			impl::char32_t* dest = reinterpret_cast<impl::char32_t*>(result);
 
 			// convert to native utf32
-			impl::char32_t* end = impl::decode_utf8_block<impl::utf32_writer>(reinterpret_cast<const impl::char8_t*>(data), length, dest, 0);
+			impl::char32_t* end = impl::decode_utf8_block<impl::utf32_writer>(reinterpret_cast<const impl::char8_t*>(data), length, dest);
 
 			// swap if necessary
 			encoding_t native_encoding = is_little_endian() ? encoding_utf32_le : encoding_utf32_be;
@@ -3816,9 +3819,9 @@ namespace pugi
 
 		size_t length = wcslen(str);
 
-		// first pass: get length in utf8 characters, discard invalid input
+		// first pass: get length in utf8 characters
 		size_t size = sizeof(wchar_t) == 2 ?
-			impl::decode_utf16_block<impl::utf8_counter>(reinterpret_cast<const impl::char16_t*>(str), length, 0, &length, opt1_to_type<false>()) :
+			impl::decode_utf16_block<impl::utf8_counter>(reinterpret_cast<const impl::char16_t*>(str), length, 0, opt1_to_type<false>()) :
 			impl::decode_utf32_block<impl::utf8_counter>(reinterpret_cast<const impl::char32_t*>(str), length, 0, opt1_to_type<false>());
 
 		// allocate resulting string
@@ -3830,7 +3833,7 @@ namespace pugi
 		{
 			impl::char8_t* begin = reinterpret_cast<impl::char8_t*>(&result[0]);
 			impl::char8_t* end = sizeof(wchar_t) == 2 ?
-				impl::decode_utf16_block<impl::utf8_writer>(reinterpret_cast<const impl::char16_t*>(str), length, begin, 0, opt1_to_type<false>()) :
+				impl::decode_utf16_block<impl::utf8_writer>(reinterpret_cast<const impl::char16_t*>(str), length, begin, opt1_to_type<false>()) :
 				impl::decode_utf32_block<impl::utf8_writer>(reinterpret_cast<const impl::char32_t*>(str), length, begin, opt1_to_type<false>());
 	  	
 			// truncate invalid output
@@ -3846,8 +3849,8 @@ namespace pugi
 		const impl::char8_t* data = reinterpret_cast<const impl::char8_t*>(str);
 		size_t size = strlen(str);
 
-		// first pass: get length in wchar_t, discard invalid input
-		size_t length = impl::decode_utf8_block<impl::wchar_counter>(data, size, 0, &size);
+		// first pass: get length in wchar_t
+		size_t length = impl::decode_utf8_block<impl::wchar_counter>(data, size, 0);
 
 		// allocate resulting string
 		std::wstring result;
@@ -3857,7 +3860,7 @@ namespace pugi
 		if (length > 0)
 		{
 			impl::wchar_writer::value_type begin = reinterpret_cast<impl::wchar_writer::value_type>(&result[0]);
-			impl::wchar_writer::value_type end = impl::decode_utf8_block<impl::wchar_writer>(data, size, begin, 0);
+			impl::wchar_writer::value_type end = impl::decode_utf8_block<impl::wchar_writer>(data, size, begin);
 
 			// truncate invalid output
 			assert(begin <= end && static_cast<size_t>(end - begin) <= result.size());

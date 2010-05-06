@@ -220,7 +220,7 @@ bool test_write_unicode_invalid(const wchar_t* name, const char* expected)
 	xml_document doc;
 	doc.append_child(node_pcdata).set_value(name);
 
-	return write_narrow(doc, format_raw, encoding_wchar) == expected;
+	return write_narrow(doc, format_raw, encoding_utf8) == expected;
 }
 
 TEST(write_unicode_invalid_utf16)
@@ -228,14 +228,18 @@ TEST(write_unicode_invalid_utf16)
 	// check non-terminated degenerate handling
 #ifdef U_LITERALS
 	CHECK(test_write_unicode_invalid(L"a\uda1d", "a"));
+	CHECK(test_write_unicode_invalid(L"a\uda1d_", "a_"));
 #else
 	CHECK(test_write_unicode_invalid(L"a\xda1d", "a"));
+	CHECK(test_write_unicode_invalid(L"a\xda1d_", "a_"));
 #endif
 
 	// check incorrect leading code
 #ifdef U_LITERALS
+	CHECK(test_write_unicode_invalid(L"a\ude24", "a"));
 	CHECK(test_write_unicode_invalid(L"a\ude24_", "a_"));
 #else
+	CHECK(test_write_unicode_invalid(L"a\xde24", "a"));
 	CHECK(test_write_unicode_invalid(L"a\xde24_", "a_"));
 #endif
 }
@@ -252,19 +256,27 @@ TEST(write_unicode_invalid_utf8)
 {
 	// invalid 1-byte input
 	CHECK(test_write_unicode_invalid("a\xb0", L"a"));
+	CHECK(test_write_unicode_invalid("a\xb0_", L"a_"));
 
 	// invalid 2-byte input
 	CHECK(test_write_unicode_invalid("a\xc0", L"a"));
 	CHECK(test_write_unicode_invalid("a\xd0", L"a"));
+	CHECK(test_write_unicode_invalid("a\xc0_", L"a_"));
+	CHECK(test_write_unicode_invalid("a\xd0_", L"a_"));
 
 	// invalid 3-byte input
 	CHECK(test_write_unicode_invalid("a\xe2\x80", L"a"));
 	CHECK(test_write_unicode_invalid("a\xe2", L"a"));
+	CHECK(test_write_unicode_invalid("a\xe2\x80_", L"a_"));
+	CHECK(test_write_unicode_invalid("a\xe2_", L"a_"));
 
 	// invalid 4-byte input
 	CHECK(test_write_unicode_invalid("a\xf2\x97\x98", L"a"));
 	CHECK(test_write_unicode_invalid("a\xf2\x97", L"a"));
 	CHECK(test_write_unicode_invalid("a\xf2", L"a"));
+	CHECK(test_write_unicode_invalid("a\xf2\x97\x98_", L"a_"));
+	CHECK(test_write_unicode_invalid("a\xf2\x97_", L"a_"));
+	CHECK(test_write_unicode_invalid("a\xf2_", L"a_"));
 
 	// invalid 5-byte input
 	CHECK(test_write_unicode_invalid("a\xf8_", L"a_"));
