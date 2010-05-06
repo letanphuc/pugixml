@@ -201,7 +201,7 @@ namespace pugi
 		typedef wchar_selector<sizeof(wchar_t)>::counter wchar_counter;
 		typedef wchar_selector<sizeof(wchar_t)>::writer wchar_writer;
 
-		template <typename Traits> static inline typename Traits::value_type decode_utf8_block(const char8_t* data, size_t size, typename Traits::value_type result)
+		template <typename Traits> static inline typename Traits::value_type decode_utf8_block(const char8_t* data, size_t size, typename Traits::value_type result, Traits = Traits())
 		{
 			const char8_t utf8_byte_mask = 0x3f;
 
@@ -245,7 +245,7 @@ namespace pugi
 			return result;
 		}
 
-		template <typename Traits, typename opt1> static inline typename Traits::value_type decode_utf16_block(const char16_t* data, size_t size, typename Traits::value_type result, opt1)
+		template <typename Traits, typename opt1> static inline typename Traits::value_type decode_utf16_block(const char16_t* data, size_t size, typename Traits::value_type result, opt1, Traits = Traits())
 		{
 			const bool swap = opt1::o1;
 
@@ -291,7 +291,7 @@ namespace pugi
 			return result;
 		}
 
-		template <typename Traits, typename opt1> static inline typename Traits::value_type decode_utf32_block(const char32_t* data, size_t size, typename Traits::value_type result, opt1)
+		template <typename Traits, typename opt1> static inline typename Traits::value_type decode_utf32_block(const char32_t* data, size_t size, typename Traits::value_type result, opt1, Traits = Traits())
 		{
 			const bool swap = opt1::o1;
 
