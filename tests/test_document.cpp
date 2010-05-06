@@ -323,10 +323,22 @@ TEST(document_load_file_convert_auto)
 		"tests/data/utftest_utf8_nodecl.xml"
 	};
 
+	encoding_t encodings[] =
+	{
+		encoding_utf16_be, encoding_utf16_be, encoding_utf16_be,
+		encoding_utf16_le, encoding_utf16_le, encoding_utf16_le,
+		encoding_utf32_be, encoding_utf32_be, encoding_utf32_be,
+		encoding_utf32_le, encoding_utf32_le, encoding_utf32_le,
+		encoding_utf8, encoding_utf8, encoding_utf8
+	};
+
 	for (unsigned int i = 0; i < sizeof(files) / sizeof(files[0]); ++i)
 	{
 		xml_document doc;
-		CHECK(doc.load_file(files[i]));
+		xml_parse_result res = doc.load_file(files[i]);
+
+		CHECK(res);
+		CHECK(res.encoding == encodings[i]);
 		check_utftest_document(doc);
 	}
 }
@@ -373,6 +385,7 @@ TEST(document_load_file_convert_specific)
 			if (encoding == encodings[i])
 			{
 				CHECK(res);
+				CHECK(res.encoding == encoding);
 				check_utftest_document(doc);
 			}
 			else

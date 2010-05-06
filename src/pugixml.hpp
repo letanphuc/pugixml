@@ -1780,6 +1780,9 @@ namespace pugi
 		/// Line in parser source which reported this
 		unsigned int line;
 
+		/// Source document encoding
+		encoding_t encoding;
+
 		/// Cast to bool operator
 		operator bool() const
 		{
