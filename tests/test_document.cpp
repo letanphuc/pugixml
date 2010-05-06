@@ -510,3 +510,51 @@ TEST(document_contents_preserve)
 		delete[] files[j].data;
 	}
 }
+
+bool test_parse_fail(const void* buffer, size_t size, encoding_t encoding = encoding_utf8)
+{
+	// copy buffer to heap (to enable out-of-bounds checks)
+	void* temp = malloc(size);
+	memcpy(temp, buffer, size);
+
+	// check that this parses without buffer overflows (yielding an error)
+	xml_document doc;
+	bool result = doc.load_buffer_inplace(temp, size, parse_default, encoding);
+
+	free(temp);
+
+	return !result;
+}
+
+TEST(document_convert_invalid_utf8)
+{
+	// invalid 1-byte input
+	CHECK(test_parse_fail("<\xb0", 2));
+
+	// invalid 2-byte input
+	CHECK(test_parse_fail("<\xc0", 2));
+	CHECK(test_parse_fail("<\xd0", 2));
+
+	// invalid 3-byte input
+	CHECK(test_parse_fail("<\xe2\x80", 3));
+	CHECK(test_parse_fail("<\xe2", 2));
+
+	// invalid 4-byte input
+	CHECK(test_parse_fail("<\xf2\x97\x98", 4));
+	CHECK(test_parse_fail("<\xf2\x97", 3));
+	CHECK(test_parse_fail("<\xf2", 2));
+
+	// invalid 5-byte input
+	CHECK(test_parse_fail("<\xf8", 2));
+}
+
+TEST(document_convert_invalid_utf16)
+{
+	// check non-terminated degenerate handling
+	CHECK(test_parse_fail("\x00<\xda\x1d", 4, encoding_utf16_be));
+	CHECK(test_parse_fail("<\x00\x1d\xda", 4, encoding_utf16_le));
+
+	// check incorrect leading code
+	CHECK(test_parse_fail("\x00<\xde\x24", 4, encoding_utf16_be));
+	CHECK(test_parse_fail("<\x00\x24\xde", 4, encoding_utf16_le));
+}
