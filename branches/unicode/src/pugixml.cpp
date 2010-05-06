@@ -680,11 +680,8 @@ namespace
 		return true;
 	}
 
-	bool convert_buffer(char_t*& out_buffer, size_t& out_length, encoding_t user_encoding, const void* contents, size_t size, bool is_mutable)
+	bool convert_buffer(char_t*& out_buffer, size_t& out_length, encoding_t encoding, const void* contents, size_t size, bool is_mutable)
 	{
-		// get actual encoding
-		encoding_t encoding = get_buffer_encoding(user_encoding, contents, size);
-
 		// get native encoding
 		encoding_t wchar_encoding = get_wchar_encoding();
 
@@ -767,11 +764,8 @@ namespace
 		return true;
 	}
 
-	bool convert_buffer(char_t*& out_buffer, size_t& out_length, encoding_t user_encoding, const void* contents, size_t size, bool is_mutable)
+	bool convert_buffer(char_t*& out_buffer, size_t& out_length, encoding_t encoding, const void* contents, size_t size, bool is_mutable)
 	{
-		// get actual encoding
-		encoding_t encoding = get_buffer_encoding(user_encoding, contents, size);
-
 		// fast path: no conversion required
 		if (encoding == encoding_utf8) return get_mutable_buffer(out_buffer, out_length, contents, size, is_mutable);
 
@@ -1221,7 +1215,7 @@ namespace
 
 	inline xml_parse_result make_parse_result(xml_parse_status status, ptrdiff_t offset, unsigned int line)
 	{
-		xml_parse_result result = {status, offset, line};
+		xml_parse_result result = {status, offset, line, encoding_auto};
 		return result;
 	}
 
@@ -3741,14 +3735,20 @@ namespace pugi
 	{
 		destroy();
 
+		// get actual encoding
+		encoding_t buffer_encoding = get_buffer_encoding(encoding, contents, size);
+
 		// get private buffer
 		char_t* buffer;
 		size_t length;
 
-		if (!convert_buffer(buffer, length, encoding, contents, size, false)) return MAKE_PARSE_RESULT(status_out_of_memory);
+		if (!convert_buffer(buffer, length, buffer_encoding, contents, size, false)) return MAKE_PARSE_RESULT(status_out_of_memory);
 		
 		// parse
 		xml_parse_result res = xml_parser::parse(buffer, length, _root, options);
+
+		// remember encoding
+		res.encoding = buffer_encoding;
 
 		// grab onto buffer
 		_buffer = buffer;
@@ -3760,14 +3760,20 @@ namespace pugi
 	{
 		destroy();
 
+		// get actual encoding
+		encoding_t buffer_encoding = get_buffer_encoding(encoding, contents, size);
+
 		// get private buffer
 		char_t* buffer;
 		size_t length;
 
-		if (!convert_buffer(buffer, length, encoding, contents, size, true)) return MAKE_PARSE_RESULT(status_out_of_memory);
+		if (!convert_buffer(buffer, length, buffer_encoding, contents, size, true)) return MAKE_PARSE_RESULT(status_out_of_memory);
 		
 		// parse
 		xml_parse_result res = xml_parser::parse(buffer, length, _root, options);
+
+		// remember encoding
+		res.encoding = buffer_encoding;
 
 		// grab onto buffer if it's our buffer, user is responsible for deallocating contens himself
 		if (buffer != contents) _buffer = buffer;
@@ -3779,17 +3785,23 @@ namespace pugi
 	{
 		destroy();
 
+		// get actual encoding
+		encoding_t buffer_encoding = get_buffer_encoding(encoding, contents, size);
+
 		// get private buffer
 		char_t* buffer;
 		size_t length;
 
-		if (!convert_buffer(buffer, length, encoding, contents, size, true)) return MAKE_PARSE_RESULT(status_out_of_memory);
+		if (!convert_buffer(buffer, length, buffer_encoding, contents, size, true)) return MAKE_PARSE_RESULT(status_out_of_memory);
 
 		// delete original buffer if we performed a conversion
 		if (buffer != contents) global_deallocate(contents);
 		
 		// parse
 		xml_parse_result res = xml_parser::parse(buffer, length, _root, options);
+
+		// remember encoding
+		res.encoding = buffer_encoding;
 
 		// grab onto buffer
 		_buffer = buffer;
