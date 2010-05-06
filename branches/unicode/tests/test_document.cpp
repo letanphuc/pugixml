@@ -5,6 +5,7 @@
 #include "writer_string.hpp"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <fstream>
 #include <sstream>
@@ -511,7 +512,7 @@ TEST(document_contents_preserve)
 	}
 }
 
-bool test_parse_fail(const void* buffer, size_t size, encoding_t encoding = encoding_utf8)
+static bool test_parse_fail(const void* buffer, size_t size, encoding_t encoding = encoding_utf8)
 {
 	// copy buffer to heap (to enable out-of-bounds checks)
 	void* temp = malloc(size);

@@ -202,6 +202,25 @@ TEST(write_encoding_huge)
 
 	CHECK(test_write_narrow(doc, format_default, encoding_utf16_be, s_utf16.c_str(), s_utf16.length()));
 }
+
+TEST(write_encoding_huge_invalid)
+{
+	const unsigned int N = 16000;
+
+	// make a large utf8 name consisting of non-leading chars
+	std::string s_utf8 = "<";
+
+	for (unsigned int i = 0; i < N; ++i) s_utf8 += "\x82";
+
+	s_utf8 += "/>";
+
+	xml_document doc;
+	CHECK(doc.load_buffer(&s_utf8[0], s_utf8.length(), parse_default, encoding_utf8));
+
+	std::string s_utf16 = std::string("\x00<\x00 \x00/\x00>\x00\n", 10);
+
+	CHECK(test_write_narrow(doc, format_default, encoding_utf16_be, s_utf16.c_str(), s_utf16.length()));
+}
 #endif
 
 TEST(write_unicode_escape)
@@ -215,7 +234,7 @@ TEST(write_unicode_escape)
 }
 
 #ifdef PUGIXML_WCHAR_MODE
-bool test_write_unicode_invalid(const wchar_t* name, const char* expected)
+static bool test_write_unicode_invalid(const wchar_t* name, const char* expected)
 {
 	xml_document doc;
 	doc.append_child(node_pcdata).set_value(name);
@@ -244,7 +263,7 @@ TEST(write_unicode_invalid_utf16)
 #endif
 }
 #else
-bool test_write_unicode_invalid(const char* name, const wchar_t* expected)
+static bool test_write_unicode_invalid(const char* name, const wchar_t* expected)
 {
 	xml_document doc;
 	doc.append_child(node_pcdata).set_value(name);

@@ -1789,6 +1789,14 @@ namespace
 	}
 
 #ifdef PUGIXML_WCHAR_MODE
+	size_t get_valid_length(const char_t* data, size_t length)
+	{
+		assert(length > 0);
+
+		// discard last character if it's the lead of a surrogate pair 
+		return (sizeof(wchar_t) == 2 && (unsigned)(static_cast<impl::char16_t>(data[length - 1]) - 0xD800) < 0x400) ? length - 1 : length;
+	}
+
 	size_t convert_buffer(char* result, const char_t* data, size_t length, encoding_t encoding)
 	{
 		// only endian-swapping is required
@@ -1849,6 +1857,22 @@ namespace
 		return 0;
 	}
 #else
+	size_t get_valid_length(const char_t* data, size_t length)
+	{
+		assert(length > 4);
+
+		for (size_t i = 1; i <= 4; ++i)
+		{
+			impl::char8_t ch = static_cast<impl::char8_t>(data[length - i]);
+
+			// either a standalone character or a leading one
+			if ((ch & 0xc0) != 0x80) return length - i;
+		}
+
+		// there are four non-leading characters at the end, sequence tail is broken so might as well process the whole chunk
+		return length;
+	}
+
 	size_t convert_buffer(char* result, const char_t* data, size_t length, encoding_t encoding)
 	{
 		if (encoding == encoding_utf16_be || encoding == encoding_utf16_le)
@@ -1948,8 +1972,8 @@ namespace
 					while (length > bufcapacity)
 					{
 						// get chunk size by selecting such number of characters that are guaranteed to fit into scratch buffer
-						// and do not leave a very small tail (to prevent out-of-buffer reads for invalid utf streams)
-						size_t chunk_size = (length - 4 < bufcapacity) ? length - 4 : static_cast<size_t>(bufcapacity);
+						// and form a complete codepoint sequence (i.e. discard start of last codepoint if necessary)
+						size_t chunk_size = get_valid_length(data, bufcapacity);
 
 						// convert chunk and write
 						flush(data, chunk_size);
@@ -2041,7 +2065,7 @@ namespace
 		// utf32 maximum expansion: x1
 		enum { bufcapacity = 2048 };
 
-		char_t buffer[bufcapacity + 4];
+		char_t buffer[bufcapacity];
 		char scratch[4 * bufcapacity];
 
 		xml_writer& writer;
